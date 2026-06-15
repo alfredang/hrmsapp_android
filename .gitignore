@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+keystore.properties
+*.keystore
+*.jks
+
+# Play Developer API service account key (secret)
+play/service-account.json

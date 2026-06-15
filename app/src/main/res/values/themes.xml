@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme: a dark, branded Premier Blue surface. Compose draws everything;
+         this just sets the window background and status/navigation bars before Compose loads. -->
+    <style name="Theme.TertiaryHRMS" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0A1F44</item>
+        <item name="android:navigationBarColor">#0A1F44</item>
+        <item name="android:windowBackground">#0A1F44</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

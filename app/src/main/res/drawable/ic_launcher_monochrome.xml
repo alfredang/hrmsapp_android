@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon (Android 13+) monochrome layer: a two-person silhouette kept inside the
+     adaptive safe zone. The system tints this by alpha, so it is a single-colour glyph
+     on transparent (not the full-colour foreground). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- back person (left) -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M41,47 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M23,78 C23,67 31,61 41,61 C45,61 49,62 52,64 C47,67 44,72 44,78 Z" />
+    <!-- front person (right) -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M67,45 m-13,0 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M48,82 C48,69 56,62 67,62 C78,62 86,69 86,82 Z" />
+</vector>
