@@ -7,16 +7,22 @@ Guidance for Claude Code when working in this repository.
 **Tertiary HRMS — native Android app** (Kotlin + Jetpack Compose, Material 3, MVVM). The Google
 Play build of Tertiary Infotech Academy's HR Management System, **rebuilt fully native — no
 WebView, no cross-platform runtime**. It is the Android sibling of the native iOS app
-(`../iOS/TertiaryHRMSiOSApp`) and is a faithful 1:1 port of its features, theme, and API layer.
-Min SDK **24 (Android 7)**, target SDK **36**, phone-first, theme **Premier Blue** (navy →
-premier-blue → azure gradient, `ui/theme/Theme.kt`).
+(`../iOS/TertiaryHRMSiOSApp`) and ports its features and API layer 1:1. Min SDK **24 (Android 7)**,
+target SDK **36**, phone-first.
 
-## Relationship to the web app (hrms.tertiaryinfotech.com) and Coolify
+**Theme**: pixel-matched to the web app's actual dark design system, not a distinct mobile
+identity — flat `gray-950`/`gray-900`/`gray-800` surfaces (no gradients), an indigo `#6366F1`
+accent, and Inter typography (`ui/theme/Theme.kt`, `Type.kt`). Every screen's colors, copy, and
+layout are ported from the corresponding web page (`tailwind.config.ts` / `globals.css` /
+`src/app/**/page.tsx` in the web repo) rather than an independently-designed mobile skin. When the
+web app's design changes, mirror it here too.
+
+## Relationship to the web app (hrms.tertiaryinfo.tech) and Coolify
 
 Identical to the iOS app: this native app is a **client of the existing HRMS web backend** — it has
 no database of its own.
 
-- The web app is a **Next.js 14** application on **Coolify** at `https://hrms.tertiaryinfotech.com`,
+- The web app is a **Next.js 14** application on **Coolify** at `https://hrms.tertiaryinfo.tech`,
   backed by **PostgreSQL**. The app pulls all data from that deployment over HTTPS; it never talks
   to PostgreSQL directly.
 - **Authentication** reuses the web app's **NextAuth (Auth.js)** session. `data/AuthService.kt`
@@ -81,6 +87,9 @@ apply-leave + PDF download), both riding one shared OkHttp client + `PersistentC
 ## Conventions
 
 Follow the bundled `mobile-android-design` skill: Material Design 3, Compose idioms, large
-typography, ≥48dp touch targets. The app runs on a dark, branded Premier Blue surface
-(`darkColorScheme` + gradient brushes). Keep parity with the iOS app — when a feature changes on one
-platform, mirror it on the other.
+typography, ≥48dp touch targets. The app runs on the web app's flat dark surface (`darkColorScheme`
+in `ui/theme/Theme.kt` — `Brand.Background`/`Brand.Surface`, no gradients), indigo accent, and
+pastel status-badge/banner tints (`StatusTint`, `IconTint`, `BannerTint`) copied from the web app's
+Tailwind classes. Keep parity with the iOS app for *functional* behavior — when a feature changes
+on one platform, mirror it on the other — but for *visual* design, the web app is the source of
+truth.

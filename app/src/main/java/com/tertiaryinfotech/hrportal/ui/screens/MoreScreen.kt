@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
+import com.tertiaryinfotech.hrportal.ui.theme.IconTint
 
 /** More tab — entry points to the remaining modules + sign out. Mirrors iOS MoreView. */
 @Composable
@@ -60,51 +62,57 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
                     Column(modifier = Modifier.padding(start = 14.dp)) {
                         Text(auth.user?.displayName ?: "Employee", color = Color.White,
                             fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                        Text(auth.user?.email ?: "", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                        Text(auth.user?.email ?: "", color = Brand.TextSecondary, fontSize = 12.sp)
                     }
                 }
             }
 
             // Module list
             Card(padding = 6) {
-                MenuLink("Payslips", Icons.Filled.Description, Brand.Green) { nav.navigate("payslips") }
+                MenuLink("Payslips", Icons.Filled.Description, IconTint.Green) { nav.navigate("payslips") }
                 MenuDivider()
-                MenuLink("Expense claims", Icons.Filled.CreditCard, Brand.Orange) { nav.navigate("expenses") }
+                MenuLink("Expense claims", Icons.Filled.CreditCard, IconTint.Purple) { nav.navigate("expenses") }
                 MenuDivider()
-                MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Sky) { nav.navigate("calendar") }
+                MenuLink("Calendar", Icons.Filled.CalendarMonth, IconTint.Blue) { nav.navigate("calendar") }
                 MenuDivider()
-                MenuLink("Timesheet", Icons.Filled.Schedule, Brand.Mint) { nav.navigate("timesheet") }
+                MenuLink("Timesheet", Icons.Filled.Schedule, IconTint.Emerald) { nav.navigate("timesheet") }
                 MenuDivider()
-                MenuLink("My profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
+                MenuLink("My profile", Icons.Filled.AccountCircle, IconTint.Amber) { nav.navigate("profile") }
+                MenuDivider()
+                MenuLink("Woods Square Access", Icons.Filled.MeetingRoom, IconTint.Blue) { nav.navigate("woods_square") }
             }
 
             SignOutButton(auth)
 
-            Text("Tertiary HRMS · v1.0", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp,
+            Text("Tertiary HRMS · v1.0", color = Brand.TextMuted, fontSize = 11.sp,
                 modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
 
 @Composable
-private fun MenuLink(title: String, icon: ImageVector, tint: Color, onClick: () -> Unit) {
+private fun MenuLink(title: String, icon: ImageVector, tint: IconTint.Tint, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 15.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
+        Box(
+            modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(tint.bg).padding(8.dp),
+        ) {
+            Icon(icon, contentDescription = null, tint = tint.icon, modifier = Modifier.size(20.dp))
+        }
         Text(title, color = Color.White, modifier = Modifier.padding(start = 14.dp).weight(1f))
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-            tint = Color.White.copy(alpha = 0.4f))
+            tint = Brand.TextMuted)
     }
 }
 
 @Composable
 private fun MenuDivider() {
-    Box(modifier = Modifier.fillMaxWidth().padding(start = 52.dp).height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+    Box(modifier = Modifier.fillMaxWidth().padding(start = 52.dp).height(1.dp).background(Brand.Border))
 }
 
 @Composable
@@ -114,13 +122,13 @@ private fun SignOutButton(auth: AuthViewModel) {
             .fillMaxWidth()
             .height(Brand.ControlHeight.dp)
             .clip(RoundedCornerShape(Brand.Corner.dp))
-            .background(Color.White.copy(alpha = 0.12f))
-            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(Brand.Corner.dp))
+            .background(Brand.Surface)
+            .border(1.dp, Brand.Border, RoundedCornerShape(Brand.Corner.dp))
             .clickable { auth.signOut() },
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color.White)
-        Text("Sign out", color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Brand.Red)
+        Text("Sign out", color = Brand.Red, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
     }
 }

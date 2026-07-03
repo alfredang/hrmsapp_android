@@ -1,26 +1,30 @@
 package com.tertiaryinfotech.hrportal.ui
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tertiaryinfotech.hrportal.data.AuthException
 import com.tertiaryinfotech.hrportal.data.AuthService
+import com.tertiaryinfotech.hrportal.data.HrmsApi
+import com.tertiaryinfotech.hrportal.data.SessionPrefs
 import com.tertiaryinfotech.hrportal.data.SessionUser
+import com.tertiaryinfotech.hrportal.data.STAFF_NOTIFICATION_TYPES
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * The single source of truth the screens observe. Owns the auth flow state machine, drives
- * [AuthService], and persists the optionally-remembered login email. Mirrors AuthViewModel.swift.
+ * [AuthService], and persists the optionally-remembered login email via [SessionPrefs]
+ * (DataStore-backed). Mirrors AuthViewModel.swift.
  */
-class AuthViewModel(app: Application) : AndroidViewModel(app) {
+@HiltViewModel
+class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) : ViewModel() {
 
     enum class Step { EMAIL, PASSWORD, OTP }
     enum class Phase { LOADING, SIGNED_OUT, SIGNED_IN }
-
-    private val prefs = app.getSharedPreferences("hrms_prefs", Application.MODE_PRIVATE)
 
     var phase by mutableStateOf(Phase.LOADING)
         private set
@@ -41,10 +45,27 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     var user by mutableStateOf<SessionUser?>(null)
         private set
 
-    var rememberEmail by mutableStateOf(prefs.getBoolean(KEY_REMEMBER_FLAG, false))
+    /** Unread count for the notification bell — staff/intern-relevant types only,
+     *  mirrors `EMPLOYEE_TYPES` filtering in the web's `notification-bell.tsx`. */
+    var unreadNotifications by mutableStateOf(0)
+        private set
+
+    fun refreshUnreadCount() {
+        viewModelScope.launch {
+            try {
+                val all = HrmsApi.notifications()
+                unreadNotifications = all.count { !it.read && it.type in STAFF_NOTIFICATION_TYPES }
+            } catch (_: Exception) { /* leave last-known count on failure */ }
+        }
+    }
+
+    var rememberEmail by mutableStateOf(false)
 
     init {
-        if (rememberEmail) email = prefs.getString(KEY_REMEMBERED_EMAIL, "") ?: ""
+        viewModelScope.launch {
+            rememberEmail = sessionPrefs.rememberFlag()
+            if (rememberEmail) email = sessionPrefs.rememberedEmail()
+        }
     }
 
     // MARK: - Lifecycle
@@ -71,9 +92,11 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     fun continueFromEmail() {
         errorMessage = null; infoMessage = null
         if (!isValidEmail(email)) { errorMessage = "Enter a valid email address."; return }
-        persistRememberFlag()
-        persistRememberedEmail()
-        step = Step.PASSWORD
+        viewModelScope.launch {
+            persistRememberFlag()
+            persistRememberedEmail()
+            step = Step.PASSWORD
+        }
     }
 
     fun backToEmail() {
@@ -95,8 +118,10 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setRemember(value: Boolean) {
         rememberEmail = value
-        persistRememberFlag()
-        persistRememberedEmail()
+        viewModelScope.launch {
+            persistRememberFlag()
+            persistRememberedEmail()
+        }
     }
 
     // MARK: - Actions
@@ -175,22 +200,16 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun normalizedEmail(): String = email.lowercase().trim()
 
-    private fun persistRememberFlag() {
-        prefs.edit().putBoolean(KEY_REMEMBER_FLAG, rememberEmail).apply()
+    private suspend fun persistRememberFlag() {
+        sessionPrefs.setRememberFlag(rememberEmail)
     }
 
-    private fun persistRememberedEmail() {
-        if (rememberEmail) prefs.edit().putString(KEY_REMEMBERED_EMAIL, normalizedEmail()).apply()
-        else prefs.edit().remove(KEY_REMEMBERED_EMAIL).apply()
+    private suspend fun persistRememberedEmail() {
+        sessionPrefs.setRememberedEmail(if (rememberEmail) normalizedEmail() else null)
     }
 
     private fun isValidEmail(s: String): Boolean {
         val t = s.trim()
         return t.contains("@") && t.contains(".") && t.length >= 5
-    }
-
-    private companion object {
-        const val KEY_REMEMBER_FLAG = "hrms_remember_email"
-        const val KEY_REMEMBERED_EMAIL = "hrms_remembered_email"
     }
 }

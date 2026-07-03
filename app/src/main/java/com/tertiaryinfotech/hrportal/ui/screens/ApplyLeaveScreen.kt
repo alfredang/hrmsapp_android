@@ -128,11 +128,11 @@ fun ApplyLeaveSheet(
                     if (isMedical) {
                         Text(
                             "For medical leave, please email your medical certificate to HR or attach it on the web portal.",
-                            color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp,
+                            color = Brand.TextSecondary, fontSize = 12.sp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
+                                .clip(RoundedCornerShape(Brand.Corner.dp))
+                                .background(Brand.Border)
                                 .padding(12.dp),
                         )
                     }
@@ -180,14 +180,14 @@ fun ApplyLeaveSheet(
                     TextField(
                         value = reason,
                         onValueChange = { reason = it },
-                        placeholder = { Text("e.g. Family matters", color = Color.White.copy(alpha = 0.5f)) },
+                        placeholder = { Text("e.g. Family matters", color = Brand.TextMuted) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
+                            focusedContainerColor = Brand.Border,
+                            unfocusedContainerColor = Brand.Border,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedIndicatorColor = Brand.Sky,
+                            focusedIndicatorColor = Brand.Primary,
                             unfocusedIndicatorColor = Color.Transparent,
                         ),
                     )
@@ -225,36 +225,3 @@ fun ApplyLeaveSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateField(initial: Long, minMillis: Long? = null, onPick: (Long) -> Unit, onCancel: () -> Unit) {
-    val state = rememberDatePickerState(initialSelectedDateMillis = initial)
-    DatePickerDialog(
-        onDismissRequest = onCancel,
-        confirmButton = {
-            TextButton(onClick = {
-                val picked = state.selectedDateMillis ?: initial
-                onPick(if (minMillis != null && picked < minMillis) minMillis else picked)
-            }) { Text("OK") }
-        },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
-    ) {
-        DatePicker(state = state)
-    }
-}
-
-@Composable
-private fun FieldLabel(text: String) {
-    Text(text, color = Color.White.copy(alpha = 0.85f), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-}
-
-@Composable
-private fun FieldBox(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.08f))
-            .padding(14.dp),
-    ) { content() }
-}

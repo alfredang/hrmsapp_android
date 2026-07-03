@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,18 +36,19 @@ import com.tertiaryinfotech.hrportal.util.Fmt
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/** Calendar — public holidays, your events, and approved leave, grouped by month. */
+/** Calendar — public holidays, your events, and approved leave, grouped by month. Reached from
+ *  the drawer, so it keeps its own back-button top bar. */
 @Composable
 fun CalendarScreen(nav: NavController) {
     BrandScaffold(title = "Calendar", onBack = { nav.popBackStack() }) { inner ->
-        Column(modifier = Modifier.padding(inner)) {
+        Column(modifier = Modifier.padding(inner).fillMaxSize()) {
             AsyncListScreen(fetch = { HrmsApi.calendar() }) { data ->
                 if (data.events.isEmpty()) {
                     item { EmptyHint(Icons.Filled.CalendarMonth, "No upcoming events.") }
                 }
                 grouped(data.events).forEach { (month, events) ->
                     item {
-                        Text(month, color = Color.White.copy(alpha = 0.9f),
+                        Text(month, color = Color.White,
                             fontWeight = FontWeight.Bold, fontSize = 17.sp,
                             modifier = Modifier.padding(bottom = 10.dp, top = 8.dp))
                     }
@@ -67,7 +69,7 @@ private fun EventRow(e: CalendarEvent) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.width(46.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(dayNum(e.startDate), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(weekday(e.startDate), color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                Text(weekday(e.startDate), color = Brand.TextSecondary, fontSize = 11.sp)
             }
             Box(modifier = Modifier.padding(horizontal = 12.dp).width(3.dp).height(36.dp)
                 .clip(CircleShape).background(tint))
@@ -79,12 +81,14 @@ private fun EventRow(e: CalendarEvent) {
     }
 }
 
+/** Mirrors the web calendar's literal event-type colors (`calendar/page.tsx:73-80`). */
 private fun tintFor(type: String): Color = when (type) {
     "HOLIDAY" -> Brand.Red
-    "LEAVE" -> Brand.Sky
-    "TRAINING" -> Brand.Mint
-    "MEETING" -> Brand.Orange
-    else -> Brand.Azure
+    "MEETING" -> Brand.Blue
+    "TRAINING" -> Brand.Purple
+    "COMPANY_EVENT" -> Brand.Green
+    "LEAVE" -> Brand.Amber
+    else -> Brand.Blue
 }
 
 private fun label(type: String): String =

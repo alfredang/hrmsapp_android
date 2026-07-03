@@ -15,10 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * A screen scaffold with a transparent Premier-Blue top bar (white title, optional back
- * button). The background gradient is provided by the enclosing GradientScreen.
+ * A screen scaffold with a flat `gray-950` top bar (white title, optional back button) — mirrors
+ * the web app's header over its `bg-gray-950` page background. The background is provided by the
+ * enclosing GradientScreen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +44,7 @@ fun BrandScaffold(
                 },
                 actions = { actions() },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0A1A38),
+                    containerColor = Brand.Background,
                     titleContentColor = Color.White,
                 ),
             )

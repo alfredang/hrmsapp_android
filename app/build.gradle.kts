@@ -5,6 +5,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -76,9 +78,24 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.4")
 
-    // Networking + JSON (mirrors the iOS URLSession + Codable layer)
+    // Networking + JSON (Retrofit rides the same OkHttp client + kotlinx.serialization models
+    // the app already used; mirrors the iOS URLSession + Codable layer)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
+
+    // Dependency injection
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    ksp("com.google.dagger:hilt-compiler:2.51.1")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+    // Image loading (employee/profile avatars)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Session-adjacent app preferences (remembered email) — cookie persistence stays in the
+    // existing PersistentCookieJar, which DataStore's key-value model doesn't fit.
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -38,7 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.BasicTextField
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
-/** A glassy text field styled for the dark Premier Blue surface. Mirrors iOS PremierField. */
+/**
+ * A text field styled to match the web's Input component exactly: `bg-gray-800 border-gray-700
+ * text-white placeholder:text-gray-500 focus:border-primary` (`login/page.tsx:297`).
+ */
 @Composable
 fun PremierField(
     title: String,
@@ -53,22 +56,22 @@ fun PremierField(
 ) {
     var focused by remember { mutableStateOf(false) }
     var revealed by remember { mutableStateOf(false) }
-    val borderColor = if (focused) Brand.Sky.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.22f)
+    val borderColor = if (focused) Brand.Primary else Brand.BorderLight
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(Brand.ControlHeight.dp)
             .clip(RoundedCornerShape(Brand.Corner.dp))
-            .background(Color.White.copy(alpha = 0.12f))
+            .background(Brand.Border)
             .border(1.dp, borderColor, RoundedCornerShape(Brand.Corner.dp))
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = Brand.TextSecondary, modifier = Modifier.size(20.dp))
         Box(modifier = Modifier.weight(1f).padding(start = 12.dp), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) {
-                Text(title, color = Color.White.copy(alpha = 0.55f))
+                Text(title, color = Brand.TextMuted)
             }
             BasicTextField(
                 value = value,
@@ -78,7 +81,7 @@ fun PremierField(
                     .onFocusChangedCompat { focused = it },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(color = Color.White),
-                cursorBrush = SolidColor(Brand.Sky),
+                cursorBrush = SolidColor(Brand.Primary),
                 visualTransformation = if (isSecure && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
                 keyboardActions = KeyboardActions(
@@ -94,7 +97,7 @@ fun PremierField(
                 Icon(
                     if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                     contentDescription = if (revealed) "Hide" else "Show",
-                    tint = Color.White.copy(alpha = 0.6f),
+                    tint = Brand.TextSecondary,
                 )
             }
         }

@@ -64,14 +64,14 @@ private fun PayslipRow(p: Payslip, onClick: () -> Unit) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(period(p), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text("Paid ${Fmt.date(p.paymentDate)}", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                Text("Paid ${Fmt.date(p.paymentDate)}", color = Brand.TextSecondary, fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp)) {
                 Text(Fmt.money(p.netSalary), color = Brand.Green, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 StatusPill(p.status)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-                tint = Color.White.copy(alpha = 0.4f))
+                tint = Brand.TextMuted)
         }
     }
 }

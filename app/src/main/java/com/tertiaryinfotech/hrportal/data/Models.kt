@@ -223,7 +223,9 @@ data class EmployeeProfile(
     val department: String? = null,
     val employmentType: String = "",
     val nationality: String = "",
+    val nric: String? = null,
     val gender: String = "",
+    val educationLevel: String? = null,
     val dateOfBirth: String? = null,
     val address: String? = null,
     val startDate: String? = null,
@@ -233,6 +235,79 @@ data class EmployeeProfile(
     val monthlyLeaveRate: Double? = null,
     val roles: List<String> = emptyList(),
     val role: String = "",
+)
+
+// MARK: - Notifications (/api/notifications)
+
+@Serializable
+data class AppNotification(
+    val id: String,
+    val title: String = "",
+    val message: String = "",
+    val type: String = "",
+    val read: Boolean = false,
+    val link: String? = null,
+    val createdAt: String? = null,
+)
+
+/** Notification types relevant to a staff/intern view — mirrors `EMPLOYEE_TYPES`
+ *  in the web's `notification-bell.tsx`. */
+val STAFF_NOTIFICATION_TYPES = setOf(
+    "LEAVE_APPROVED", "LEAVE_REJECTED",
+    "OT_APPROVED", "OT_REJECTED",
+    "WOODS_SQUARE_APPROVED", "WOODS_SQUARE_DECLINED",
+    "INFO",
+)
+
+// MARK: - Upload (/api/upload)
+
+@Serializable
+data class UploadResult(
+    val url: String,
+    val fileName: String,
+)
+
+// MARK: - Woods Square access (/api/mobile/woods-square)
+
+@Serializable
+data class WoodsSquareResponse(
+    val invites: List<WoodsSquareInvite> = emptyList(),
+    val requests: List<WoodsSquareRequest> = emptyList(),
+)
+
+@Serializable
+data class WoodsSquareInvite(
+    val id: String,
+    val fromDate: String? = null,
+    val toDate: String? = null,
+    val createdAt: String? = null,
+    val status: String = "",
+)
+
+@Serializable
+data class WoodsSquareRequest(
+    val id: String,
+    val fromDate: String? = null,
+    val toDate: String? = null,
+    val note: String? = null,
+    val status: String = "",
+    val createdAt: String? = null,
+)
+
+// MARK: - Attendance / clock-in-out (/api/mobile/attendance)
+
+@Serializable
+data class AttendanceResponse(
+    val today: AttendancePunch? = null,
+    val recent: List<AttendancePunch> = emptyList(),
+)
+
+@Serializable
+data class AttendancePunch(
+    val id: String,
+    val date: String? = null,
+    val clockIn: String? = null,
+    val clockOut: String? = null,
 )
 
 // MARK: - Timesheet (existing /api/timesheet)

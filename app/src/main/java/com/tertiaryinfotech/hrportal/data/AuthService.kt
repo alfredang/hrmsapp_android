@@ -5,15 +5,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.FormBody
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.MediaType.Companion.toMediaType
+import retrofit2.Response
 
 /**
  * Authenticates real employees against the Coolify-hosted HRMS backend via its NextAuth
- * (Auth.js) endpoints — no data is read from the database directly. Mirrors
- * Services/AuthService.swift.
+ * (Auth.js) endpoints — no data is read from the database directly. Backed by Retrofit
+ * (`AuthApiService`, `data/Net.kt`). Mirrors Services/AuthService.swift.
  *
  * NextAuth credential sign-in is a small dance:
  *   1. GET  /api/auth/csrf                → csrfToken (+ csrf cookie)
@@ -27,7 +24,7 @@ class AuthException(val kind: Kind, message: String) : Exception(message) {
 
 object AuthService {
 
-    private val client get() = Net.client
+    private val service get() = Net.authApiService
     private val json: Json get() = Net.json
 
     // MARK: - Public API
@@ -42,19 +39,12 @@ object AuthService {
 
     /** Request a one-time passcode be emailed to the employee. */
     suspend fun requestOTP(email: String): Unit = withContext(Dispatchers.IO) {
-        val body = JsonObject(mapOf("email" to kotlinx.serialization.json.JsonPrimitive(email)))
-        val req = Request.Builder()
-            .url(Net.url("api/auth/send-otp"))
-            .post(body.toString().toRequestBody(JSON_MEDIA))
-            .build()
-        val resp = call(req)
-        val code = resp.code
-        val text = resp.body?.string().orEmpty()
-        resp.close()
+        val resp = call { service.sendOtp(SendOtpBody(email)) }
+        val code = resp.code()
         if (code == 404) throw AuthException(AuthException.Kind.NO_ACCOUNT,
             "No account found for this email. Please contact HR.")
         if (code >= 400) throw AuthException(AuthException.Kind.SERVER,
-            errorMessage(text) ?: "Could not send the code. Please try again.")
+            errorMessage(resp) ?: "Could not send the code. Please try again.")
     }
 
     /** Verify the emailed OTP and sign in. */
@@ -67,14 +57,8 @@ object AuthService {
 
     /** The current session user, if a valid session cookie is present. */
     suspend fun currentUser(): SessionUser? = withContext(Dispatchers.IO) {
-        val req = Request.Builder()
-            .url(Net.url("api/auth/session"))
-            .header("Accept", "application/json")
-            .get()
-            .build()
-        val resp = call(req)
-        val text = resp.body?.string()?.trim().orEmpty()
-        resp.close()
+        val resp = call { service.session() }
+        val text = resp.body()?.string()?.trim().orEmpty()
         if (text.isEmpty() || text == "null") return@withContext null
         try {
             json.decodeFromString(SessionResponse.serializer(), text).user
@@ -87,30 +71,16 @@ object AuthService {
     suspend fun signOut(): Unit = withContext(Dispatchers.IO) {
         try {
             val token = csrfToken()
-            val form = FormBody.Builder().add("csrfToken", token).add("json", "true").build()
-            val req = Request.Builder().url(Net.url("api/auth/signout")).post(form).build()
-            call(req).close()
+            call { service.signOut(mapOf("csrfToken" to token, "json" to "true")) }
         } catch (_: Exception) { /* best effort */ }
         Net.cookieJar.clear()
     }
 
     // MARK: - NextAuth plumbing
 
-    private fun csrfToken(): String {
-        val req = Request.Builder()
-            .url(Net.url("api/auth/csrf"))
-            .header("Accept", "application/json")
-            .get()
-            .build()
-        val resp = call(req)
-        val text = resp.body?.string().orEmpty()
-        resp.close()
-        val token = try {
-            (json.parseToJsonElement(text) as? JsonObject)?.get("csrfToken")?.jsonPrimitive?.content
-        } catch (_: Exception) {
-            null
-        }
-        return token ?: throw AuthException(AuthException.Kind.SERVER,
+    private suspend fun csrfToken(): String {
+        val resp = call { service.csrf() }
+        return resp.body()?.csrfToken ?: throw AuthException(AuthException.Kind.SERVER,
             "Could not start sign-in. Please try again.")
     }
 
@@ -118,36 +88,24 @@ object AuthService {
      * POST a NextAuth credentials callback. On bad credentials NextAuth still returns 2xx but
      * does not set a session cookie, so callers must confirm via [currentUser].
      */
-    private fun postCallback(provider: String, fields: Map<String, String>) {
-        val form = FormBody.Builder().apply {
-            fields.forEach { (k, v) -> add(k, v) }
-            add("callbackUrl", Net.BASE_URL)
-            add("json", "true")
-        }.build()
-        val req = Request.Builder()
-            .url(Net.url("api/auth/callback/$provider"))
-            .header("Accept", "application/json")
-            .post(form)
-            .build()
-        val resp = call(req)
-        val code = resp.code
-        resp.close()
-        if (code >= 500) throw AuthException(AuthException.Kind.SERVER,
+    private suspend fun postCallback(provider: String, fields: Map<String, String>) {
+        val form = fields + mapOf("callbackUrl" to Net.BASE_URL, "json" to "true")
+        val resp = call { service.callback(provider, form) }
+        if (resp.code() >= 500) throw AuthException(AuthException.Kind.SERVER,
             "The server is unavailable. Please try again later.")
     }
 
-    private fun call(req: Request) = try {
-        client.newCall(req).execute()
+    private suspend fun <T> call(req: suspend () -> Response<T>): Response<T> = try {
+        req()
     } catch (e: Exception) {
         throw AuthException(AuthException.Kind.NETWORK,
             "Network error. Check your connection and try again.")
     }
 
-    private fun errorMessage(body: String): String? = try {
+    private fun errorMessage(resp: Response<*>): String? = try {
+        val body = resp.errorBody()?.string().orEmpty()
         (json.parseToJsonElement(body) as? JsonObject)?.get("error")?.jsonPrimitive?.content
     } catch (_: Exception) {
         null
     }
-
-    private val JSON_MEDIA = "application/json".toMediaType()
 }

@@ -4,18 +4,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.RootScreen
 import com.tertiaryinfotech.hrportal.ui.theme.TertiaryHRMSTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             TertiaryHRMSTheme {
-                val auth: AuthViewModel = viewModel()
+                val auth: AuthViewModel = hiltViewModel()
                 RootScreen(auth)
             }
         }

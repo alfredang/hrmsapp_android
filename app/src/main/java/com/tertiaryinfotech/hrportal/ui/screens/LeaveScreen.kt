@@ -1,16 +1,22 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,63 +37,71 @@ import com.tertiaryinfotech.hrportal.data.LeaveRequest
 import com.tertiaryinfotech.hrportal.data.LeaveResponse
 import com.tertiaryinfotech.hrportal.data.LeaveType
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
-import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
+import com.tertiaryinfotech.hrportal.ui.theme.StatusTint
 import com.tertiaryinfotech.hrportal.util.Fmt
 
-/** Leave tab — balances, request history, and apply-for-leave. */
+private val LEAVE_TABS = listOf("AL" to "Annual Leave", "MC" to "Medical Leave")
+
+/** Leave tab — Annual/Medical tabs (mirrors the web's `/leave/annual` + `/leave/medical` pages),
+ *  balances, request history, and apply-for-leave. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaveScreen() {
     var showApply by remember { mutableStateOf(false) }
     var applyTypes by remember { mutableStateOf<List<LeaveType>>(emptyList()) }
     var reloadKey by remember { mutableStateOf(0) }
+    var selectedCode by remember { mutableStateOf("AL") }
 
-    BrandScaffold(
-        title = "Leave",
-        actions = {
-            IconButton(onClick = { showApply = applyTypes.isNotEmpty() }) {
-                Icon(Icons.Filled.AddCircle, contentDescription = "Apply for leave", tint = Brand.Sky)
+    Column(modifier = Modifier.fillMaxSize()) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            LEAVE_TABS.forEachIndexed { i, (code, label) ->
+                SegmentedButton(
+                    selected = selectedCode == code,
+                    onClick = { selectedCode = code },
+                    shape = SegmentedButtonDefaults.itemShape(i, LEAVE_TABS.size),
+                ) { Text(label) }
             }
-        },
-    ) { inner ->
-        Column(modifier = Modifier.padding(inner)) {
-            // reloadKey forces AsyncListScreen to refetch after a successful apply.
-            key(reloadKey) {
-                AsyncListScreen(fetch = {
-                    val data = HrmsApi.leave()
-                    applyTypes = data.types
-                    data
-                }) { data ->
-                    item {
-                        PremierButton(title = "Apply for Leave", icon = Icons.Filled.AddCircle) {
-                            applyTypes = data.types
-                            showApply = true
-                        }
-                    }
-                    item { Spacer18() }
+        }
+        // reloadKey forces AsyncListScreen to refetch after a successful apply.
+        key(reloadKey) {
+            AsyncListScreen(fetch = {
+                val data = HrmsApi.leave()
+                applyTypes = data.types
+                data
+            }) { data ->
+                val balances = data.balances.filter { it.code == selectedCode }
+                val requests = data.requests.filter { it.leaveCode == selectedCode }
 
-                    if (data.balances.isNotEmpty()) {
-                        item { SectionTitle("Balances") }
-                        item { Spacer12() }
-                        items(data.balances) { b ->
-                            BalanceCard(b)
-                            Spacer12()
-                        }
+                item {
+                    PremierButton(title = "Apply for Leave", icon = Icons.Filled.AddCircle) {
+                        applyTypes = data.types
+                        showApply = true
                     }
+                }
+                item { Spacer18() }
 
-                    item { SectionTitle("My requests") }
+                if (balances.isNotEmpty()) {
+                    item { SectionTitle("Balances") }
                     item { Spacer12() }
-                    if (data.requests.isEmpty()) {
-                        item { EmptyHint(Icons.Filled.CalendarToday, "No leave requests yet.") }
-                    } else {
-                        items(data.requests) { r ->
-                            RequestRow(r)
-                            Spacer12()
-                        }
+                    items(balances) { b ->
+                        BalanceCard(b)
+                        Spacer12()
+                    }
+                }
+
+                item { SectionTitle("My requests") }
+                item { Spacer12() }
+                if (requests.isEmpty()) {
+                    item { EmptyHint(Icons.Filled.CalendarToday, "No leave requests yet.") }
+                } else {
+                    items(requests) { r ->
+                        RequestRow(r)
+                        Spacer12()
                     }
                 }
             }
@@ -108,15 +123,27 @@ private fun BalanceCard(b: LeaveBalance) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(b.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text(if (b.paid) "Paid" else "Unpaid", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                if (b.paid) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(StatusTint.Green.bg)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text("Paid Leave", color = StatusTint.Green.text, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Text("Unpaid", color = Brand.TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     Fmt.days(b.available),
-                    color = if (b.available < 0) Brand.Red else Brand.Sky,
+                    color = if (b.available < 0) Brand.Red else Brand.Primary,
                     fontWeight = FontWeight.Bold, fontSize = 18.sp,
                 )
-                Text("available", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                Text("available", color = Brand.TextSecondary, fontSize = 11.sp)
             }
         }
         Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -130,7 +157,7 @@ private fun BalanceCard(b: LeaveBalance) {
 @Composable
 private fun MiniStat(label: String, v: Double) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp)
+        Text(label, color = Brand.TextSecondary, fontSize = 11.sp)
         Text(Fmt.num(v), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
     }
 }
@@ -142,14 +169,14 @@ private fun RequestRow(r: LeaveRequest) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(r.leaveType, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Text("${Fmt.date(r.startDate)} → ${Fmt.date(r.endDate)}",
-                    color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                    color = Brand.TextSecondary, fontSize = 12.sp)
                 if (!r.reason.isNullOrEmpty()) {
-                    Text(r.reason, color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp, maxLines = 2)
+                    Text(r.reason, color = Brand.TextMuted, fontSize = 11.sp, maxLines = 2)
                 }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 StatusPill(r.status)
-                Text(Fmt.days(r.days), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                Text(Fmt.days(r.days), color = Brand.TextSecondary, fontSize = 11.sp)
             }
         }
     }

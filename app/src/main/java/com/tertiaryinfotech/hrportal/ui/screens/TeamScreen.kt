@@ -44,13 +44,13 @@ fun TeamScreen() {
                     TextField(
                         value = query,
                         onValueChange = { query = it },
-                        placeholder = { Text("Search name or role", color = Color.White.copy(alpha = 0.5f)) },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.6f)) },
+                        placeholder = { Text("Search name or role", color = Brand.TextMuted) },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Brand.TextSecondary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
+                            focusedContainerColor = Brand.Border,
+                            unfocusedContainerColor = Brand.Border,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
                             focusedIndicatorColor = Color.Transparent,
@@ -87,15 +87,15 @@ private fun filterEmployees(list: List<Employee>, query: String): List<Employee>
 private fun EmployeeRow(e: Employee, isAdmin: Boolean) {
     Card {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(initials(e.name), 46)
+            InitialsAvatar(initials(e.name), 46, avatarUrl = e.avatarUrl)
             Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
                 Text(e.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Text(
                     listOfNotNull(e.position, e.department).joinToString(" · "),
-                    color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp,
+                    color = Brand.TextSecondary, fontSize = 12.sp,
                 )
                 if (isAdmin && !e.email.isNullOrEmpty()) {
-                    Text(e.email, color = Brand.Sky, fontSize = 11.sp)
+                    Text(e.email, color = Brand.Primary, fontSize = 11.sp)
                 }
             }
         }
