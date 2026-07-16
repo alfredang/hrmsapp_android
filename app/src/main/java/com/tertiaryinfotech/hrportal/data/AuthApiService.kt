@@ -16,6 +16,12 @@ data class CsrfResponse(val csrfToken: String)
 @Serializable
 data class SendOtpBody(val email: String)
 
+/** Mirrors `POST /api/auth/send-otp`'s real success body exactly (`{success:true, message:"OTP
+ *  has been sent to your email address"}`) so the UI can show the server's actual copy instead of
+ *  a client-guessed string. */
+@Serializable
+data class SendOtpResponse(val success: Boolean = true, val message: String? = null)
+
 /**
  * Retrofit definition of the NextAuth (Auth.js) endpoints `AuthService` drives — the standard
  * csrf → callback → session dance, plus send-otp and signout. Mirrors the shape of
@@ -41,5 +47,5 @@ interface AuthApiService {
     suspend fun signOut(@FieldMap fields: Map<String, String>): Response<ResponseBody>
 
     @POST("api/auth/send-otp")
-    suspend fun sendOtp(@Body body: SendOtpBody): Response<ResponseBody>
+    suspend fun sendOtp(@Body body: SendOtpBody): Response<SendOtpResponse>
 }

@@ -7,11 +7,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tertiaryinfotech.hrportal.data.AuthException
 import com.tertiaryinfotech.hrportal.data.AuthService
+import com.tertiaryinfotech.hrportal.data.BrandingResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.SessionPrefs
 import com.tertiaryinfotech.hrportal.data.SessionUser
 import com.tertiaryinfotech.hrportal.data.STAFF_NOTIFICATION_TYPES
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -61,10 +63,27 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
 
     var rememberEmail by mutableStateOf(false)
 
+    /** Company logo/name for the login card — mirrors the web login page's `GET
+     *  /api/public/branding` fetch-on-mount, shown behind a skeleton while in flight
+     *  (`brandingLoading`). Unauthenticated endpoint, safe to call before sign-in. Falls back to
+     *  the bundled default mark on failure — never blocks the login form from being usable. */
+    var branding by mutableStateOf<BrandingResponse?>(null)
+        private set
+    var brandingLoading by mutableStateOf(true)
+        private set
+
     init {
         viewModelScope.launch {
             rememberEmail = sessionPrefs.rememberFlag()
             if (rememberEmail) email = sessionPrefs.rememberedEmail()
+        }
+        viewModelScope.launch {
+            branding = try {
+                HrmsApi.branding()
+            } catch (_: Exception) {
+                null
+            }
+            brandingLoading = false
         }
     }
 
@@ -105,9 +124,11 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         step = Step.EMAIL
     }
 
+    /** "Sign in with OTP instead" (password step) — mirrors the web's `goToEmail()`: returns to
+     *  the email step so the user re-sends an OTP themselves, it does not auto-send one. */
     fun switchToOTP() {
-        errorMessage = null
-        sendOTP()
+        errorMessage = null; infoMessage = null
+        step = Step.EMAIL
     }
 
     fun switchToPassword() {
@@ -143,6 +164,8 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         }
     }
 
+    /** Initial "Send OTP" from the email step — uses the server's own success copy, mirrors
+     *  the web's `handleSendOtp`. */
     fun sendOTP() {
         if (isWorking) return
         errorMessage = null; infoMessage = null
@@ -150,15 +173,37 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         isWorking = true
         viewModelScope.launch {
             try {
-                AuthService.requestOTP(normalizedEmail())
+                val serverMessage = AuthService.requestOTP(normalizedEmail())
                 persistRememberedEmail()
                 step = Step.OTP
-                infoMessage = "We emailed a 6-digit code to ${normalizedEmail()}."
+                infoMessage = serverMessage
             } catch (e: Exception) {
                 errorMessage = (e as? AuthException)?.message ?: "Could not send the code."
             } finally {
                 isWorking = false
             }
+        }
+    }
+
+    var isResending by mutableStateOf(false)
+        private set
+
+    /** "Resend OTP" link on the OTP step — mirrors the web's `handleResendOtp`: distinct client
+     *  copy from the initial send, and the button stays disabled for a flat 5s regardless of how
+     *  quickly the request actually completes (matches web's `setTimeout(..., 5000)`). */
+    fun resendOTP() {
+        if (isResending) return
+        errorMessage = null; infoMessage = null
+        isResending = true
+        viewModelScope.launch {
+            try {
+                AuthService.requestOTP(normalizedEmail())
+                infoMessage = "A new OTP has been sent to your email."
+            } catch (e: Exception) {
+                errorMessage = (e as? AuthException)?.message ?: "Failed to resend OTP."
+            }
+            delay(5000)
+            isResending = false
         }
     }
 

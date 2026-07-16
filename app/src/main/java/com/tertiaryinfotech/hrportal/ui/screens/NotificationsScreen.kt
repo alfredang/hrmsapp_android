@@ -101,7 +101,7 @@ private fun NotificationRow(n: AppNotification, onClick: () -> Unit) {
             Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        n.title, color = if (n.read) Brand.TextSecondary else Color.White,
+                        n.title, color = if (n.read) Brand.TextSecondary else Brand.TextPrimary,
                         fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.weight(1f),
                     )
                     Text(timeAgo(n.createdAt), color = Brand.TextMuted, fontSize = 10.sp)

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
+import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -64,7 +65,7 @@ fun PayslipPdfScreen(nav: NavController) {
             }
 
             when (val r = result) {
-                is PdfResult.Loading -> CircularProgressIndicator(color = Color.White)
+                is PdfResult.Loading -> CircularProgressIndicator(color = Brand.Primary)
                 is PdfResult.Error -> ErrorState("Could not load this payslip PDF.")
                 is PdfResult.Ready -> {
                     Column(
@@ -87,9 +88,9 @@ fun PayslipPdfScreen(nav: NavController) {
 @Composable
 private fun ErrorState(message: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = Color.White.copy(alpha = 0.8f),
+        Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = Brand.TextSecondary,
             modifier = Modifier.size(40.dp))
-        Text(message, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp,
+        Text(message, color = Brand.TextSecondary, fontSize = 14.sp,
             textAlign = TextAlign.Center, modifier = Modifier.padding(top = 14.dp))
     }
 }

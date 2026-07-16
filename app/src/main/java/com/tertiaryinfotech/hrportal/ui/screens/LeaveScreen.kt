@@ -19,6 +19,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -44,18 +45,32 @@ import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.StatusTint
 import com.tertiaryinfotech.hrportal.util.Fmt
+import androidx.navigation.NavController
 
 private val LEAVE_TABS = listOf("AL" to "Annual Leave", "MC" to "Medical Leave")
 
 /** Leave tab — Annual/Medical tabs (mirrors the web's `/leave/annual` + `/leave/medical` pages),
- *  balances, request history, and apply-for-leave. */
+ *  balances, request history, and apply-for-leave. "Apply for Leave" navigates to
+ *  [ApplyLeaveScreen] as a real destination (not a dialog) so it shares this app's normal
+ *  hamburger-drawer top bar, matching the web's own page-not-modal presentation. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LeaveScreen() {
-    var showApply by remember { mutableStateOf(false) }
-    var applyTypes by remember { mutableStateOf<List<LeaveType>>(emptyList()) }
-    var reloadKey by remember { mutableStateOf(0) }
+fun LeaveScreen(nav: NavController) {
     var selectedCode by remember { mutableStateOf("AL") }
+    var reloadKey by remember { mutableStateOf(0) }
+
+    // ApplyLeaveScreen is a real destination now (not a dialog), so it stashes a result flag on
+    // this screen's own saved-state handle before popping back — the standard Navigation Compose
+    // "return a result" pattern — which we turn into a `key()`-forced AsyncListScreen refetch.
+    val savedStateHandle = nav.currentBackStackEntry?.savedStateHandle
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getStateFlow("leave_applied", false)?.collect { applied ->
+            if (applied) {
+                reloadKey++
+                savedStateHandle.set("leave_applied", false)
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
@@ -67,53 +82,39 @@ fun LeaveScreen() {
                 ) { Text(label) }
             }
         }
-        // reloadKey forces AsyncListScreen to refetch after a successful apply.
         key(reloadKey) {
-            AsyncListScreen(fetch = {
-                val data = HrmsApi.leave()
-                applyTypes = data.types
-                data
-            }) { data ->
-                val balances = data.balances.filter { it.code == selectedCode }
-                val requests = data.requests.filter { it.leaveCode == selectedCode }
+        AsyncListScreen(fetch = { HrmsApi.leave() }) { data ->
+            val balances = data.balances.filter { it.code == selectedCode }
+            val requests = data.requests.filter { it.leaveCode == selectedCode }
 
-                item {
-                    PremierButton(title = "Apply for Leave", icon = Icons.Filled.AddCircle) {
-                        applyTypes = data.types
-                        showApply = true
-                    }
+            item {
+                PremierButton(title = if (selectedCode == "MC") "Request MC" else "Apply for Leave", icon = Icons.Filled.AddCircle) {
+                    nav.navigate("leave_request/$selectedCode")
                 }
-                item { Spacer18() }
+            }
+            item { Spacer18() }
 
-                if (balances.isNotEmpty()) {
-                    item { SectionTitle("Balances") }
-                    item { Spacer12() }
-                    items(balances) { b ->
-                        BalanceCard(b)
-                        Spacer12()
-                    }
-                }
-
-                item { SectionTitle("My requests") }
+            if (balances.isNotEmpty()) {
+                item { SectionTitle("Balances") }
                 item { Spacer12() }
-                if (requests.isEmpty()) {
-                    item { EmptyHint(Icons.Filled.CalendarToday, "No leave requests yet.") }
-                } else {
-                    items(requests) { r ->
-                        RequestRow(r)
-                        Spacer12()
-                    }
+                items(balances) { b ->
+                    BalanceCard(b)
+                    Spacer12()
+                }
+            }
+
+            item { SectionTitle("My requests") }
+            item { Spacer12() }
+            if (requests.isEmpty()) {
+                item { EmptyHint(Icons.Filled.CalendarToday, "No leave requests yet.") }
+            } else {
+                items(requests) { r ->
+                    RequestRow(r)
+                    Spacer12()
                 }
             }
         }
-    }
-
-    if (showApply) {
-        ApplyLeaveSheet(
-            types = applyTypes,
-            onDismiss = { showApply = false },
-            onApplied = { showApply = false; reloadKey++ },
-        )
+        } // end key(reloadKey)
     }
 }
 
@@ -122,7 +123,7 @@ private fun BalanceCard(b: LeaveBalance) {
     Card {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(b.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(b.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 if (b.paid) {
                     Box(
                         modifier = Modifier
@@ -158,7 +159,7 @@ private fun BalanceCard(b: LeaveBalance) {
 private fun MiniStat(label: String, v: Double) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, color = Brand.TextSecondary, fontSize = 11.sp)
-        Text(Fmt.num(v), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Text(Fmt.num(v), color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
     }
 }
 
@@ -167,7 +168,7 @@ private fun RequestRow(r: LeaveRequest) {
     Card {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(r.leaveType, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(r.leaveType, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Text("${Fmt.date(r.startDate)} → ${Fmt.date(r.endDate)}",
                     color = Brand.TextSecondary, fontSize = 12.sp)
                 if (!r.reason.isNullOrEmpty()) {

@@ -51,8 +51,8 @@ fun TeamScreen() {
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Brand.Border,
                             unfocusedContainerColor = Brand.Border,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = Brand.TextPrimary,
+                            unfocusedTextColor = Brand.TextPrimary,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
                         ),
@@ -89,7 +89,7 @@ private fun EmployeeRow(e: Employee, isAdmin: Boolean) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             InitialsAvatar(initials(e.name), 46, avatarUrl = e.avatarUrl)
             Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
-                Text(e.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(e.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Text(
                     listOfNotNull(e.position, e.department).joinToString(" · "),
                     color = Brand.TextSecondary, fontSize = 12.sp,

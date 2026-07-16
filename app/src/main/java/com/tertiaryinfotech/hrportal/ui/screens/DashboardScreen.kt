@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -103,9 +103,15 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
         }
         item { Spacer18() }
 
-        item { SectionTitle("Recent Activity") }
-        item { Spacer12() }
         item { RecentActivityCard(d.recentClaims, s.name ?: auth.user?.displayName ?: "Employee") }
+        item { Spacer18() }
+        item {
+            Text(
+                "Powered by Tertiary Infotech Academy Pte Ltd",
+                color = Brand.TextFaint, fontSize = 11.sp,
+                modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -122,24 +128,13 @@ private fun Greeting(s: DashboardSummary, auth: AuthViewModel) {
     Column {
         Text(
             "Welcome Back, ${s.name ?: auth.user?.displayName ?: "Employee"}",
-            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 26.sp,
+            color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp,
         )
         Text(
             "Here's what's happening in your organization",
             color = Brand.TextSecondary, fontSize = 14.sp,
             modifier = Modifier.padding(top = 4.dp),
         )
-        s.role?.let { role ->
-            Text(
-                role.replaceFirstChar { it.uppercase() },
-                color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .padding(top = 10.dp)
-                    .clip(CircleShape)
-                    .background(Brand.Primary)
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            )
-        }
     }
 }
 
@@ -152,7 +147,7 @@ private fun QuickActionRow(title: String, subtitle: String, icon: ImageVector, t
                 Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
             }
             Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text(title, color = Brand.TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                 Text(subtitle, color = Brand.TextSecondary, fontSize = 12.sp)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Brand.TextMuted)
@@ -160,31 +155,42 @@ private fun QuickActionRow(title: String, subtitle: String, icon: ImageVector, t
     }
 }
 
-/** Mirrors `recent-activity.tsx`: the last 5 expense claims, {name} / {amount} - {category} / date. */
+/** Mirrors `recent-activity.tsx` exactly: `bg-gray-950` card, a `CardTitle` heading, then the last
+ *  5 expense claims as {name} / {amount} - {category} / date ("10 Jun", no year) spaced with
+ *  `space-y-4` (16dp gaps, no row dividers) and a translucent `bg-amber-900/30` rounded-square
+ *  icon tile rather than a bright pastel circle. */
 @Composable
 private fun RecentActivityCard(claims: List<ExpenseClaim>, userName: String) {
     val recent = claims.take(5)
-    if (recent.isEmpty()) {
-        Text("No recent activity", color = Brand.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(vertical = 16.dp))
-        return
-    }
-    Card {
-        recent.forEachIndexed { i, c ->
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.clip(CircleShape).background(IconTint.Amber.bg).padding(8.dp)) {
-                    Icon(Icons.Filled.AttachMoney, contentDescription = null, tint = IconTint.Amber.icon, modifier = Modifier.size(16.dp))
+    Card(containerColor = Brand.Background, padding = 20) {
+        Text("Recent Activity", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        if (recent.isEmpty()) {
+            Text(
+                "No recent activity", color = Brand.TextSecondary, fontSize = 13.sp,
+                modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+            )
+        } else {
+            Spacer(Modifier.height(16.dp))
+            recent.forEachIndexed { i, c ->
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Brand.Amber.copy(alpha = 0.18f))
+                            .padding(8.dp),
+                    ) {
+                        Icon(Icons.Filled.AttachMoney, contentDescription = null, tint = Brand.Amber, modifier = Modifier.size(16.dp))
+                    }
+                    Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                        Text(userName, color = Brand.TextPrimary, fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
+                        Text(
+                            "${Fmt.money(c.amount, c.currency)} - ${c.category ?: ""}",
+                            color = Brand.TextSecondary, fontSize = 11.sp,
+                        )
+                    }
+                    Text(Fmt.dayMonth(c.createdAt), color = Brand.TextMuted, fontSize = 10.sp)
                 }
-                Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                    Text(userName, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
-                    Text(
-                        "${Fmt.money(c.amount, c.currency)} - ${c.category ?: ""}",
-                        color = Brand.TextSecondary, fontSize = 11.sp,
-                    )
-                }
-                Text(Fmt.date(c.createdAt, short = true), color = Brand.TextMuted, fontSize = 10.sp)
-            }
-            if (i < recent.size - 1) {
-                Box(modifier = Modifier.fillMaxWidth().height(1.dp).padding(vertical = 8.dp).background(Brand.Border))
+                if (i < recent.size - 1) Spacer(Modifier.height(16.dp))
             }
         }
     }

@@ -36,18 +36,20 @@ import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.StatusTint
 import kotlinx.coroutines.launch
 
-/** A flat card surface — mirrors the web's `bg-gray-900 border-gray-800 rounded-xl` card. */
+/** A flat card surface — mirrors the web's `bg-gray-900 border-gray-800 rounded-xl` card. Pass
+ *  [containerColor] for cards that mirror a `bg-gray-950` variant instead (e.g. Recent Activity). */
 @Composable
 fun Card(
     modifier: Modifier = Modifier,
     padding: Int = 16,
+    containerColor: Color = Brand.Surface,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Brand.Corner.dp))
-            .background(Brand.Surface)
+            .background(containerColor)
             .border(1.dp, Brand.Border, RoundedCornerShape(Brand.Corner.dp))
             .padding(padding.dp),
         content = content,
@@ -75,7 +77,7 @@ fun StatTile(
         ) {
             Column {
                 Text(label, color = Brand.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Text(value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(value, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
             }
             if (icon != null) {
                 if (iconBg != null) {
@@ -96,11 +98,11 @@ fun StatTile(
 @Composable
 fun StatusPill(status: String) {
     val tint = when (status.uppercase()) {
-        "APPROVED", "PAID" -> StatusTint.Green
-        "PENDING" -> StatusTint.Amber
-        "REJECTED", "CANCELLED" -> StatusTint.Red
+        "APPROVED", "PAID", "ACTIVE", "ACTIVATED" -> StatusTint.Green
+        "PENDING", "ON_LEAVE", "UPCOMING" -> StatusTint.Amber
+        "REJECTED", "CANCELLED", "TERMINATED", "RESIGNED", "EXPIRED" -> StatusTint.Red
         "GENERATED" -> StatusTint.Blue
-        "DRAFT" -> StatusTint.Gray
+        "DRAFT", "INACTIVE", "SENT" -> StatusTint.Gray
         else -> StatusTint.Gray
     }
     Box(

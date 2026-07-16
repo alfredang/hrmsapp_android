@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
@@ -36,7 +35,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.MaterialTheme
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
+import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 
 /**
  * A text field styled to match the web's Input component exactly: `bg-gray-800 border-gray-700
@@ -65,13 +66,13 @@ fun PremierField(
             .clip(RoundedCornerShape(Brand.Corner.dp))
             .background(Brand.Border)
             .border(1.dp, borderColor, RoundedCornerShape(Brand.Corner.dp))
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = Brand.TextSecondary, modifier = Modifier.size(20.dp))
-        Box(modifier = Modifier.weight(1f).padding(start = 12.dp), contentAlignment = Alignment.CenterStart) {
+        Box(modifier = Modifier.weight(1f).padding(start = Spacing.md), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) {
-                Text(title, color = Brand.TextMuted)
+                Text(title, color = Brand.TextMuted, style = MaterialTheme.typography.bodyLarge)
             }
             BasicTextField(
                 value = value,
@@ -80,7 +81,7 @@ fun PremierField(
                     .fillMaxWidth()
                     .onFocusChangedCompat { focused = it },
                 singleLine = true,
-                textStyle = LocalTextStyle.current.copy(color = Color.White),
+                textStyle = LocalTextStyle.current.copy(color = Brand.TextPrimary, fontSize = MaterialTheme.typography.bodyLarge.fontSize),
                 cursorBrush = SolidColor(Brand.Primary),
                 visualTransformation = if (isSecure && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),

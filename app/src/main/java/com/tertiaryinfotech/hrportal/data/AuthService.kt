@@ -37,14 +37,17 @@ object AuthService {
             "Invalid email or password. Please try again.")
     }
 
-    /** Request a one-time passcode be emailed to the employee. */
-    suspend fun requestOTP(email: String): Unit = withContext(Dispatchers.IO) {
+    /** Request a one-time passcode be emailed to the employee. Returns the server's own success
+     *  copy (e.g. "OTP has been sent to your email address") so the UI shows real server text
+     *  rather than a client-guessed message. */
+    suspend fun requestOTP(email: String): String = withContext(Dispatchers.IO) {
         val resp = call { service.sendOtp(SendOtpBody(email)) }
         val code = resp.code()
         if (code == 404) throw AuthException(AuthException.Kind.NO_ACCOUNT,
             "No account found for this email. Please contact HR.")
         if (code >= 400) throw AuthException(AuthException.Kind.SERVER,
             errorMessage(resp) ?: "Could not send the code. Please try again.")
+        resp.body()?.message ?: "OTP sent to your email."
     }
 
     /** Verify the emailed OTP and sign in. */

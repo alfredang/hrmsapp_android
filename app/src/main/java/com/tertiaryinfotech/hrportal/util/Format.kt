@@ -17,6 +17,10 @@ object Fmt {
         "yyyy-MM-dd'T'HH:mm:ss'Z'",
         "yyyy-MM-dd'T'HH:mm:ss",
         "yyyy-MM-dd",
+        // Habitap invite log stores fromDate/toDate as a pre-formatted display string (e.g.
+        // "29 Jul 2026") rather than an ISO string, since the Prisma field is a plain String —
+        // /api/mobile/woods-square passes it through untouched.
+        "dd MMM yyyy",
     ).map { pattern ->
         SimpleDateFormat(pattern, Locale.US).apply {
             if (pattern.endsWith("'Z'") || pattern == "yyyy-MM-dd") timeZone = TimeZone.getTimeZone("UTC")
@@ -38,6 +42,13 @@ object Fmt {
         val d = parse(iso) ?: return "—"
         val pattern = if (short) "d/M/yy" else "d MMM yyyy"
         return SimpleDateFormat(pattern, Locale.getDefault()).format(d)
+    }
+
+    /** Day + short month, no year, e.g. "10 Jun" — mirrors the web's Recent Activity date
+     *  (`formatDate(...).split(" ").slice(0, 2).join(" ")` in `recent-activity.tsx`). */
+    fun dayMonth(iso: String?): String {
+        val d = parse(iso) ?: return "—"
+        return SimpleDateFormat("d MMM", Locale.getDefault()).format(d)
     }
 
     fun money(value: Double, currency: String = "SGD"): String {

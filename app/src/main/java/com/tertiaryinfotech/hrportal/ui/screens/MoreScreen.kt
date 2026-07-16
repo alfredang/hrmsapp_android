@@ -60,7 +60,7 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     InitialsAvatar(auth.user?.initials ?: "?", 52)
                     Column(modifier = Modifier.padding(start = 14.dp)) {
-                        Text(auth.user?.displayName ?: "Employee", color = Color.White,
+                        Text(auth.user?.displayName ?: "Employee", color = Brand.TextPrimary,
                             fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         Text(auth.user?.email ?: "", color = Brand.TextSecondary, fontSize = 12.sp)
                     }
@@ -104,7 +104,7 @@ private fun MenuLink(title: String, icon: ImageVector, tint: IconTint.Tint, onCl
         ) {
             Icon(icon, contentDescription = null, tint = tint.icon, modifier = Modifier.size(20.dp))
         }
-        Text(title, color = Color.White, modifier = Modifier.padding(start = 14.dp).weight(1f))
+        Text(title, color = Brand.TextPrimary, modifier = Modifier.padding(start = 14.dp).weight(1f))
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
             tint = Brand.TextMuted)
     }

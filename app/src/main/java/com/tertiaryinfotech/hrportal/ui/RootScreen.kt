@@ -13,11 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.tertiaryinfotech.hrportal.ui.components.BrandHeader
 import com.tertiaryinfotech.hrportal.ui.screens.MainScaffold
+import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.GradientScreen
+import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 
 /** Routes between a brief launch state, the login frontend, and the signed-in home. */
 @Composable
@@ -48,6 +48,6 @@ private fun LaunchView() {
         verticalArrangement = Arrangement.Center,
     ) {
         BrandHeader()
-        CircularProgressIndicator(color = Color.White, modifier = Modifier.padding(top = 22.dp))
+        CircularProgressIndicator(color = Brand.TextPrimary, modifier = Modifier.padding(top = Spacing.xl))
     }
 }

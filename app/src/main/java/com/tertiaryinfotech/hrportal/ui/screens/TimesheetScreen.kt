@@ -18,11 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,25 +39,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.ApiException
-import com.tertiaryinfotech.hrportal.data.AttendancePunch
-import com.tertiaryinfotech.hrportal.data.AttendanceResponse
 import com.tertiaryinfotech.hrportal.data.AuthException
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.TimesheetDay
 import com.tertiaryinfotech.hrportal.data.TimesheetResponse
-import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.LoadState
-import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.components.alphaIf
 import com.tertiaryinfotech.hrportal.ui.components.clickableIf
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
-import com.tertiaryinfotech.hrportal.util.Fmt
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -72,7 +64,7 @@ import java.util.TimeZone
  * the web's `WeeklyTimesheet` component (`src/components/timesheet/weekly-timesheet.tsx`):
  * week navigation, an Off/4h/8h chip selector per submittable non-work day, a submit-for-approval
  * confirmation, and status badges once submitted. Regular workdays aren't tracked here — this
- * screen (like the web one) only concerns weekend/PH OT.
+ * screen (like the web one) only concerns weekend/PH OT. No clock-in/out here (product decision).
  */
 @Composable
 fun TimesheetScreen(nav: NavController) {
@@ -103,24 +95,31 @@ fun TimesheetScreen(nav: NavController) {
 
     LaunchedEffect(weekStart) { load() }
 
-    BrandScaffold(title = "Timesheet", onBack = { nav.popBackStack() }) { inner ->
-    Column(modifier = Modifier.padding(inner).fillMaxSize()) {
-        ClockInOutCard()
-        SectionDivider()
-        WeekNavHeader(
-                weekStart = weekStart,
-                isCurrentWeek = weekStart == currentWeek,
-                onPrev = { weekStart = addWeeks(weekStart, -1) },
-                onNext = { val n = addWeeks(weekStart, 1); if (n <= currentWeek) weekStart = n },
-                onJumpToday = { weekStart = currentWeek },
-            )
-            AsyncContent(state = state, load = { load() }) { data ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        AsyncContent(state = state, load = { load() }) { data ->
                 val nonWorkDays = data.days.filter { it.isNonWorkDay }
                 val submittableDays = nonWorkDays.filter { it.isSubmittable }
                 Column(
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Weekly Timesheet", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                        Text(
+                            "If you work on a weekend or public holiday, log your hours here. Off In Lieu days are credited after admin approval.",
+                            color = Brand.TextSecondary, fontSize = 13.sp,
+                        )
+                    }
+                    Spacer12()
+                    WeekNavHeader(
+                        weekStart = weekStart,
+                        isCurrentWeek = weekStart == currentWeek,
+                        onPrev = { weekStart = addWeeks(weekStart, -1) },
+                        onNext = { val n = addWeeks(weekStart, 1); if (n <= currentWeek) weekStart = n },
+                        onJumpToday = { weekStart = currentWeek },
+                    )
+                    Spacer12()
+
                     if (nonWorkDays.isEmpty()) {
                         Text(
                             "No weekends or public holidays this week.",
@@ -172,15 +171,9 @@ fun TimesheetScreen(nav: NavController) {
                             }
                         }
                     }
-
-                    Text(
-                        "Log hours worked on weekends and public holidays. Submit by 11:30 PM SGT. Off In Lieu days are credited after admin approval.",
-                        color = Brand.TextMuted, fontSize = 11.sp,
-                    )
                 }
             }
         }
-    }
 
     if (showConfirm) {
         androidx.compose.material3.AlertDialog(
@@ -220,7 +213,7 @@ fun TimesheetScreen(nav: NavController) {
 @Composable
 private fun WeekNavHeader(weekStart: String, isCurrentWeek: Boolean, onPrev: () -> Unit, onNext: () -> Unit, onJumpToday: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -228,7 +221,7 @@ private fun WeekNavHeader(weekStart: String, isCurrentWeek: Boolean, onPrev: () 
             IconButton(onClick = onPrev) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous week", tint = Brand.TextSecondary)
             }
-            Text(formatWeekRange(weekStart), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(formatWeekRange(weekStart), color = Brand.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             IconButton(onClick = onNext, enabled = !isCurrentWeek) {
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next week",
@@ -242,205 +235,78 @@ private fun WeekNavHeader(weekStart: String, isCurrentWeek: Boolean, onPrev: () 
     }
 }
 
-/** Clock-in/out card — mirrors `AttendancePunch`/`/api/mobile/attendance` (Prisma model +
- *  routes added directly to tertiary-hrms this session). One punch per employee per SGT day;
- *  ticks a live elapsed-time display while clocked in but not yet out. */
-@Composable
-private fun ClockInOutCard() {
-    var state by remember { mutableStateOf<LoadState<AttendanceResponse>>(LoadState.Idle) }
-    var acting by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-
-    suspend fun load() {
-        state = LoadState.Loading
-        state = try {
-            LoadState.Loaded(HrmsApi.attendance())
-        } catch (e: Exception) {
-            LoadState.Failed((e as? ApiException)?.message ?: "Could not load.")
-        }
-    }
-
-    LaunchedEffect(Unit) { load() }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-        when (val s = state) {
-            is LoadState.Idle, is LoadState.Loading -> {
-                Card {
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
-                        CircularProgressIndicator(color = Brand.Primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
-                    }
-                }
-            }
-            is LoadState.Failed -> {
-                Card {
-                    Text(s.message, color = Brand.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
-                    PremierButton(title = "Retry", icon = Icons.Filled.AccessTime) { scope.launch { load() } }
-                }
-            }
-            is LoadState.Loaded -> {
-            val data = s.value
-            val today = data.today
-            val clockInAt = Fmt.parse(today?.clockIn)?.time
-            val clockOutAt = Fmt.parse(today?.clockOut)?.time
-            var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
-
-            LaunchedEffect(clockInAt, clockOutAt) {
-                if (clockInAt != null && clockOutAt == null) {
-                    while (true) {
-                        nowMs = System.currentTimeMillis()
-                        delay(1000)
-                    }
-                }
-            }
-
-            Card {
-                Text("Today", color = Brand.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                when {
-                    clockInAt == null -> {
-                        Text(
-                            "You haven't clocked in yet.", color = Color.White,
-                            fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                        )
-                    }
-                    clockOutAt == null -> {
-                        Text(
-                            formatElapsed(nowMs - clockInAt), color = Brand.Emerald,
-                            fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                        Text(
-                            "Clocked in at ${formatTime(clockInAt)}", color = Brand.TextSecondary,
-                            fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp),
-                        )
-                    }
-                    else -> {
-                        Text(
-                            formatElapsed(clockOutAt - clockInAt), color = Color.White,
-                            fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                        Text(
-                            "Worked today · ${formatTime(clockInAt)} – ${formatTime(clockOutAt)}",
-                            color = Brand.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp),
-                        )
-                    }
-                }
-                error?.let { Text(it, color = Brand.Red, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp)) }
-                PremierButton(
-                    title = when {
-                        clockOutAt != null -> "Clocked Out"
-                        clockInAt == null -> "Clock In"
-                        else -> "Clock Out"
-                    },
-                    icon = Icons.Filled.AccessTime,
-                    loading = acting,
-                    enabled = clockOutAt == null,
-                ) {
-                    scope.launch {
-                        acting = true; error = null
-                        try {
-                            if (clockInAt == null) HrmsApi.clockIn() else HrmsApi.clockOut()
-                            load()
-                        } catch (e: Exception) {
-                            error = (e as? ApiException)?.message ?: "Something went wrong."
-                        } finally {
-                            acting = false
-                        }
-                    }
-                }
-
-                if (data.recent.isNotEmpty()) {
-                    Spacer12()
-                    data.recent.filter { it.id != today?.id }.take(6).forEach { p -> AttendanceRow(p) }
-                }
-            }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AttendanceRow(p: AttendancePunch) {
-    val inAt = Fmt.parse(p.clockIn)?.time
-    val outAt = Fmt.parse(p.clockOut)?.time
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(Fmt.date(p.date, short = true), color = Brand.TextSecondary, fontSize = 11.sp)
-        Text(
-            if (inAt != null && outAt != null) "${formatTime(inAt)} – ${formatTime(outAt)} · ${formatElapsed(outAt - inAt)}"
-            else if (inAt != null) "${formatTime(inAt)} – —" else "—",
-            color = Color.White, fontSize = 11.sp,
-        )
-    }
-}
-
-@Composable
-private fun SectionDivider() {
-    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border))
-}
-
-private fun formatElapsed(ms: Long): String {
-    val totalSec = ms / 1000
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return String.format(Locale.US, "%d:%02d:%02d", h, m, s)
-}
-
-private fun formatTime(ms: Long): String =
-    SimpleDateFormat("h:mm a", Locale.getDefault()).format(java.util.Date(ms))
-
 @Composable
 private fun DayCard(day: TimesheetDay, hours: Double, onHoursChange: (Double) -> Unit) {
+    val editable = day.isSubmittable && day.status != "APPROVED"
+    val tagColor = if (day.isPublicHoliday) Brand.Amber else Brand.Emerald
     Card {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "${day.dayName} · ${formatDayLabel(day.date)}",
-                        color = if (day.isPublicHoliday) Brand.Amber else Brand.Emerald,
-                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                    )
-                }
-                Text(
-                    if (day.isPublicHoliday) "PH: ${day.phName}" else "Weekend",
-                    color = Brand.TextSecondary, fontSize = 11.sp,
-                )
-                if (day.status != null) {
-                    Row(modifier = Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        StatusPill(day.status)
-                    }
-                    if (!day.adminComment.isNullOrEmpty()) {
-                        Text(day.adminComment, color = Brand.TextMuted, fontSize = 10.sp)
-                    }
-                } else if (day.isSubmittable) {
-                    Text("Not submitted", color = Brand.TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
-                }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(day.dayName, color = tagColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(formatDayLabel(day.date), color = Brand.TextPrimary, fontSize = 14.sp)
             }
+            TagPill(if (day.isPublicHoliday) day.phName ?: "Public Holiday" else "Weekend", tagColor)
+        }
 
-            if (day.isSubmittable && day.status != "APPROVED") {
+        FieldRow("HOURS") {
+            if (editable) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     HourChip("—", 0.0, hours, onHoursChange)
                     HourChip("4h", 4.0, hours, onHoursChange)
                     HourChip("8h", 8.0, hours, onHoursChange)
                 }
             } else {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        if (hours == 0.0) "—" else "${hours.toInt()}h",
-                        color = if (hours == 0.0) Brand.TextMuted else Brand.Emerald,
-                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                    )
-                    val earned = otForHours(hours)
-                    if (earned > 0) Text("+$earned d", color = Brand.Emerald, fontSize = 10.sp)
-                }
+                Text(
+                    if (hours == 0.0) "—" else "${hours.toInt()}h",
+                    color = if (hours == 0.0) Brand.TextMuted else Brand.TextPrimary,
+                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                )
             }
         }
+
+        val earned = otForHours(hours)
+        FieldRow("OFF IN LIEU") {
+            Text(
+                if (earned > 0) "+${if (earned % 1.0 == 0.0) earned.toInt().toString() else earned.toString()} d" else "—",
+                color = if (earned > 0) Brand.Emerald else Brand.TextMuted, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+            )
+        }
+
+        FieldRow("STATUS") {
+            if (day.status != null) StatusPill(day.status) else Text("—", color = Brand.TextMuted, fontSize = 13.sp)
+        }
+
+        if (!day.adminComment.isNullOrEmpty()) {
+            Text(day.adminComment, color = Brand.TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+@Composable
+private fun FieldRow(label: String, content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, color = Brand.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        content()
+    }
+}
+
+@Composable
+private fun TagPill(text: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .border(1.dp, color, RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+    ) {
+        Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

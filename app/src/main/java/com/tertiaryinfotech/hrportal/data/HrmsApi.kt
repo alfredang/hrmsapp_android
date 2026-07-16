@@ -28,8 +28,12 @@ object HrmsApi {
 
     // MARK: - Typed reads
 
+    /** Unauthenticated — safe to call before sign-in to drive the login card's logo/name. */
+    suspend fun branding() = unwrap { service.branding() }
+
     suspend fun summary() = unwrap { service.summary() }
     suspend fun leave() = unwrap { service.leave() }
+    suspend fun publicHolidays(year: Int) = unwrap { service.publicHolidays(year) }
     suspend fun employees() = unwrap { service.employees() }
     suspend fun expenses() = unwrap { service.expenses() }
     suspend fun payslips() = unwrap { service.payslips() }
@@ -56,9 +60,16 @@ object HrmsApi {
     // MARK: - Apply for leave (POST /api/leave)
 
     suspend fun applyLeave(
-        leaveTypeId: String, startDate: String, endDate: String, dayType: String, reason: String,
+        leaveTypeId: String, startDate: String, endDate: String, days: Double, dayType: String,
+        halfDayPosition: String? = null, reason: String, documentUrl: String? = null,
+        documentFileName: String? = null, otDaysUsed: Double? = null,
     ): Unit = unwrapUnit("Could not submit your leave request.") {
-        service.applyLeave(ApplyLeaveBody(leaveTypeId, startDate, endDate, dayType, reason))
+        service.applyLeave(
+            ApplyLeaveBody(
+                leaveTypeId, startDate, endDate, days, dayType, halfDayPosition, reason,
+                documentUrl, documentFileName, otDaysUsed,
+            ),
+        )
     }
 
     // MARK: - Create an expense claim (POST /api/expenses)
@@ -68,6 +79,12 @@ object HrmsApi {
         receiptUrl: String? = null, receiptFileName: String? = null,
     ): Unit = unwrapUnit("Could not submit your expense claim.") {
         service.createExpense(CreateExpenseBody(categoryId, description, amount, expenseDate, receiptUrl, receiptFileName))
+    }
+
+    // MARK: - Acknowledge payment received on an approved expense claim (POST /api/expenses/{id}/acknowledge)
+
+    suspend fun acknowledgeExpense(id: String): Unit = unwrapUnit("Could not confirm payment received.") {
+        service.acknowledgeExpense(id)
     }
 
     // MARK: - Upload a file (POST /api/upload) — used for expense receipts
@@ -105,6 +122,14 @@ object HrmsApi {
         service.cancelWoodsSquareRequest(id)
     }
 
+    // MARK: - Create a calendar event (POST /api/calendar)
+
+    suspend fun createCalendarEvent(
+        title: String, description: String?, startDate: String, endDate: String, allDay: Boolean, type: String,
+    ): Unit = unwrapUnit("Could not create the event.") {
+        service.createCalendarEvent(CreateCalendarEventBody(title, description, startDate, endDate, allDay, type))
+    }
+
     // MARK: - Notifications
 
     suspend fun markNotificationRead(id: String): Unit = unwrapUnit("Could not update notification.") {
@@ -125,6 +150,7 @@ object HrmsApi {
         try {
             call()
         } catch (e: Exception) {
+            android.util.Log.e("HrmsApi", "Network/decode failure", e)
             throw ApiException(ApiException.Kind.NETWORK, "Network error. Check your connection.")
         }
     }
@@ -137,6 +163,7 @@ object HrmsApi {
             throw ApiException(ApiException.Kind.UNAUTHORIZED, "Your session expired. Please sign in again.")
         if (!resp.isSuccessful) {
             val errText = resp.errorBody()?.string().orEmpty()
+            android.util.Log.e("HrmsApi", "HTTP ${resp.code()} ${resp.raw().request.url}: $errText")
             val msg = try {
                 (json.parseToJsonElement(errText) as? JsonObject)?.get("error")?.jsonPrimitive?.content
             } catch (_: Exception) { null }

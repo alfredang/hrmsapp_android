@@ -46,6 +46,7 @@ import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.PremierField
 import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
+import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.GradientScreen
 import com.tertiaryinfotech.hrportal.util.Fmt
 import kotlinx.coroutines.launch
@@ -116,8 +117,8 @@ fun EditProfileSheet(employee: EmployeeProfile, onDismiss: () -> Unit, onSaved: 
                     ExposedDropdownMenuBox(expanded = genderExpanded, onExpandedChange = { genderExpanded = it }) {
                         FieldBox(modifier = Modifier.menuAnchor()) {
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(GENDERS.firstOrNull { it.first == gender }?.second ?: gender, color = Color.White, modifier = Modifier.weight(1f))
-                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color.White)
+                                Text(GENDERS.firstOrNull { it.first == gender }?.second ?: gender, color = Brand.TextPrimary, modifier = Modifier.weight(1f))
+                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextPrimary)
                             }
                         }
                         ExposedDropdownMenu(expanded = genderExpanded, onDismissRequest = { genderExpanded = false }) {
@@ -132,8 +133,8 @@ fun EditProfileSheet(employee: EmployeeProfile, onDismiss: () -> Unit, onSaved: 
                     ExposedDropdownMenuBox(expanded = eduExpanded, onExpandedChange = { eduExpanded = it }) {
                         FieldBox(modifier = Modifier.menuAnchor()) {
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(EDUCATION_LEVELS.firstOrNull { it.first == educationLevel }?.second ?: educationLevel, color = Color.White, modifier = Modifier.weight(1f))
-                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color.White)
+                                Text(EDUCATION_LEVELS.firstOrNull { it.first == educationLevel }?.second ?: educationLevel, color = Brand.TextPrimary, modifier = Modifier.weight(1f))
+                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextPrimary)
                             }
                         }
                         ExposedDropdownMenu(expanded = eduExpanded, onDismissRequest = { eduExpanded = false }) {
@@ -145,7 +146,7 @@ fun EditProfileSheet(employee: EmployeeProfile, onDismiss: () -> Unit, onSaved: 
 
                     FieldLabel("Date of birth")
                     FieldBox(modifier = Modifier.clickable { showDob = true }) {
-                        Text(Fmt.date(df.format(Date(dobMillis))), color = Color.White)
+                        Text(Fmt.date(df.format(Date(dobMillis))), color = Brand.TextPrimary)
                     }
                     if (showDob) {
                         DateField(initial = dobMillis, onPick = { dobMillis = it; showDob = false }, onCancel = { showDob = false })

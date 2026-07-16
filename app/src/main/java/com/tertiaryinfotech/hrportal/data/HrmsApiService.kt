@@ -26,8 +26,10 @@ data class SubmitTimesheetBody(val weekStart: String, val entries: List<Timeshee
 
 @Serializable
 data class ApplyLeaveBody(
-    val leaveTypeId: String, val startDate: String, val endDate: String,
-    val dayType: String, val reason: String,
+    val leaveTypeId: String, val startDate: String, val endDate: String, val days: Double,
+    val dayType: String, val halfDayPosition: String? = null, val reason: String,
+    val documentUrl: String? = null, val documentFileName: String? = null,
+    val otDaysUsed: Double? = null,
 )
 
 @Serializable
@@ -45,6 +47,12 @@ data class ChangePasswordBody(val currentPassword: String, val newPassword: Stri
 @Serializable
 data class WoodsSquareRequestBody(val fromDate: String? = null, val toDate: String? = null, val note: String? = null)
 
+@Serializable
+data class CreateCalendarEventBody(
+    val title: String, val description: String? = null, val startDate: String, val endDate: String,
+    val allDay: Boolean = false, val type: String,
+)
+
 /**
  * Retrofit definition of the HRMS backend's mobile JSON API (`/api/mobile/...`) plus the handful
  * of pre-existing endpoints the app also reads/writes. Every method returns `Response<T>` (rather
@@ -54,11 +62,19 @@ data class WoodsSquareRequestBody(val fromDate: String? = null, val toDate: Stri
  */
 interface HrmsApiService {
 
+    @GET("api/public/branding")
+    suspend fun branding(): Response<BrandingResponse>
+
     @GET("api/mobile/summary")
     suspend fun summary(): Response<DashboardSummary>
 
     @GET("api/mobile/leave")
     suspend fun leave(): Response<LeaveResponse>
+
+    /** Existing (non-mobile-namespaced) route the web's own leave-request form calls to compute
+     *  its working-days preview — same one ported here for the Apply-for-Leave screen. */
+    @GET("api/public-holidays")
+    suspend fun publicHolidays(@Query("year") year: Int): Response<PublicHolidaysResponse>
 
     @GET("api/mobile/employees")
     suspend fun employees(): Response<EmployeesResponse>
@@ -71,6 +87,12 @@ interface HrmsApiService {
 
     @GET("api/mobile/calendar")
     suspend fun calendar(): Response<CalendarResponse>
+
+    /** Existing (non-mobile-namespaced) route the web's own `/calendar/new` page calls — same
+     *  NextAuth session-cookie auth this app already rides for every other call, so no new
+     *  mobile-scoped endpoint was needed. */
+    @POST("api/calendar")
+    suspend fun createCalendarEvent(@Body body: CreateCalendarEventBody): Response<ResponseBody>
 
     @GET("api/mobile/profile")
     suspend fun profile(): Response<ProfileResponse>
@@ -104,6 +126,9 @@ interface HrmsApiService {
 
     @POST("api/expenses")
     suspend fun createExpense(@Body body: CreateExpenseBody): Response<ResponseBody>
+
+    @POST("api/expenses/{id}/acknowledge")
+    suspend fun acknowledgeExpense(@Path("id") id: String): Response<ResponseBody>
 
     @Multipart
     @POST("api/upload")

@@ -55,6 +55,10 @@ object Net {
     val hrmsApiService: HrmsApiService by lazy { retrofit.create(HrmsApiService::class.java) }
     val authApiService: AuthApiService by lazy { retrofit.create(AuthApiService::class.java) }
 
+    /** Resolves a host-relative API/asset path (e.g. `/branding/company-logo.png`) against
+     *  [BASE_URL]. Already-absolute URLs (e.g. a Google-hosted avatar) pass through unchanged —
+     *  the backend mixes both shapes across different fields, so this must handle either. */
     fun url(path: String): String =
-        BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
+        if (path.startsWith("http://") || path.startsWith("https://")) path
+        else BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
 }

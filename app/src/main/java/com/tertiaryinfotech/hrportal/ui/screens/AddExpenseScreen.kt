@@ -1,10 +1,11 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
-import android.content.ContentResolver
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -82,23 +83,21 @@ fun AddExpenseSheet(
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf(false) }
+    var showAttachOptions by remember { mutableStateOf(false) }
+    var cameraCaptureUri by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val df = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val selectedCategory = categories.firstOrNull { it.id == categoryId }
 
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    fun uploadReceipt(uri: Uri, name: String, mime: String) {
         scope.launch {
             uploading = true
             error = null
             try {
-                val resolver = context.contentResolver
-                val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     ?: throw ApiException(ApiException.Kind.NETWORK, "Could not read the file.")
-                val mime = resolver.getType(uri) ?: "application/octet-stream"
-                val name = queryFileName(resolver, uri) ?: "receipt"
                 val result = HrmsApi.uploadFile(bytes, name, mime)
                 receiptUrl = result.url
                 receiptFileName = result.fileName
@@ -107,6 +106,39 @@ fun AddExpenseSheet(
             } finally {
                 uploading = false
             }
+        }
+    }
+
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val resolver = context.contentResolver
+        uploadReceipt(uri, queryFileName(resolver, uri) ?: "receipt", resolver.getType(uri) ?: "application/octet-stream")
+    }
+
+    // Camera capture: TakePicture writes the full-resolution photo to a FileProvider-shared temp
+    // file (rather than TakePicturePreview's low-res thumbnail Bitmap) since a receipt photo needs
+    // to stay legible after upload.
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val uri = cameraCaptureUri
+        if (success && uri != null) uploadReceipt(uri, "receipt_${System.currentTimeMillis()}.jpg", "image/jpeg")
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            val uri = createCaptureUri(context)
+            cameraCaptureUri = uri
+            cameraLauncher.launch(uri)
+        } else {
+            error = "Camera permission is needed to take a photo."
+        }
+    }
+    fun startCameraCapture() {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            val uri = createCaptureUri(context)
+            cameraCaptureUri = uri
+            cameraLauncher.launch(uri)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -130,9 +162,9 @@ fun AddExpenseSheet(
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     selectedCategory?.name ?: "Select…",
-                                    color = Color.White, modifier = Modifier.weight(1f),
+                                    color = Brand.TextPrimary, modifier = Modifier.weight(1f),
                                 )
-                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextPrimary)
                             }
                         }
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -164,7 +196,7 @@ fun AddExpenseSheet(
                     FieldLabel("Date")
                     var showDate by remember { mutableStateOf(false) }
                     FieldBox(modifier = Modifier.clickable { showDate = true }) {
-                        Text(Fmt.date(df.format(Date(dateMillis))), color = Color.White)
+                        Text(Fmt.date(df.format(Date(dateMillis))), color = Brand.TextPrimary)
                     }
                     if (showDate) {
                         DateField(
@@ -175,7 +207,7 @@ fun AddExpenseSheet(
                     }
 
                     FieldLabel("Receipt (optional)")
-                    FieldBox(modifier = Modifier.clickable(enabled = !uploading) { filePicker.launch("*/*") }) {
+                    FieldBox(modifier = Modifier.clickable(enabled = !uploading) { showAttachOptions = true }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.AttachFile, contentDescription = null, tint = Brand.TextSecondary)
                             Text(
@@ -184,7 +216,7 @@ fun AddExpenseSheet(
                                     receiptFileName != null -> receiptFileName!!
                                     else -> "Attach a photo or PDF"
                                 },
-                                color = if (receiptFileName != null) Color.White else Brand.TextMuted,
+                                color = if (receiptFileName != null) Brand.TextPrimary else Brand.TextMuted,
                                 modifier = Modifier.padding(start = 10.dp).weight(1f),
                             )
                             if (uploading) {
@@ -224,23 +256,23 @@ fun AddExpenseSheet(
             text = { Text("Your expense claim was submitted for approval.") },
         )
     }
+
+    if (showAttachOptions) {
+        AttachOptionsDialog(
+            onDismiss = { showAttachOptions = false },
+            onTakePhoto = { showAttachOptions = false; startCameraCapture() },
+            onChooseFile = { showAttachOptions = false; filePicker.launch("*/*") },
+        )
+    }
 }
 
 @Composable
 private fun fieldColors() = TextFieldDefaults.colors(
     focusedContainerColor = Brand.Border,
     unfocusedContainerColor = Brand.Border,
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
+    focusedTextColor = Brand.TextPrimary,
+    unfocusedTextColor = Brand.TextPrimary,
     focusedIndicatorColor = Brand.Primary,
     unfocusedIndicatorColor = Color.Transparent,
 )
 
-private fun queryFileName(resolver: ContentResolver, uri: Uri): String? {
-    var name: String? = null
-    resolver.query(uri, null, null, null, null)?.use { cursor ->
-        val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        if (idx >= 0 && cursor.moveToFirst()) name = cursor.getString(idx)
-    }
-    return name
-}
