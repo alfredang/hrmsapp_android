@@ -18,3 +18,11 @@ play/service-account.json
 .claude/
 .playwright-mcp/
 /upload/
+
+# Play Console working screenshots (submission artifacts, not project assets)
+/hrms-*.png
+/hrportal-*.png
+/library-dialog.png
+/play-signin.png
+/privacy-saved.png
+/signing-dialog.png
