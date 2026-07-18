@@ -27,7 +27,7 @@
 **Tertiary HRMS for Android** is the Google Play build of Tertiary Infotech Academy's Human
 Resource Management System — **rebuilt fully native in Kotlin + Jetpack Compose**, with no WebView
 and no cross-platform runtime. It is the Android sibling of the native iOS app and a faithful 1:1
-port of its features, theme, and API layer.
+port of its features, **Premier Blue** theme (navy → azure gradient, frosted cards), and API layer.
 
 The app is a **secure client** of the existing HRMS web backend — it has no database of its own.
 All data stays on the company server and is accessed over encrypted HTTPS, reusing the web app's
@@ -37,15 +37,17 @@ existing single sign-on session, exactly as a browser would.
 
 | Module | Description |
 |--------|-------------|
-| **Login** | Email + password or one-time email code (OTP), via the web app's NextAuth session |
-| **Dashboard** | Annual, medical and OT leave balances plus expenses at a glance; pending-approvals queue for managers and HR |
-| **Leave** | View balances and full request history, and apply for leave in a few taps (server computes working days and proration) |
+| **Login** | Email + password or one-time email code (OTP), via the web app's NextAuth session. **Persistent** — stays signed in across app restarts |
+| **Dashboard** | Annual, medical and OT leave balances plus expenses at a glance; **Approvals queue** cards for admins (Manager / HR / Admin) |
+| **Leave** | View balances and full request history, and apply for leave in a few taps (server computes working days and proration). **Medical leave (MC)** attaches an MC photo |
+| **Approvals** *(admins only)* | Approve or reject pending leave and expense requests in-app — enforced server-side (role ∈ Manager / HR / Admin) |
 | **Payslips** | Browse personal payslips and open the official PDF, rendered natively in-app via `PdfRenderer` |
-| **Expenses** | Track expense claims and approved totals with clear status badges |
+| **Expenses** | Submit and track expense / medical claims with a receipt photo and clear status badges |
 | **Team** | Search the company directory |
 | **Calendar** | Public holidays, personal events and approved leave, grouped by month |
-| **Timesheet** | Review the current week's hours and overtime |
-| **Profile** | Full employee record |
+| **Timesheet** | Simple **clock in / out** with a live elapsed timer and a last-7-days log |
+| **Notifications** | In-app bell with unread badge and a notifications list |
+| **Profile** | Full employee record, change password, and a **light / dark theme** toggle |
 
 > **Secure by design** — for authorized Tertiary Infotech employees only. Sign in with email and
 > password or a one-time email code; the session cookie is reused for every call over HTTPS. No

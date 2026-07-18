@@ -293,7 +293,6 @@ data class AppNotification(
 val STAFF_NOTIFICATION_TYPES = setOf(
     "LEAVE_APPROVED", "LEAVE_REJECTED",
     "OT_APPROVED", "OT_REJECTED",
-    "WOODS_SQUARE_APPROVED", "WOODS_SQUARE_DECLINED",
     "INFO",
 )
 
@@ -305,30 +304,38 @@ data class UploadResult(
     val fileName: String,
 )
 
-// MARK: - Woods Square access (/api/mobile/woods-square)
+// MARK: - Approvals (/api/mobile/approvals) — admin only (MANAGER/HR/ADMIN)
 
 @Serializable
-data class WoodsSquareResponse(
-    val invites: List<WoodsSquareInvite> = emptyList(),
-    val requests: List<WoodsSquareRequest> = emptyList(),
+data class ApprovalsResponse(
+    val leaves: List<PendingLeave> = emptyList(),
+    val claims: List<PendingClaim> = emptyList(),
 )
 
 @Serializable
-data class WoodsSquareInvite(
+data class PendingLeave(
     val id: String,
-    val fromDate: String? = null,
-    val toDate: String? = null,
+    val employee: String = "",
+    val leaveType: String = "",
+    val leaveCode: String = "",
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val days: Double = 0.0,
+    val dayType: String = "",
+    val reason: String? = null,
+    val documentUrl: String? = null,
     val createdAt: String? = null,
-    val status: String = "",
 )
 
 @Serializable
-data class WoodsSquareRequest(
+data class PendingClaim(
     val id: String,
-    val fromDate: String? = null,
-    val toDate: String? = null,
-    val note: String? = null,
-    val status: String = "",
+    val employee: String = "",
+    val category: String? = null,
+    val description: String = "",
+    val amount: Double = 0.0,
+    val expenseDate: String? = null,
+    val receiptUrl: String? = null,
     val createdAt: String? = null,
 )
 

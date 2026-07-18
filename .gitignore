@@ -15,3 +15,6 @@ keystore.properties
 
 # Play Developer API service account key (secret)
 play/service-account.json
+.claude/
+.playwright-mcp/
+/upload/

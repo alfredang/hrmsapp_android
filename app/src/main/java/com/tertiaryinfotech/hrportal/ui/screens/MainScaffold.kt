@@ -33,7 +33,6 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Dashboard
-import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
@@ -111,7 +110,6 @@ private val DRAWER_ITEMS = listOf(
     DrawerItem("payslips", "Payroll", Icons.Outlined.CreditCard),
     DrawerItem("calendar", "Calendar", Icons.Outlined.CalendarMonth),
     DrawerItem("timesheet", "Timesheet", Icons.Outlined.AccessTime),
-    DrawerItem("woods_square", "Woods Square Access", Icons.Outlined.MeetingRoom),
 )
 
 /** Drawer-only destinations (not a bottom [Tab]) that still share the hamburger top bar rather
@@ -120,7 +118,7 @@ private val DRAWER_ITEMS = listOf(
 private val DRAWER_ONLY_TOP_BAR_TITLES = mapOf(
     "calendar" to "Calendar",
     "timesheet" to "Timesheet",
-    "woods_square" to "Woods Square Access",
+    "approvals" to "Approvals",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -233,7 +231,7 @@ fun MainScaffold(auth: AuthViewModel) {
                     AddCalendarEventScreen(nav, backStackEntry.arguments?.getString("date")?.takeIf { it != "none" })
                 }
                 composable("timesheet") { TimesheetScreen(nav) }
-                composable("woods_square") { WoodsSquareScreen(nav) }
+                composable("approvals") { ApprovalsScreen(nav) }
                 composable("notifications") { NotificationsScreen(auth, nav) }
                 composable("payslip_pdf") { PayslipPdfScreen(nav) }
             }

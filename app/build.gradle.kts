@@ -17,10 +17,10 @@ android {
         applicationId = "com.tertiaryinfotech.hrportal"
         minSdk = 24
         targetSdk = 36
-        // The existing Play "hrportal" app already has versionCode 11 on the closed track,
-        // so the first native release must be >= 12.
-        versionCode = 12
-        versionName = "1.0"
+        // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
+        // review, so each new release must increment from there.
+        versionCode = 15
+        versionName = "1.3"
         vectorDrawables { useSupportLibrary = true }
     }
 

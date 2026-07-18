@@ -32,6 +32,20 @@ object HrmsApi {
     suspend fun branding() = unwrap { service.branding() }
 
     suspend fun summary() = unwrap { service.summary() }
+
+    // MARK: - Approvals (admin only; server returns 403 for non-admins)
+    suspend fun approvals() = unwrap { service.approvals() }
+
+    enum class ApprovalKind { LEAVE, CLAIM }
+
+    /** Approve or reject a pending leave/expense. On reject, an optional [reason] is sent. */
+    suspend fun decide(kind: ApprovalKind, id: String, approve: Boolean, reason: String? = null): Unit =
+        unwrapUnit(if (approve) "Could not approve the request." else "Could not reject the request.") {
+            when (kind) {
+                ApprovalKind.LEAVE -> if (approve) service.approveLeave(id) else service.rejectLeave(id, RejectReasonBody(reason?.takeIf { it.isNotBlank() }))
+                ApprovalKind.CLAIM -> if (approve) service.approveExpense(id) else service.rejectExpense(id, RejectReasonBody(reason?.takeIf { it.isNotBlank() }))
+            }
+        }
     suspend fun leave() = unwrap { service.leave() }
     suspend fun publicHolidays(year: Int) = unwrap { service.publicHolidays(year) }
     suspend fun employees() = unwrap { service.employees() }
@@ -39,7 +53,6 @@ object HrmsApi {
     suspend fun payslips() = unwrap { service.payslips() }
     suspend fun calendar() = unwrap { service.calendar() }
     suspend fun profile() = unwrap { service.profile() }
-    suspend fun woodsSquare() = unwrap { service.woodsSquare() }
     suspend fun attendance() = unwrap { service.attendance() }
     suspend fun notifications() = unwrap { service.notifications() }
     suspend fun timesheet(weekStart: String? = null) = unwrap { service.timesheet(weekStart) }
@@ -108,18 +121,6 @@ object HrmsApi {
         "Could not change your password.",
     ) {
         service.changePassword(ChangePasswordBody(currentPassword, newPassword))
-    }
-
-    // MARK: - Woods Square access requests
-
-    suspend fun requestWoodsSquareAccess(fromDate: String?, toDate: String?, note: String?): Unit = unwrapUnit(
-        "Could not submit your access request.",
-    ) {
-        service.requestWoodsSquareAccess(WoodsSquareRequestBody(fromDate, toDate, note))
-    }
-
-    suspend fun cancelWoodsSquareRequest(id: String): Unit = unwrapUnit("Could not cancel your request.") {
-        service.cancelWoodsSquareRequest(id)
     }
 
     // MARK: - Create a calendar event (POST /api/calendar)

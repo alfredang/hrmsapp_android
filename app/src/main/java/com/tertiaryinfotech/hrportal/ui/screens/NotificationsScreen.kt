@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Icon
@@ -122,8 +121,6 @@ private fun iconFor(type: String): Pair<ImageVector, Color> = when (type) {
     "LEAVE_REJECTED" -> Icons.Filled.EventBusy to Brand.Red
     "OT_APPROVED" -> Icons.Filled.Work to Brand.Emerald
     "OT_REJECTED" -> Icons.Filled.Work to Brand.Red
-    "WOODS_SQUARE_APPROVED" -> Icons.Filled.MeetingRoom to Brand.Emerald
-    "WOODS_SQUARE_DECLINED" -> Icons.Filled.MeetingRoom to Brand.Red
     else -> Icons.Filled.Info to Brand.TextSecondary
 }
 
@@ -133,7 +130,6 @@ private fun routeFor(link: String?): String? = when {
     link.startsWith("/leave") -> "leave"
     link.startsWith("/expenses") -> "expenses"
     link.startsWith("/calendar") -> "calendar"
-    link.startsWith("/woods-square") -> "woods_square"
     link.startsWith("/timesheet") -> "timesheet"
     else -> null
 }

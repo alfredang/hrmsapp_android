@@ -5,7 +5,6 @@ import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
@@ -44,8 +43,9 @@ data class UpdateProfileBody(val personalInfo: Map<String, String>)
 @Serializable
 data class ChangePasswordBody(val currentPassword: String, val newPassword: String)
 
+/** Optional rejection reason for leave/expense reject (matches the web routes' `{reason}` body). */
 @Serializable
-data class WoodsSquareRequestBody(val fromDate: String? = null, val toDate: String? = null, val note: String? = null)
+data class RejectReasonBody(val reason: String? = null)
 
 @Serializable
 data class CreateCalendarEventBody(
@@ -67,6 +67,22 @@ interface HrmsApiService {
 
     @GET("api/mobile/summary")
     suspend fun summary(): Response<DashboardSummary>
+
+    // MARK: - Approvals (admin only — MANAGER/HR/ADMIN, enforced server-side with 403)
+    @GET("api/mobile/approvals")
+    suspend fun approvals(): Response<ApprovalsResponse>
+
+    @POST("api/leave/{id}/approve")
+    suspend fun approveLeave(@Path("id") id: String): Response<ResponseBody>
+
+    @POST("api/leave/{id}/reject")
+    suspend fun rejectLeave(@Path("id") id: String, @Body body: RejectReasonBody): Response<ResponseBody>
+
+    @POST("api/expenses/{id}/approve")
+    suspend fun approveExpense(@Path("id") id: String): Response<ResponseBody>
+
+    @POST("api/expenses/{id}/reject")
+    suspend fun rejectExpense(@Path("id") id: String, @Body body: RejectReasonBody): Response<ResponseBody>
 
     @GET("api/mobile/leave")
     suspend fun leave(): Response<LeaveResponse>
@@ -96,9 +112,6 @@ interface HrmsApiService {
 
     @GET("api/mobile/profile")
     suspend fun profile(): Response<ProfileResponse>
-
-    @GET("api/mobile/woods-square")
-    suspend fun woodsSquare(): Response<WoodsSquareResponse>
 
     @GET("api/mobile/attendance")
     suspend fun attendance(): Response<AttendanceResponse>
@@ -139,12 +152,6 @@ interface HrmsApiService {
 
     @PATCH("api/profile/password")
     suspend fun changePassword(@Body body: ChangePasswordBody): Response<ResponseBody>
-
-    @POST("api/woods-square/access-requests")
-    suspend fun requestWoodsSquareAccess(@Body body: WoodsSquareRequestBody): Response<ResponseBody>
-
-    @DELETE("api/woods-square/access-requests/{id}")
-    suspend fun cancelWoodsSquareRequest(@Path("id") id: String): Response<ResponseBody>
 
     @Streaming
     @GET

@@ -18,7 +18,9 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
@@ -58,6 +60,24 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
         val s = d.summary
         item { Greeting(s, auth) }
         item { Spacer18() }
+
+        // Approvals queue — admin only (role ADMIN/HR/MANAGER, server-enforced). The two account
+        // admins (Tan Soik Ching, Alfred Ang Chew Hoe) see this; staff/interns never do.
+        if (s.isAdmin) {
+            item { SectionTitle("Approvals queue") }
+            item { Spacer12() }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ApprovalTile(count = s.pendingLeaves, label = "Pending leave",
+                        icon = Icons.Filled.EventNote, tint = Brand.Amber,
+                        modifier = Modifier.weight(1f)) { nav.navigate("approvals") }
+                    ApprovalTile(count = s.pendingClaims, label = "Pending claims",
+                        icon = Icons.Filled.ReceiptLong, tint = Color(0xFFF97316),
+                        modifier = Modifier.weight(1f)) { nav.navigate("approvals") }
+                }
+            }
+            item { Spacer18() }
+        }
 
         item { SectionTitle("My balances") }
         item { Spacer12() }
@@ -191,6 +211,23 @@ private fun RecentActivityCard(claims: List<ExpenseClaim>, userName: String) {
                     Text(Fmt.dayMonth(c.createdAt), color = Brand.TextMuted, fontSize = 10.sp)
                 }
                 if (i < recent.size - 1) Spacer(Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+/** Admin approvals-queue tile — a count + label with a tinted icon chip, tappable to Approvals.
+ *  Mirrors the iOS dashboard's approvals cards (shown only when `summary.isAdmin`). */
+@Composable
+private fun ApprovalTile(count: Int, label: String, icon: ImageVector, tint: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(modifier = modifier.clickable(onClick = onClick)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text("$count", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(label, color = Brand.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            }
+            Box(modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = 0.18f)).padding(8.dp)) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
             }
         }
     }

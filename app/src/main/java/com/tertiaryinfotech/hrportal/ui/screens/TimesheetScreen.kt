@@ -1,12 +1,12 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,18 +16,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,336 +41,245 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.tertiaryinfotech.hrportal.data.ApiException
-import com.tertiaryinfotech.hrportal.data.AuthException
+import com.tertiaryinfotech.hrportal.data.AttendancePunch
+import com.tertiaryinfotech.hrportal.data.AttendanceResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
-import com.tertiaryinfotech.hrportal.data.TimesheetDay
-import com.tertiaryinfotech.hrportal.data.TimesheetResponse
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
-import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
+import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.LoadState
+import com.tertiaryinfotech.hrportal.ui.components.StatTile
+import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
-import com.tertiaryinfotech.hrportal.ui.components.alphaIf
-import com.tertiaryinfotech.hrportal.ui.components.clickableIf
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
+import com.tertiaryinfotech.hrportal.util.Fmt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
-import java.util.TimeZone
 
 /**
- * Weekly timesheet — logs weekend/public-holiday hours for Off-In-Lieu credit. Ported 1:1 from
- * the web's `WeeklyTimesheet` component (`src/components/timesheet/weekly-timesheet.tsx`):
- * week navigation, an Off/4h/8h chip selector per submittable non-work day, a submit-for-approval
- * confirmation, and status badges once submitted. Regular workdays aren't tracked here — this
- * screen (like the web one) only concerns weekend/PH OT. No clock-in/out here (product decision).
+ * Timesheet — a simple **clock in / out** with a live elapsed timer and a last-7-days log, ported
+ * from the native iOS `ClockView`/`TimesheetView` so the two platforms behave identically. Every
+ * punch is stored centrally (AttendancePunch table) via `/api/mobile/attendance` +
+ * `attendance/clock-{in,out}`; this screen shows today's state live plus the last 7 days. (Regular
+ * work hours are derived from clock in/out; there is no separate weekly OT grid here.)
  */
 @Composable
 fun TimesheetScreen(nav: NavController) {
-    val currentWeek = remember { currentMonday() }
-    var weekStart by remember { mutableStateOf(currentWeek) }
-    var state by remember { mutableStateOf<LoadState<TimesheetResponse>>(LoadState.Idle) }
-    var draft by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
-    var submitting by remember { mutableStateOf(false) }
-    var savedMsg by remember { mutableStateOf<String?>(null) }
-    var showConfirm by remember { mutableStateOf(false) }
+    var state by remember { mutableStateOf<LoadState<AttendanceResponse>>(LoadState.Idle) }
+    var punching by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     suspend fun load() {
-        state = LoadState.Loading
+        if (state !is LoadState.Loaded) state = LoadState.Loading
         state = try {
-            val data = HrmsApi.timesheet(weekStart)
-            draft = data.days.filter { it.isNonWorkDay }.associate { it.date to it.hours }
-            savedMsg = null
-            LoadState.Loaded(data)
-        } catch (e: AuthException) {
-            LoadState.Failed(e.message ?: "Could not load.")
-        } catch (e: ApiException) {
-            LoadState.Failed(e.message ?: "Could not load.")
+            LoadState.Loaded(HrmsApi.attendance())
         } catch (e: Exception) {
-            LoadState.Failed("Could not load.")
+            LoadState.Failed(e.message ?: "Could not load.")
         }
     }
 
-    LaunchedEffect(weekStart) { load() }
+    suspend fun punch(clockIn: Boolean) {
+        if (punching) return
+        error = null
+        punching = true
+        try {
+            if (clockIn) HrmsApi.clockIn() else HrmsApi.clockOut()
+            load()
+        } catch (e: Exception) {
+            error = e.message ?: "Could not record your punch."
+        } finally {
+            punching = false
+        }
+    }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         AsyncContent(state = state, load = { load() }) { data ->
-                val nonWorkDays = data.days.filter { it.isNonWorkDay }
-                val submittableDays = nonWorkDays.filter { it.isSubmittable }
-                Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Weekly Timesheet", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                        Text(
-                            "If you work on a weekend or public holiday, log your hours here. Off In Lieu days are credited after admin approval.",
-                            color = Brand.TextSecondary, fontSize = 13.sp,
-                        )
-                    }
-                    Spacer12()
-                    WeekNavHeader(
-                        weekStart = weekStart,
-                        isCurrentWeek = weekStart == currentWeek,
-                        onPrev = { weekStart = addWeeks(weekStart, -1) },
-                        onNext = { val n = addWeeks(weekStart, 1); if (n <= currentWeek) weekStart = n },
-                        onJumpToday = { weekStart = currentWeek },
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                TodayCard(data, punching) { clockIn -> scope.launch { punch(clockIn) } }
+                error?.let { StatusBanner(isError = true, text = it) }
+                WeekSummary(data)
+                RecentList(data)
+            }
+        }
+    }
+}
+
+// MARK: - Today card (three phases: not-clocked-in / working / done)
+
+private sealed interface Phase {
+    data object NotClockedIn : Phase
+    data class Working(val sinceMs: Long) : Phase
+    data class Done(val inAt: String?, val outAt: String?, val hours: Double?) : Phase
+}
+
+private fun phaseOf(data: AttendanceResponse): Phase {
+    val today = data.today ?: return Phase.NotClockedIn
+    val inIso = today.clockIn ?: return Phase.NotClockedIn
+    if (today.clockOut == null) {
+        val since = Fmt.parse(inIso)?.time ?: return Phase.NotClockedIn
+        return Phase.Working(since)
+    }
+    return Phase.Done(today.clockIn, today.clockOut, hoursOf(today))
+}
+
+@Composable
+private fun TodayCard(data: AttendanceResponse, punching: Boolean, onPunch: (Boolean) -> Unit) {
+    Card(padding = 24) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            when (val p = phaseOf(data)) {
+                is Phase.NotClockedIn -> {
+                    StatusHeader(
+                        icon = Icons.Filled.WbSunny, tint = Brand.Amber,
+                        title = "Not clocked in yet",
+                        subtitle = "Tap below when you start work — your time is logged to HR automatically.",
                     )
-                    Spacer12()
-
-                    if (nonWorkDays.isEmpty()) {
-                        Text(
-                            "No weekends or public holidays this week.",
-                            color = Brand.TextSecondary, fontSize = 13.sp,
-                            modifier = Modifier.padding(vertical = 24.dp),
-                        )
-                    } else {
-                        nonWorkDays.forEach { day ->
-                            DayCard(
-                                day = day,
-                                hours = draft[day.date] ?: day.hours,
-                                onHoursChange = { h -> draft = draft + (day.date to h) },
-                            )
-                        }
-                    }
-
-                    if (submittableDays.isNotEmpty()) {
-                        val otPreview = submittableDays.sumOf { otForHours(draft[it.date] ?: 0.0) }
-                        Spacer12()
-                        if (otPreview > 0) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Filled.WbSunny, contentDescription = null, tint = Brand.Emerald, modifier = Modifier.size(16.dp))
-                                Text(
-                                    "If approved: +$otPreview Off In Lieu day${if (otPreview != 1.0) "s" else ""}",
-                                    color = Brand.Emerald, fontSize = 12.sp,
-                                )
-                            }
-                        }
-                        savedMsg?.let {
-                            Text(it, color = if (it.contains("Failed") || it.contains("Could not")) Brand.Red else Brand.Emerald, fontSize = 12.sp)
-                        }
-                        val canSubmit = !submitting && submittableDays.any { (draft[it.date] ?: 0.0) > 0.0 }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(Brand.ControlHeight.dp)
-                                .clip(RoundedCornerShape(Brand.Corner.dp))
-                                .background(Brand.Primary)
-                                .alphaIf(!canSubmit, 0.55f)
-                                .clickableIf(canSubmit) { showConfirm = true },
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (submitting) {
-                                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                            } else {
-                                Icon(Icons.Filled.Save, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                Text("Submit for Approval", color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
-                            }
-                        }
-                    }
+                    PunchButton("Clock in", Icons.AutoMirrored.Filled.Login, Brand.Primary, punching) { onPunch(true) }
+                }
+                is Phase.Working -> {
+                    LiveTimer(p.sinceMs)
+                    PunchButton("Clock out", Icons.AutoMirrored.Filled.Logout, Color(0xFFF97316), punching) { onPunch(false) }
+                }
+                is Phase.Done -> {
+                    StatusHeader(
+                        icon = Icons.Filled.CheckCircle, tint = Brand.Green,
+                        title = "Done for today",
+                        subtitle = buildString {
+                            append("${timeStr(p.inAt)} – ${timeStr(p.outAt)}")
+                            p.hours?.let { append(String.format(Locale.US, " · %.1f h logged", it)) }
+                        },
+                    )
+                    Text("See you tomorrow 👋", color = Brand.TextMuted, fontSize = 14.sp)
                 }
             }
         }
+    }
+}
 
-    if (showConfirm) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showConfirm = false },
-            title = { Text("Submit for approval?") },
-            text = { Text("Your hours will be sent to admin for review. Off In Lieu days will be credited once approved.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showConfirm = false
-                    submitting = true
-                    scope.launch {
-                        try {
-                            val entries = state.let { it as? LoadState.Loaded<TimesheetResponse> }?.value
-                                ?.days?.filter { it.isNonWorkDay && it.isSubmittable }
-                                ?.mapNotNull { d -> (draft[d.date] ?: 0.0).takeIf { it > 0.0 }?.let { d.date to it } }
-                                ?: emptyList()
-                            if (entries.isEmpty()) {
-                                savedMsg = "No hours to submit."
-                            } else {
-                                HrmsApi.submitTimesheet(weekStart, entries)
-                                savedMsg = "Submitted for admin approval."
-                                load()
-                            }
-                        } catch (e: Exception) {
-                            savedMsg = (e as? ApiException)?.message ?: "Failed to save."
-                        } finally {
-                            submitting = false
-                        }
-                    }
-                }) { Text("Submit") }
-            },
-            dismissButton = { TextButton(onClick = { showConfirm = false }) { Text("Go Back") } },
+@Composable
+private fun StatusHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, title: String, subtitle: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(42.dp))
+        Text(title, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text(subtitle, color = Brand.TextSecondary, fontSize = 13.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
+}
+
+/** Live H:MM:SS timer since clock-in — recomposes every second, like iOS's TimelineView. */
+@Composable
+private fun LiveTimer(sinceMs: Long) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(sinceMs) {
+        while (true) { now = System.currentTimeMillis(); delay(1000) }
+    }
+    val elapsed = ((now - sinceMs) / 1000).coerceAtLeast(0)
+    val h = elapsed / 3600; val m = (elapsed % 3600) / 60; val s = elapsed % 60
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Working — clocked in at ${timeStrFromMs(sinceMs)}", color = Brand.TextSecondary, fontSize = 13.sp)
+        Text(
+            String.format(Locale.US, "%d:%02d:%02d", h, m, s),
+            color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 44.sp,
         )
     }
 }
 
 @Composable
-private fun WeekNavHeader(weekStart: String, isCurrentWeek: Boolean, onPrev: () -> Unit, onNext: () -> Unit, onJumpToday: () -> Unit) {
+private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, loading: Boolean, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clip(RoundedCornerShape(Brand.Corner.dp))
+            .background(tint)
+            .then(if (loading) Modifier else Modifier.clickable(onClick = onClick)),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onPrev) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous week", tint = Brand.TextSecondary)
-            }
-            Text(formatWeekRange(weekStart), color = Brand.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            IconButton(onClick = onNext, enabled = !isCurrentWeek) {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next week",
-                    tint = if (isCurrentWeek) Brand.TextMuted else Brand.TextSecondary,
-                )
-            }
+        if (loading) {
+            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+        } else {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
+                modifier = Modifier.padding(start = 10.dp))
         }
-        if (!isCurrentWeek) {
-            Text("Jump to current week", color = Brand.Primary, fontSize = 12.sp, modifier = Modifier.clickable(onClick = onJumpToday))
+    }
+}
+
+// MARK: - Week summary + recent list
+
+@Composable
+private fun WeekSummary(data: AttendanceResponse) {
+    val total = data.recent.mapNotNull { hoursOf(it) }.sum()
+    val daysWorked = data.recent.count { it.clockIn != null }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        StatTile(
+            value = String.format(Locale.US, "%.1f h", total), label = "Logged (last 7 days)",
+            icon = Icons.Filled.Functions, tint = Brand.Mint,
+            iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
+        )
+        StatTile(
+            value = "$daysWorked", label = "Days worked",
+            icon = Icons.Outlined.EventAvailable, tint = Brand.Blue,
+            iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun RecentList(data: AttendanceResponse) {
+    Text("Recent days", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+    if (data.recent.isEmpty()) {
+        EmptyHint(Icons.Outlined.EventAvailable, "No punches yet. Your log appears here.")
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            data.recent.forEach { p -> RecentRow(p) }
         }
     }
 }
 
 @Composable
-private fun DayCard(day: TimesheetDay, hours: Double, onHoursChange: (Double) -> Unit) {
-    val editable = day.isSubmittable && day.status != "APPROVED"
-    val tagColor = if (day.isPublicHoliday) Brand.Amber else Brand.Emerald
+private fun RecentRow(p: AttendancePunch) {
     Card {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(day.dayName, color = tagColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(formatDayLabel(day.date), color = Brand.TextPrimary, fontSize = 14.sp)
-            }
-            TagPill(if (day.isPublicHoliday) day.phName ?: "Public Holiday" else "Weekend", tagColor)
-        }
-
-        FieldRow("HOURS") {
-            if (editable) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HourChip("—", 0.0, hours, onHoursChange)
-                    HourChip("4h", 4.0, hours, onHoursChange)
-                    HourChip("8h", 8.0, hours, onHoursChange)
-                }
-            } else {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(Fmt.date(p.date ?: p.clockIn), color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text(
-                    if (hours == 0.0) "—" else "${hours.toInt()}h",
-                    color = if (hours == 0.0) Brand.TextMuted else Brand.TextPrimary,
-                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    "${timeStr(p.clockIn)} – ${if (p.clockOut == null) "…" else timeStr(p.clockOut)}",
+                    color = Brand.TextSecondary, fontSize = 12.sp,
                 )
             }
-        }
-
-        val earned = otForHours(hours)
-        FieldRow("OFF IN LIEU") {
-            Text(
-                if (earned > 0) "+${if (earned % 1.0 == 0.0) earned.toInt().toString() else earned.toString()} d" else "—",
-                color = if (earned > 0) Brand.Emerald else Brand.TextMuted, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-            )
-        }
-
-        FieldRow("STATUS") {
-            if (day.status != null) StatusPill(day.status) else Text("—", color = Brand.TextMuted, fontSize = 13.sp)
-        }
-
-        if (!day.adminComment.isNullOrEmpty()) {
-            Text(day.adminComment, color = Brand.TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
+            val hours = hoursOf(p)
+            when {
+                hours != null -> Text(String.format(Locale.US, "%.1f h", hours), color = Brand.Mint, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                p.clockIn != null -> StatusPill("WORKING")
+            }
         }
     }
 }
 
-@Composable
-private fun FieldRow(label: String, content: @Composable () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, color = Brand.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-        content()
-    }
+// MARK: - Helpers
+
+/** Hours worked = clockOut − clockIn, in hours; null while still clocked in or no data. */
+private fun hoursOf(p: AttendancePunch): Double? {
+    val inMs = Fmt.parse(p.clockIn)?.time ?: return null
+    val outMs = Fmt.parse(p.clockOut)?.time ?: return null
+    if (outMs <= inMs) return null
+    return (outMs - inMs) / 3_600_000.0
 }
 
-@Composable
-private fun TagPill(text: String, color: Color) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .border(1.dp, color, RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 3.dp),
-    ) {
-        Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-    }
+private val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
+private fun timeStr(iso: String?): String {
+    val d = Fmt.parse(iso) ?: return "—"
+    return timeFmt.format(d)
 }
-
-@Composable
-private fun HourChip(label: String, value: Double, selected: Double, onSelect: (Double) -> Unit) {
-    val isSelected = selected == value
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected && value > 0) Brand.Emerald else Brand.Border)
-            .border(1.dp, if (isSelected) Color.Transparent else Brand.BorderLight, RoundedCornerShape(8.dp))
-            .clickable { onSelect(value) }
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    ) {
-        Text(label, color = if (isSelected) Color.White else Brand.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-private fun otForHours(hours: Double): Double = when {
-    hours >= 8 -> 1.0
-    hours >= 4 -> 0.5
-    else -> 0.0
-}
-
-// MARK: - UTC Monday-week helpers (mirrors weekly-timesheet.tsx's getMonday/addWeeks)
-
-private fun utcCalendar(): Calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-
-private fun calFrom(dateStr: String): Calendar {
-    val (y, m, d) = dateStr.split("-").map { it.toInt() }
-    val cal = utcCalendar()
-    cal.clear()
-    cal.set(y, m - 1, d)
-    return cal
-}
-
-private fun isoKey(cal: Calendar): String =
-    String.format(Locale.US, "%04d-%02d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
-
-private fun currentMonday(): String = mondayOf(isoKey(utcCalendar()))
-
-private fun mondayOf(dateStr: String): String {
-    val cal = calFrom(dateStr)
-    val dow = cal.get(Calendar.DAY_OF_WEEK) // SUNDAY=1 .. SATURDAY=7
-    val diff = if (dow == Calendar.SUNDAY) -6 else Calendar.MONDAY - dow
-    cal.add(Calendar.DAY_OF_MONTH, diff)
-    return isoKey(cal)
-}
-
-private fun addWeeks(dateStr: String, n: Int): String {
-    val cal = calFrom(dateStr)
-    cal.add(Calendar.DAY_OF_MONTH, n * 7)
-    return isoKey(cal)
-}
-
-private fun formatWeekRange(weekStart: String): String {
-    val fmt = SimpleDateFormat("d MMM yyyy", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }
-    val start = calFrom(weekStart)
-    val end = calFrom(weekStart).apply { add(Calendar.DAY_OF_MONTH, 6) }
-    return "${fmt.format(start.time)} – ${fmt.format(end.time)}"
-}
-
-private fun formatDayLabel(dateStr: String): String {
-    val fmt = SimpleDateFormat("d MMM", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }
-    return fmt.format(calFrom(dateStr).time)
-}
+private fun timeStrFromMs(ms: Long): String = timeFmt.format(java.util.Date(ms))

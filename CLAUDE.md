@@ -7,15 +7,20 @@ Guidance for Claude Code when working in this repository.
 **Tertiary HRMS — native Android app** (Kotlin + Jetpack Compose, Material 3, MVVM). The Google
 Play build of Tertiary Infotech Academy's HR Management System, **rebuilt fully native — no
 WebView, no cross-platform runtime**. It is the Android sibling of the native iOS app
-(`../iOS/TertiaryHRMSiOSApp`) and ports its features and API layer 1:1. Min SDK **24 (Android 7)**,
-target SDK **36**, phone-first.
+(`../iOS/hrmsapp`) and **mirrors its features, UI/UX, and API layer 1:1** — the iOS app is the
+source of truth for both *functionality* and *visual design*. Min SDK **24 (Android 7)**, target
+SDK **36**, phone-first.
 
-**Theme**: pixel-matched to the web app's actual dark design system, not a distinct mobile
-identity — flat `gray-950`/`gray-900`/`gray-800` surfaces (no gradients), an indigo `#6366F1`
-accent, and Inter typography (`ui/theme/Theme.kt`, `Type.kt`). Every screen's colors, copy, and
-layout are ported from the corresponding web page (`tailwind.config.ts` / `globals.css` /
-`src/app/**/page.tsx` in the web repo) rather than an independently-designed mobile skin. When the
-web app's design changes, mirror it here too.
+**Theme — Premier Blue (pixel-matched to iOS).** The app uses the iOS app's **Premier Blue** design
+system, not the web app's flat gray skin. The signature backdrop is the navy → premier → azure
+diagonal gradient (`navy #0A1F44` → `premier #1D4ED8` → `azure #3B82F6`, exact hex ported from the
+iOS `Theme/Theme.swift`); cards are translucent frosted panels on top of it, text is white, the
+accent/button/tab colour is premier blue, and `sky #94C5FD` is the secondary accent. All tokens live
+in `ui/theme/Theme.kt` (`Brand.*`) + `Type.kt`. **Unlike iOS (dark-only today), Android keeps a
+light / dark toggle** — both themed in Premier Blue (dark = the iOS gradient; light = a Premier-Blue
+light remap: near-white / very-light-blue surfaces, blue accents, navy ink text), switched at
+runtime via `Brand.applyTheme` and persisted in `ThemePrefs` from the Profile screen. iOS will gain
+the same toggle later. When the iOS app's design changes, mirror it here too.
 
 ## Relationship to the web app (hrms.tertiaryinfo.tech) and Coolify
 
@@ -37,9 +42,37 @@ no database of its own.
 
 ## Features
 
-Mirrors the iOS app: Login (password + OTP), Dashboard, Leave (+ apply), Team directory, Payslips
-(native **PdfRenderer** viewer), Expenses, Calendar, Timesheet, Profile. **Accounting** and heavy
-**admin authoring** flows are intentionally excluded (web-only), same as iOS.
+Mirrors the iOS app 1:1:
+
+- **Login** — email + **password** and email **OTP** sign-in (role-based via the web NextAuth
+  session). **Persistent login**: the session cookie lives in `PersistentCookieJar`
+  (SharedPreferences-backed) and `AuthViewModel.bootstrap()` restores it on launch, so a signed-in
+  user stays signed in across app restarts and never has to re-log-in until they sign out.
+- **Dashboard** — welcome header, KPI balance tiles (AL / MC / Expenses YTD / Off-in-Lieu), Quick
+  Actions, Recent Activity, and (admins only) the **Approvals queue** cards.
+- **Leave** — balances + full request history + **apply for leave** with a live working-days
+  preview. **Medical leave (MC)** is applied here as a leave type, attaching an **MC photo**
+  (native camera / gallery via `ActivityResultContracts` → `/api/upload` → attached to the request).
+- **Approvals** (admins only — role ∈ {ADMIN, HR, MANAGER}) — approve / reject pending **leave &
+  expense** requests in-app (`GET /api/mobile/approvals`; `POST /api/{leave|expenses}/{id}/{approve
+  |reject}`). **Enforced server-side** (403 for staff/interns); the client only shows the UI when
+  `summary.isAdmin`. The two account admins (**Tan Soik Ching**, **Alfred Ang Chew Hoe**) hold role
+  ADMIN and can action this queue.
+- **Team** — company directory (richer contact fields for supervisory roles).
+- **Payslips** — list + native **PdfRenderer** viewer for the authenticated payslip PDF.
+- **Expenses** — personal expense/medical claims with status, plus **submit a claim** with a
+  receipt photo.
+- **Timesheet** — a simple **clock in / out** with a live elapsed timer and a last-7-days log
+  (ported from the iOS `ClockView`; punches stored via `/api/mobile/attendance` +
+  `attendance/clock-{in,out}`). *Not* a weekly OT grid.
+- **Calendar** — public holidays, the user's events, and approved leave, grouped by month.
+- **Notifications** — top-bar **bell with unread badge** + list (`/api/notifications`).
+- **Profile** — full employee record + self-service edit + change password, and the **light / dark
+  theme toggle** (Android-only for now).
+
+**Excluded / removed** (same product scope as iOS): **Accounting** and heavy **admin-authoring**
+flows (web-only). **Woods Square building access** is **not** part of this app (removed — it isn't in
+the iOS app either).
 
 **Google Sign-In** is present in the iOS app but **hidden in this Android v1** — it needs an Android
 OAuth client id registered against the app's signing SHA-1. Password + OTP are fully functional. To

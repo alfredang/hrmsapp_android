@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -78,8 +77,6 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
                 MenuLink("Timesheet", Icons.Filled.Schedule, IconTint.Emerald) { nav.navigate("timesheet") }
                 MenuDivider()
                 MenuLink("My profile", Icons.Filled.AccountCircle, IconTint.Amber) { nav.navigate("profile") }
-                MenuDivider()
-                MenuLink("Woods Square Access", Icons.Filled.MeetingRoom, IconTint.Blue) { nav.navigate("woods_square") }
             }
 
             SignOutButton(auth)
