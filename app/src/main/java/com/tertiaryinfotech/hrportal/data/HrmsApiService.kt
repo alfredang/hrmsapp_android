@@ -47,6 +47,13 @@ data class ChangePasswordBody(val currentPassword: String, val newPassword: Stri
 @Serializable
 data class RejectReasonBody(val reason: String? = null)
 
+/** `reasonDetail` is required by the server when [reason] is OTHERS (400 otherwise). */
+@Serializable
+data class CreateTimeOffBody(
+    val date: String, val startTime: String, val endTime: String,
+    val reason: String, val reasonDetail: String? = null,
+)
+
 @Serializable
 data class CreateCalendarEventBody(
     val title: String, val description: String? = null, val startDate: String, val endDate: String,
@@ -127,6 +134,16 @@ interface HrmsApiService {
 
     @POST("api/notifications/{id}/read")
     suspend fun markNotificationRead(@Path("id") id: String): Response<ResponseBody>
+
+    /** Bare JSON array — no envelope object (unlike the /api/mobile/... endpoints). */
+    @GET("api/time-off")
+    suspend fun timeOff(): Response<List<TimeOffRequest>>
+
+    @POST("api/time-off")
+    suspend fun createTimeOff(@Body body: CreateTimeOffBody): Response<ResponseBody>
+
+    @POST("api/time-off/{id}/cancel")
+    suspend fun cancelTimeOff(@Path("id") id: String): Response<ResponseBody>
 
     @GET("api/timesheet")
     suspend fun timesheet(@Query("weekStart") weekStart: String?): Response<TimesheetResponse>

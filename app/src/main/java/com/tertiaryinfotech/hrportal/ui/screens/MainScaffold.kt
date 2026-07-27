@@ -33,6 +33,8 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.EventNote
+import androidx.compose.material.icons.outlined.MoreTime
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
@@ -109,7 +111,11 @@ private val DRAWER_ITEMS = listOf(
     DrawerItem("expenses", "Expense Claims", Icons.Outlined.Receipt),
     DrawerItem("payslips", "Payroll", Icons.Outlined.CreditCard),
     DrawerItem("calendar", "Calendar", Icons.Outlined.CalendarMonth),
-    DrawerItem("timesheet", "Timesheet", Icons.Outlined.AccessTime),
+    DrawerItem("timesheet_week", "Timesheet", Icons.Outlined.EventNote),
+    DrawerItem("time_off", "Time Off", Icons.Outlined.MoreTime),
+    // The clock in/out punch screen keeps the pre-existing "timesheet" route (it stores punches,
+    // not the weekly OT grid) — only its label changed when the real weekly Timesheet arrived.
+    DrawerItem("timesheet", "Clock In / Out", Icons.Outlined.AccessTime),
 )
 
 /** Drawer-only destinations (not a bottom [Tab]) that still share the hamburger top bar rather
@@ -117,7 +123,11 @@ private val DRAWER_ITEMS = listOf(
  *  nav highlight since they aren't bottom-tab destinations. */
 private val DRAWER_ONLY_TOP_BAR_TITLES = mapOf(
     "calendar" to "Calendar",
-    "timesheet" to "Timesheet",
+    // Order matters: title resolution is startsWith-based and "timesheet_week" / "time_off_request"
+    // both start with a sibling route's prefix, so the longer keys must come first.
+    "timesheet_week" to "Timesheet",
+    "timesheet" to "Clock In / Out",
+    "time_off" to "Time Off",
     "approvals" to "Approvals",
 )
 
@@ -231,6 +241,12 @@ fun MainScaffold(auth: AuthViewModel) {
                     AddCalendarEventScreen(nav, backStackEntry.arguments?.getString("date")?.takeIf { it != "none" })
                 }
                 composable("timesheet") { TimesheetScreen(nav) }
+                composable("timesheet_week") { WeeklyTimesheetScreen(nav) }
+                composable("time_off") { TimeOffScreen(nav) }
+                // Form destination (not in the drawer) — its route starts with "time_off" so the
+                // startsWith matching above keeps the shared "Time Off" top bar, same trick as
+                // "leave_request" under the Leave tab.
+                composable("time_off_request") { RequestTimeOffScreen(nav) }
                 composable("approvals") { ApprovalsScreen(nav) }
                 composable("notifications") { NotificationsScreen(auth, nav) }
                 composable("payslip_pdf") { PayslipPdfScreen(nav) }
@@ -278,8 +294,13 @@ private fun AppDrawerContent(auth: AuthViewModel, currentRoute: String?, onNavig
                 )
             }
 
+            // Longest-prefix match, not plain startsWith — "timesheet_week" starts with the clock
+            // screen's "timesheet" route, and only the more specific row should highlight.
+            val selectedRoute = DRAWER_ITEMS
+                .filter { currentRoute?.startsWith(it.route) == true }
+                .maxByOrNull { it.route.length }?.route
             DRAWER_ITEMS.forEach { item ->
-                val selected = currentRoute?.startsWith(item.route) == true
+                val selected = item.route == selectedRoute
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

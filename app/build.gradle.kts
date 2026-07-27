@@ -19,8 +19,8 @@ android {
         targetSdk = 36
         // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
         // review, so each new release must increment from there.
-        versionCode = 15
-        versionName = "1.3"
+        versionCode = 16
+        versionName = "1.4"
         vectorDrawables { useSupportLibrary = true }
     }
 

@@ -355,6 +355,37 @@ data class AttendancePunch(
     val clockOut: String? = null,
 )
 
+// MARK: - Time off (existing /api/time-off) — hourly requests, mostly for interns
+
+/**
+ * One hourly time-off request. `GET /api/time-off` returns a bare JSON array of these (no object
+ * envelope), ordered date-descending; non-admin users only receive their own rows. `hours` arrives
+ * as a decimal string (`"2.50"`), hence [FlexNumberSerializer]. Every field is defaulted per house
+ * convention so backend shape drift never breaks decoding.
+ */
+@Serializable
+data class TimeOffRequest(
+    val id: String = "",
+    val employeeId: String = "",
+    val date: String? = null,
+    val startTime: String = "",
+    val endTime: String = "",
+    @Serializable(with = FlexNumberSerializer::class) val hours: Double = 0.0,
+    val reason: String = "",
+    val reasonDetail: String? = null,
+    val status: String = "",
+    val approvedAt: String? = null,
+    val approvalComment: String? = null,
+    val rejectedAt: String? = null,
+    val rejectionReason: String? = null,
+    val createdAt: String? = null,
+    val employee: TimeOffEmployee? = null,
+)
+
+/** Minimal nested employee on a [TimeOffRequest] — only the name is rendered. */
+@Serializable
+data class TimeOffEmployee(val name: String = "")
+
 // MARK: - Timesheet (existing /api/timesheet)
 
 @Serializable

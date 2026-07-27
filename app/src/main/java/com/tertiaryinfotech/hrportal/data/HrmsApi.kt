@@ -57,6 +57,20 @@ object HrmsApi {
     suspend fun notifications() = unwrap { service.notifications() }
     suspend fun timesheet(weekStart: String? = null) = unwrap { service.timesheet(weekStart) }
 
+    // MARK: - Hourly time off (existing /api/time-off)
+
+    suspend fun timeOff() = unwrap { service.timeOff() }
+
+    suspend fun createTimeOff(
+        date: String, startTime: String, endTime: String, reason: String, reasonDetail: String? = null,
+    ): Unit = unwrapUnit("Could not submit your time-off request.") {
+        service.createTimeOff(CreateTimeOffBody(date, startTime, endTime, reason, reasonDetail))
+    }
+
+    suspend fun cancelTimeOff(id: String): Unit = unwrapUnit("Could not cancel the request.") {
+        service.cancelTimeOff(id)
+    }
+
     // MARK: - Clock in/out (POST /api/mobile/attendance/clock-in|out)
 
     suspend fun clockIn() = unwrap(defaultError = "Could not clock in.") { service.clockIn() }
