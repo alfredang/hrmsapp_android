@@ -2,6 +2,7 @@
 
 # Tertiary HRMS — Android
 
+[![Google Play](https://img.shields.io/badge/Google%20Play-Download-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)
 [![Platform](https://img.shields.io/badge/Platform-Android%207%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -10,7 +11,12 @@
 
 **Your HR on the go — leave, payslips, expenses, team and timesheet, rebuilt fully native.**
 
-[Web App](https://hrms.tertiaryinfotech.com) · [Report Bug](https://github.com/alfredang/hrmsapp_android/issues) · [Request Feature](https://github.com/alfredang/hrmsapp_android/issues)
+<a href="https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal">
+  <img alt="Get it on Google Play" height="80"
+       src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png">
+</a>
+
+[Download on Google Play](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) · [Web App](https://hrms.tertiaryinfotech.com) · [Report Bug](https://github.com/alfredang/hrmsapp_android/issues) · [Request Feature](https://github.com/alfredang/hrmsapp_android/issues)
 
 </div>
 
@@ -148,6 +154,8 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 [`data/Net.kt`](app/src/main/java/com/tertiaryinfotech/hrportal/data/Net.kt).
 
 ## Deployment (Google Play)
+
+> **Live on Google Play** — [Tertiary HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)
