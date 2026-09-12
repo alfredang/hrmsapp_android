@@ -33,9 +33,21 @@ Brings the Android app to feature and UX parity with the native iOS app (v1.7).
 - The More tab showed a hardcoded "v1.0"; it now reads the real version from `BuildConfig`.
 
 ### Play submission
-- Track: **Production**.
-- Submitted from the **sales@tertiarycourses.com.sg** company account (the app was transferred from
-  the personal `angch@tertiaryinfotech.com` account beforehand).
+- Track: **Production**, full rollout, 177 countries/regions.
+- Uploaded and submitted for review **2026-09-12** via the Android Publisher API
+  (service account `codex-play-publisher@kael-projects.iam.gserviceaccount.com`, granted
+  app-scoped release permissions on the app that day). Console read-back:
+  *Active · Release 17 (1.5) in review*.
+- Submitted from the **personal** `angch@tertiaryinfotech.com` account: the move to
+  **sales@tertiarycourses.com.sg** was still blocked on the Play "Transfer apps" form, which
+  requires the receiving account's Developer ID and registration transaction ID (console-only —
+  no Publisher API endpoint exists for it). Publishing first was deliberate: an app transfer
+  carries the app and its full release history, so v1.5 follows the app across whenever the
+  transfer completes.
+- **Google Sign-In ships dormant.** The release has no `GOOGLE_ANDROID_CLIENT_ID`, so the button
+  is hidden; password + OTP are unaffected. Enabling it needs an Android OAuth client registered
+  against the **Play App Signing** SHA-1, best done once under the account that ends up owning
+  the app.
 
 ## [1.4] — 2026-08-04 · versionCode 16
 
