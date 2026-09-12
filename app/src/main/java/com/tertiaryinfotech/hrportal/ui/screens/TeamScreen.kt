@@ -26,47 +26,49 @@ import androidx.compose.ui.unit.sp
 import com.tertiaryinfotech.hrportal.data.Employee
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
-import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
-/** Team tab — the company directory with a name/role search. */
+/**
+ * Team tab — the company directory with a name/role search.
+ *
+ * A bottom-tab destination, so it renders bare: MainScaffold supplies the shared top bar and
+ * bottom nav (a BrandScaffold here would stack a second, back-arrow app bar on top).
+ */
 @Composable
 fun TeamScreen() {
     var query by remember { mutableStateOf("") }
 
-    BrandScaffold(title = "Team") { inner ->
-        Column(modifier = Modifier.padding(inner)) {
-            AsyncListScreen(fetch = { HrmsApi.employees() }) { data ->
-                item {
-                    TextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = { Text("Search name or role", color = Brand.TextMuted) },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Brand.TextSecondary) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Brand.Border,
-                            unfocusedContainerColor = Brand.Border,
-                            focusedTextColor = Brand.TextPrimary,
-                            unfocusedTextColor = Brand.TextPrimary,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                    )
-                }
+    Column {
+        AsyncListScreen(fetch = { HrmsApi.employees() }) { data ->
+            item {
+                TextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search name or role", color = Brand.TextMuted) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Brand.TextSecondary) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Brand.Border,
+                        unfocusedContainerColor = Brand.Border,
+                        focusedTextColor = Brand.TextPrimary,
+                        unfocusedTextColor = Brand.TextPrimary,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                )
+            }
 
-                val filtered = filterEmployees(data.employees, query)
-                if (filtered.isEmpty()) {
-                    item { EmptyHint(Icons.Filled.Group, "No colleagues found.") }
-                } else {
-                    items(filtered) { e ->
-                        EmployeeRow(e, data.isAdmin)
-                        Spacer12()
-                    }
+            val filtered = filterEmployees(data.employees, query)
+            if (filtered.isEmpty()) {
+                item { EmptyHint(Icons.Filled.Group, "No colleagues found.") }
+            } else {
+                items(filtered) { e ->
+                    EmployeeRow(e, data.isAdmin)
+                    Spacer12()
                 }
             }
         }

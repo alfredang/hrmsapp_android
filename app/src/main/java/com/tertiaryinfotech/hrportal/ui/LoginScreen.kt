@@ -1,5 +1,6 @@
 package com.tertiaryinfotech.hrportal.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,12 +23,16 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -46,6 +53,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tertiaryinfotech.hrportal.ui.components.BrandHeader
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.PremierField
@@ -120,6 +130,53 @@ private fun EmailStep(auth: AuthViewModel) {
         onClick = { auth.sendOTP() },
     )
     CenteredLink("Sign in with password instead", onClick = { auth.continueFromEmail() })
+    GoogleOption(auth)
+}
+
+/**
+ * Google sign-in, offered alongside password and OTP (iOS `LoginView.googleOption`). Hidden
+ * entirely when the build carries no Google client id, so it can never dead-end the user.
+ */
+@Composable
+private fun GoogleOption(auth: AuthViewModel) {
+    if (!auth.googleSignInAvailable) return
+    val context = LocalContext.current
+
+    // The Custom Tab is a separate task: if the user dismisses it without completing consent,
+    // no redirect ever arrives, so release the suspended sign-in when we come back to the front.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) auth.onGoogleSignInDismissed()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    OrDivider()
+    OutlinedButton(
+        onClick = { auth.signInWithGoogle(context) },
+        enabled = !auth.isWorking,
+        shape = RoundedCornerShape(Brand.Corner.dp),
+        border = BorderStroke(1.dp, Brand.BorderLight),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.TextPrimary),
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+    ) {
+        Text("Continue with Google", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** "Or" rule between the primary sign-in actions and the Google option. */
+@Composable
+private fun OrDivider() {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f), color = Brand.Border)
+        Text("  or  ", color = Brand.TextMuted, fontSize = 12.sp)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = Brand.Border)
+    }
 }
 
 /** otp step — 6-digit code verification (mirrors `login/page.tsx:339-409`). */

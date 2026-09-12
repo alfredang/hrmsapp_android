@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +29,7 @@ import kotlinx.coroutines.launch
 fun <T> AsyncListScreen(
     fetch: suspend () -> T,
     contentPadding: PaddingValues = PaddingValues(20.dp),
+    key: Any? = Unit,
     body: LazyListScope.(T) -> Unit,
 ) {
     var state by remember { mutableStateOf<LoadState<T>>(LoadState.Idle) }
@@ -37,6 +39,18 @@ fun <T> AsyncListScreen(
     val load: suspend () -> Unit = {
         state = LoadState.Loading
         state = runFetch(fetch)
+    }
+
+    // Refetch when the caller's query input changes (e.g. the team calendar's year as the user
+    // pages across a year boundary). `key` defaults to Unit, so callers that fetch once are
+    // unaffected. The initial load still comes from AsyncContent's own first-appearance effect;
+    // this only handles subsequent key changes, hence the Idle skip.
+    var lastKey by remember { mutableStateOf(key) }
+    LaunchedEffect(key) {
+        if (key != lastKey) {
+            lastKey = key
+            load()
+        }
     }
 
     AsyncContent(state = state, load = load) { data ->

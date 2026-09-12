@@ -48,4 +48,10 @@ interface AuthApiService {
 
     @POST("api/auth/send-otp")
     suspend fun sendOtp(@Body body: SendOtpBody): Response<SendOtpResponse>
+
+    /** Exchanges a Google `id_token` for the standard NextAuth session cookie. The server
+     *  verifies the token with Google and checks its audience allow-list — the client is never
+     *  trusted on identity. Pre-existing route, already used by the iOS app. */
+    @POST("api/auth/google-mobile")
+    suspend fun googleMobile(@Body body: GoogleMobileBody): Response<ResponseBody>
 }

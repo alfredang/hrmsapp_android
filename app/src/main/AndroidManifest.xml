@@ -24,6 +24,23 @@
             </intent-filter>
         </activity>
 
+        <!-- Catches Google's OAuth redirect on the reversed-client-id scheme. The scheme comes
+             from the build's GOOGLE_ANDROID_CLIENT_ID, so a build without one claims only an
+             inert placeholder scheme rather than something real. -->
+        <activity
+            android:name=".GoogleAuthRedirectActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${googleRedirectScheme}" />
+            </intent-filter>
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

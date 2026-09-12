@@ -111,6 +111,11 @@ interface HrmsApiService {
     @GET("api/mobile/calendar")
     suspend fun calendar(): Response<CalendarResponse>
 
+    /** Company-wide approved leave for the team calendar grid (iOS `HRMSAPI.teamCalendar`).
+     *  Only APPROVED leave is returned, and colleagues' leave types are masked server-side. */
+    @GET("api/mobile/team-calendar")
+    suspend fun teamCalendar(@Query("year") year: Int): Response<TeamCalendarResponse>
+
     /** Existing (non-mobile-namespaced) route the web's own `/calendar/new` page calls — same
      *  NextAuth session-cookie auth this app already rides for every other call, so no new
      *  mobile-scoped endpoint was needed. */

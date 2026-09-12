@@ -52,6 +52,7 @@ object HrmsApi {
     suspend fun expenses() = unwrap { service.expenses() }
     suspend fun payslips() = unwrap { service.payslips() }
     suspend fun calendar() = unwrap { service.calendar() }
+    suspend fun teamCalendar(year: Int) = unwrap { service.teamCalendar(year) }
     suspend fun profile() = unwrap { service.profile() }
     suspend fun attendance() = unwrap { service.attendance() }
     suspend fun notifications() = unwrap { service.notifications() }

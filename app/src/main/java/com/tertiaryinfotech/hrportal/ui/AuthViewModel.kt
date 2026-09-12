@@ -6,7 +6,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tertiaryinfotech.hrportal.data.AuthException
+import android.content.Context
 import com.tertiaryinfotech.hrportal.data.AuthService
+import com.tertiaryinfotech.hrportal.data.GoogleAuthException
+import com.tertiaryinfotech.hrportal.data.GoogleSignInService
 import com.tertiaryinfotech.hrportal.data.BrandingResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.SessionPrefs
@@ -162,6 +165,41 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
                 isWorking = false
             }
         }
+    }
+
+    /** Whether this build ships a Google OAuth client id — drives the button's visibility, the
+     *  same way the iOS app hides its Google button when GIDClientID is unset. */
+    val googleSignInAvailable: Boolean get() = GoogleSignInService.isConfigured
+
+    /**
+     * Google sign-in. Needs an Activity [context] to launch the Custom Tab, so the screen passes
+     * its own rather than the Application context held by this AndroidViewModel.
+     */
+    fun signInWithGoogle(context: Context) {
+        if (isWorking) return
+        errorMessage = null; infoMessage = null
+        isWorking = true
+        viewModelScope.launch {
+            try {
+                finishSignIn(GoogleSignInService.signIn(context))
+            } catch (e: GoogleAuthException) {
+                // A user who backed out of the consent screen isn't an error worth a banner —
+                // same judgement the iOS service makes for .cancelled.
+                if (e.kind != GoogleAuthException.Kind.CANCELLED) {
+                    errorMessage = e.message ?: "Google sign-in failed."
+                }
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Google sign-in failed."
+            } finally {
+                isWorking = false
+            }
+        }
+    }
+
+    /** Called when the login screen resumes with no redirect delivered — the user dismissed the
+     *  Custom Tab, so release the suspended sign-in instead of spinning forever. */
+    fun onGoogleSignInDismissed() {
+        if (isWorking) GoogleSignInService.onCancelled()
     }
 
     /** Initial "Send OTP" from the email step — uses the server's own success copy, mirrors

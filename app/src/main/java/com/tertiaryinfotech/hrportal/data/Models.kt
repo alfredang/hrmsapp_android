@@ -243,6 +243,65 @@ data class CalendarEvent(
     val description: String? = null,
 )
 
+// MARK: - Google sign-in (Google token endpoint + POST /api/auth/google-mobile)
+
+/** Google's token-endpoint reply. Only `id_token` is used; the error fields surface a real
+ *  reason instead of a bare HTTP status when the exchange fails. */
+@Serializable
+data class GoogleTokenResponse(
+    @SerialName("id_token") val idToken: String? = null,
+    val error: String? = null,
+    @SerialName("error_description") val errorDescription: String? = null,
+)
+
+@Serializable
+data class GoogleMobileBody(val idToken: String)
+
+/** The shape the backend uses for error replies (`{ "error": "..." }`). */
+@Serializable
+data class ApiErrorBody(val error: String? = null)
+
+// MARK: - Team calendar (/api/mobile/team-calendar?year=)
+
+/**
+ * Company-wide approved leave for the team calendar month grid (iOS `TeamCalendarResponse`).
+ *
+ * [canSeeTypes] reports whether the server disclosed leave *types* to this viewer. A
+ * colleague's [TeamLeaveEntry.leaveType] is masked server-side unless the viewer is that
+ * person or an approver — medical leave would otherwise leak health information company-wide.
+ * The client must never infer a type when the server withheld one.
+ */
+@Serializable
+data class TeamCalendarResponse(
+    val year: Int = 0,
+    val canSeeTypes: Boolean = false,
+    val entries: List<TeamLeaveEntry> = emptyList(),
+    val holidays: List<TeamHoliday> = emptyList(),
+)
+
+@Serializable
+data class TeamLeaveEntry(
+    val id: String,
+    val employeeId: String = "",
+    val employeeName: String = "",
+    val department: String? = null,
+    val startDate: String? = null,
+    val endDate: String? = null,
+    @Serializable(with = FlexNumberSerializer::class) val days: Double = 0.0,
+    val halfDay: Boolean = false,
+    /** Null when the server masked it — render the name alone, never a guess. */
+    val leaveType: String? = null,
+    val isSelf: Boolean = false,
+)
+
+@Serializable
+data class TeamHoliday(
+    val id: String,
+    val title: String = "",
+    val startDate: String? = null,
+    val endDate: String? = null,
+)
+
 // MARK: - Profile (/api/mobile/profile)
 
 @Serializable

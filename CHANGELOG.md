@@ -4,6 +4,39 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.5] — 2026-09-12 · versionCode 17
+
+Brings the Android app to feature and UX parity with the native iOS app (v1.7).
+
+### Added
+- **Team Calendar** — the whole team's approved leave as a month grid (`/api/mobile/team-calendar`),
+  with an Everyone / Only me filter, ‹ Today ›, month paging and a per-day detail sheet. Multi-day
+  requests render on every day they span. A colleague's leave *type* stays masked unless the server
+  discloses it (you, or an approver), so medical leave never leaks company-wide.
+- **Google Sign-In** — native authorization-code + PKCE flow over Chrome Custom Tabs (no Play
+  Services SDK), exchanging the Google `id_token` at `POST /api/auth/google-mobile` for the same
+  NextAuth session cookie password and OTP use. The button is hidden unless the build carries a
+  `GOOGLE_ANDROID_CLIENT_ID`, so it can never dead-end the user.
+
+### Changed
+- **Five bottom tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView`
+  1:1. The **Team** and **More** screens existed but were previously unreachable; both are now
+  first-class destinations. The hamburger drawer is kept as a secondary path (now including Team),
+  so nothing that was reachable before became unreachable.
+- The Calendar tab is the new team grid; the previous agenda-style list remains at `calendar_list`,
+  reachable from More.
+- **Backend host corrected to `https://hrms.tertiaryinfotech.com`** (was `hrms.tertiaryinfo.tech`).
+  Both alias the same Coolify deployment, but NextAuth reports its callbacks on the canonical host,
+  which is also what the iOS app uses.
+
+### Fixed
+- The More tab showed a hardcoded "v1.0"; it now reads the real version from `BuildConfig`.
+
+### Play submission
+- Track: **Production**.
+- Submitted from the **sales@tertiarycourses.com.sg** company account (the app was transferred from
+  the personal `angch@tertiaryinfotech.com` account beforehand).
+
 ## [1.4] — 2026-08-04 · versionCode 16
 
 ### Added

@@ -16,8 +16,12 @@ import java.util.concurrent.TimeUnit
  * two actors sharing the system cookie store.
  */
 object Net {
-    /** Canonical NextAuth host (matches the provider callback URLs the backend reports). */
-    const val BASE_URL = "https://hrms.tertiaryinfo.tech"
+    /** Canonical NextAuth host (matches the provider callback URLs the backend reports,
+     *  and the iOS app's `AuthService.baseURL`). The `hrms.tertiaryinfo.tech` alias resolves
+     *  to the same Coolify deployment, but NextAuth reports its callbacks on this host — so
+     *  signing in against the alias hands back cookies scoped to a domain the app then can't
+     *  match. Always use the canonical host. */
+    const val BASE_URL = "https://hrms.tertiaryinfotech.com"
 
     lateinit var cookieJar: PersistentCookieJar
         private set

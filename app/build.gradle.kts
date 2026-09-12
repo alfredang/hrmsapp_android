@@ -13,15 +13,36 @@ android {
     namespace = "com.tertiaryinfotech.hrportal"
     compileSdk = 36
 
+    // local.properties is gitignored — it carries the SDK path and the public Google OAuth
+    // client id, so a fresh checkout builds fine (with the Google button simply hidden).
+    val localPropsFile = rootProject.file("local.properties")
+    val localProps = Properties().apply {
+        if (localPropsFile.exists()) load(localPropsFile.inputStream())
+    }
+
     defaultConfig {
         applicationId = "com.tertiaryinfotech.hrportal"
         minSdk = 24
         targetSdk = 36
         // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
         // review, so each new release must increment from there.
-        versionCode = 16
-        versionName = "1.4"
+        versionCode = 17
+        versionName = "1.5"
         vectorDrawables { useSupportLibrary = true }
+
+        // Google Sign-In (native, Custom Tabs + PKCE) — mirrors the iOS app's GIDClientID.
+        // The "Android" OAuth client id from Google Cloud Console, registered against the app's
+        // *Play App Signing* SHA-1 (not the upload key). Public by design: a native OAuth client
+        // has no secret, and the backend verifies every id_token with Google and checks the
+        // audience allow-list. Left empty, the app hides the Google button entirely, exactly as
+        // the iOS build does when GOOGLE_IOS_CLIENT_ID is unset.
+        val googleClientId = localProps.getProperty("GOOGLE_ANDROID_CLIENT_ID").orEmpty()
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
+        // Google's Android convention: the redirect URI is the client id reversed as a scheme.
+        // Registered as a manifest placeholder so the redirect activity only claims the scheme
+        // this build is actually configured for.
+        manifestPlaceholders["googleRedirectScheme"] =
+            googleClientId.split(".").reversed().joinToString(".").ifBlank { "com.tertiaryinfotech.hrportal.nogoogle" }
     }
 
     // Release signing is read from keystore.properties when present (gitignored),
@@ -59,6 +80,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -67,6 +89,8 @@ dependencies {
     implementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.15.0")
+    // Chrome Custom Tabs — the Google sign-in consent screen (no Play Services SDK needed).
+    implementation("androidx.browser:browser:1.8.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")

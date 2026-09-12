@@ -20,9 +20,12 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Schedule
@@ -34,6 +37,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.EventNote
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.MoreTime
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Schedule
@@ -92,8 +96,14 @@ import kotlinx.coroutines.launch
  * Accounting/admin-authoring stay excluded (CLAUDE.md).
  */
 private enum class Tab(val route: String, val label: String, val icon: ImageVector, val title: String, val showInBottomNav: Boolean = true) {
+    // Five bottom tabs, matching the iOS MainTabView 1:1 (Home / Leave / Calendar / Team / More).
+    // The hamburger drawer is kept as a secondary path to the same destinations, so nothing that
+    // was reachable before became unreachable.
     HOME("home", "Home", Icons.Filled.Dashboard, "Dashboard"),
     LEAVE("leave", "Leave", Icons.Filled.Schedule, "Leave"),
+    CALENDAR("calendar", "Calendar", Icons.Filled.CalendarMonth, "Calendar"),
+    TEAM("team", "Team", Icons.Filled.Groups, "Team"),
+    MORE("more", "More", Icons.Filled.MoreHoriz, "More"),
     EXPENSES("expenses", "Expenses", Icons.Filled.Receipt, "Expense Claims", showInBottomNav = false),
     PAYROLL("payslips", "Payroll", Icons.Filled.CreditCard, "Payslips", showInBottomNav = false),
     PROFILE("profile", "Profile", Icons.Filled.AccountCircle, "My Profile", showInBottomNav = false),
@@ -111,6 +121,7 @@ private val DRAWER_ITEMS = listOf(
     DrawerItem("expenses", "Expense Claims", Icons.Outlined.Receipt),
     DrawerItem("payslips", "Payroll", Icons.Outlined.CreditCard),
     DrawerItem("calendar", "Calendar", Icons.Outlined.CalendarMonth),
+    DrawerItem("team", "Team", Icons.Outlined.Groups),
     DrawerItem("timesheet_week", "Timesheet", Icons.Outlined.EventNote),
     DrawerItem("time_off", "Time Off", Icons.Outlined.MoreTime),
     // The clock in/out punch screen keeps the pre-existing "timesheet" route (it stores punches,
@@ -122,7 +133,11 @@ private val DRAWER_ITEMS = listOf(
  *  than rendering their own back-arrow header — same chrome as the tab screens, just no bottom
  *  nav highlight since they aren't bottom-tab destinations. */
 private val DRAWER_ONLY_TOP_BAR_TITLES = mapOf(
-    "calendar" to "Calendar",
+    // "calendar" is a real bottom Tab now, so its title comes from the Tab itself. Only the
+    // nested calendar sub-routes still need an explicit title, and they must be listed before
+    // any shorter sibling prefix (resolution is startsWith-based).
+    "calendar_day" to "Calendar",
+    "calendar_new" to "Add Event",
     // Order matters: title resolution is startsWith-based and "timesheet_week" / "time_off_request"
     // both start with a sibling route's prefix, so the longer keys must come first.
     "timesheet_week" to "Timesheet",
@@ -221,6 +236,12 @@ fun MainScaffold(auth: AuthViewModel) {
             ) {
                 composable(Tab.HOME.route) { DashboardScreen(auth, nav) }
                 composable(Tab.LEAVE.route) { LeaveScreen(nav) }
+                // Calendar tab = the team month grid (iOS TeamCalendarView). The older
+                // agenda-style list lives on at "calendar_list", still reachable from the grid's
+                // own overflow and from the existing day/new-event sub-routes.
+                composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
+                composable(Tab.TEAM.route) { TeamScreen() }
+                composable(Tab.MORE.route) { MoreScreen(auth, nav) }
                 composable(Tab.EXPENSES.route) { ExpensesScreen() }
                 composable(Tab.PAYROLL.route) { PayslipsScreen(nav) }
                 composable(Tab.PROFILE.route) { ProfileScreen(nav) }
@@ -233,7 +254,7 @@ fun MainScaffold(auth: AuthViewModel) {
                 }
 
                 // Drawer-only destinations (own back-button top bar via BrandScaffold)
-                composable("calendar") { CalendarScreen(nav) }
+                composable("calendar_list") { CalendarScreen(nav) }
                 composable("calendar_day/{date}") { backStackEntry ->
                     CalendarDayScreen(nav, backStackEntry.arguments?.getString("date") ?: "")
                 }

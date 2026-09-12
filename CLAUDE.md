@@ -22,21 +22,37 @@ light remap: near-white / very-light-blue surfaces, blue accents, navy ink text)
 runtime via `Brand.applyTheme` and persisted in `ThemePrefs` from the Profile screen. iOS will gain
 the same toggle later. When the iOS app's design changes, mirror it here too.
 
-## Relationship to the web app (hrms.tertiaryinfo.tech) and Coolify
+## Relationship to the web app (hrms.tertiaryinfotech.com) and Coolify
 
 Identical to the iOS app: this native app is a **client of the existing HRMS web backend** — it has
 no database of its own.
 
-- The web app is a **Next.js 14** application on **Coolify** at `https://hrms.tertiaryinfo.tech`,
+- The web app is a **Next.js 14** application on **Coolify** at `https://hrms.tertiaryinfotech.com`,
   backed by **PostgreSQL**. The app pulls all data from that deployment over HTTPS; it never talks
   to PostgreSQL directly.
 - **Authentication** reuses the web app's **NextAuth (Auth.js)** session. `data/AuthService.kt`
   performs the standard NextAuth flow: `GET /api/auth/csrf` → `POST /api/auth/callback/{credentials
   |otp}` → `GET /api/auth/session`. The session cookie is stored in a `PersistentCookieJar`
   (SharedPreferences-backed, shared by one OkHttp client) and reused for every call, exactly as a
-  browser would. Both **email + password** and **email one-time-code (OTP)** sign-in are supported.
+  browser would. **Email + password**, **email one-time-code (OTP)**, and **Google** sign-in are
+  all supported.
+- **Google sign-in** (`data/GoogleSignInService.kt`) uses **Chrome Custom Tabs** with an OAuth 2.0
+  **authorization-code + PKCE** flow — no Play Services SDK, so the dependency set stays tiny. It
+  exchanges the code for a Google `id_token` and POSTs it to the pre-existing
+  **`POST /api/auth/google-mobile`**, which verifies the token with Google, checks the audience
+  against `GOOGLE_CLIENT_ID` / `GOOGLE_IOS_CLIENT_ID` / `GOOGLE_ANDROID_CLIENT_ID`, blocks INACTIVE
+  employees, and sets the same NextAuth session cookie. Setup:
+  1. **Google Cloud Console** → *Credentials → Create credentials → OAuth client ID → **Android***,
+     package `com.tertiaryinfotech.hrportal`, SHA-1 = the **Play App Signing** certificate's
+     fingerprint (Play Console → Test and release → App integrity), **not** the upload key's.
+  2. Put that id in the gitignored `local.properties` as `GOOGLE_ANDROID_CLIENT_ID=...`. It feeds
+     `BuildConfig.GOOGLE_CLIENT_ID` and the redirect-scheme manifest placeholder. Left unset, the
+     app **hides the Google button** entirely (same behaviour as the iOS build without `GIDClientID`).
+  3. On the **web app**, paste the same id into *Settings → Credentials → **Mobile Sign-In
+     (Google)*** so the backend accepts tokens minted for the Android client.
 - **Data endpoints**: the same additive, read-only `/api/mobile/*` namespace feeds this app
-  (`summary`, `profile`, `leave`, `employees`, `expenses`, `payslips`, `calendar`), plus the
+  (`summary`, `profile`, `leave`, `employees`, `expenses`, `payslips`, `calendar`,
+  `team-calendar`), plus the
   pre-existing `/api/timesheet`, `/api/leave` POST, and `/api/payroll/payslip/{id}/pdf`.
 - Changing the deployed URL means updating `Net.BASE_URL` in `data/Net.kt`.
 
@@ -65,7 +81,11 @@ Mirrors the iOS app 1:1:
 - **Timesheet** — a simple **clock in / out** with a live elapsed timer and a last-7-days log
   (ported from the iOS `ClockView`; punches stored via `/api/mobile/attendance` +
   `attendance/clock-{in,out}`). *Not* a weekly OT grid.
-- **Calendar** — public holidays, the user's events, and approved leave, grouped by month.
+- **Calendar** — the **team month grid** of everyone's approved leave (`/api/mobile/team-calendar`)
+  with an Everyone / Only me filter and a per-day detail sheet, mirroring the iOS `TeamCalendarView`.
+  A colleague's leave *type* is masked server-side unless the viewer is that person or an approver.
+  The older agenda-style list (public holidays + the user's own events) remains at the
+  `calendar_list` route, reachable from **More**.
 - **Notifications** — top-bar **bell with unread badge** + list (`/api/notifications`).
 - **Profile** — full employee record + self-service edit + change password, and the **light / dark
   theme toggle** (Android-only for now).
@@ -74,9 +94,8 @@ Mirrors the iOS app 1:1:
 flows (web-only). **Woods Square building access** is **not** part of this app (removed — it isn't in
 the iOS app either).
 
-**Google Sign-In** is present in the iOS app but **hidden in this Android v1** — it needs an Android
-OAuth client id registered against the app's signing SHA-1. Password + OTP are fully functional. To
-enable later, add the Android client and a native sign-in flow, then surface the button.
+**Google Sign-In** is implemented (see above) and appears only when the build carries a
+`GOOGLE_ANDROID_CLIENT_ID` in `local.properties`; password + OTP are always available.
 
 ## Build & run
 
@@ -104,9 +123,13 @@ $ANDROID_HOME/platform-tools/adb install -r app/build/outputs/apk/debug/app-debu
 Single-activity (`MainActivity`) Compose app. `AuthViewModel` (`AndroidViewModel`) is the single
 source of truth, driving `data/AuthService` (NextAuth sign-in) and `data/HrmsApi` (typed reads +
 apply-leave + PDF download), both riding one shared OkHttp client + `PersistentCookieJar`.
-`RootScreen` routes loading → `LoginScreen` → `MainScaffold` (Home / Leave / Team / More) via a
-`NavHost`; "More" sub-modules are nested destinations. Reusable Premier Blue controls live in
-`ui/components/`.
+`RootScreen` routes loading → `LoginScreen` → `MainScaffold` via a `NavHost`. The bottom nav is
+**five tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView` 1:1; the
+hamburger drawer is a secondary path to the same destinations, and the remaining modules
+(Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are nested destinations that share
+the same top-bar chrome. Tab destinations render **bare** — `MainScaffold` already supplies the
+top bar and bottom nav, so wrapping one in `BrandScaffold` would stack a second app bar.
+Reusable Premier Blue controls live in `ui/components/`.
 
 ## Signing & Google Play
 
