@@ -16,6 +16,10 @@ Attendance history parity with the web app and iOS (v1.8).
   hours, last check-in and a live "Working" badge for the month (`/api/mobile/attendance/summary`),
   tapping through to that intern's daily history.
 
+### Play submission
+- 2026-10-08: AAB versionCode 18 uploaded to the **Production** track via the Android Publisher
+  API (shared service account), full rollout, sent for Google review on commit.
+
 ## [1.5] — 2026-09-12 · versionCode 17
 
 Brings the Android app to feature and UX parity with the native iOS app (v1.7).
