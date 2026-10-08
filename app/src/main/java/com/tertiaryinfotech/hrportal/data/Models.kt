@@ -414,6 +414,56 @@ data class AttendancePunch(
     val clockOut: String? = null,
 )
 
+// MARK: - Attendance history (/api/mobile/attendance/history?month=YYYY-MM[&employeeId=])
+
+/** One employee's punches for a month, newest first, plus the month's totals. */
+@Serializable
+data class AttendanceHistory(
+    val month: String = "",
+    val employee: AttendanceEmployee? = null,
+    val days: List<AttendanceDay> = emptyList(),
+    val totalHours: Double = 0.0,
+    val daysWorked: Int = 0,
+)
+
+@Serializable
+data class AttendanceEmployee(
+    val id: String = "",
+    val name: String = "",
+    val employeeCode: String = "",
+)
+
+/** A day's punch. `date` is a plain `yyyy-MM-dd`; `hours` is null until clocked out. */
+@Serializable
+data class AttendanceDay(
+    val id: String,
+    val date: String = "",
+    val clockIn: String? = null,
+    val clockOut: String? = null,
+    val hours: Double? = null,
+)
+
+// MARK: - Intern attendance summary, admin (/api/mobile/attendance/summary?month=YYYY-MM)
+
+@Serializable
+data class AttendanceSummary(
+    val month: String = "",
+    val employees: List<AttendanceSummaryRow> = emptyList(),
+    val totalHours: Double = 0.0,
+)
+
+@Serializable
+data class AttendanceSummaryRow(
+    val id: String,
+    val name: String = "",
+    val employeeCode: String = "",
+    val isIntern: Boolean = true,
+    val daysWorked: Int = 0,
+    val totalHours: Double = 0.0,
+    val lastPunchDate: String? = null,
+    val clockedInNow: Boolean = false,
+)
+
 // MARK: - Time off (existing /api/time-off) — hourly requests, mostly for interns
 
 /**

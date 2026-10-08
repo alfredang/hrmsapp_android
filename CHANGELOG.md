@@ -4,6 +4,18 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.6] — 2026-10-08 · versionCode 18
+
+Attendance history parity with the web app and iOS (v1.8).
+
+### Added
+- **Daily check-in history** — Clock In / Out now shows a month's check-in / check-out times per
+  day with total hours and days worked (`/api/mobile/attendance/history?month=`), with month paging.
+  Replaces the last-7-days log.
+- **Intern Attendance** (ADMIN/HR/MANAGER, More menu + drawer) — each intern's days worked, total
+  hours, last check-in and a live "Working" badge for the month (`/api/mobile/attendance/summary`),
+  tapping through to that intern's daily history.
+
 ## [1.5] — 2026-09-12 · versionCode 17
 
 Brings the Android app to feature and UX parity with the native iOS app (v1.7).

@@ -129,6 +129,11 @@ private val DRAWER_ITEMS = listOf(
     DrawerItem("timesheet", "Clock In / Out", Icons.Outlined.AccessTime),
 )
 
+/** Approver-only drawer rows (ADMIN/HR/MANAGER), appended after [DRAWER_ITEMS]. */
+private val ADMIN_DRAWER_ITEMS = listOf(
+    DrawerItem("intern_attendance", "Intern Attendance", Icons.Outlined.Groups),
+)
+
 /** Drawer-only destinations (not a bottom [Tab]) that still share the hamburger top bar rather
  *  than rendering their own back-arrow header — same chrome as the tab screens, just no bottom
  *  nav highlight since they aren't bottom-tab destinations. */
@@ -144,6 +149,7 @@ private val DRAWER_ONLY_TOP_BAR_TITLES = mapOf(
     "timesheet" to "Clock In / Out",
     "time_off" to "Time Off",
     "approvals" to "Approvals",
+    "intern_attendance" to "Intern Attendance",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -269,6 +275,18 @@ fun MainScaffold(auth: AuthViewModel) {
                 // "leave_request" under the Leave tab.
                 composable("time_off_request") { RequestTimeOffScreen(nav) }
                 composable("approvals") { ApprovalsScreen(nav) }
+                composable("intern_attendance") { InternAttendanceScreen(nav) }
+                composable(
+                    "intern_attendance_detail/{id}?name={name}&code={code}&month={month}",
+                ) { e ->
+                    val a = e.arguments
+                    InternAttendanceDetailScreen(
+                        employeeId = a?.getString("id").orEmpty(),
+                        name = a?.getString("name").orEmpty(),
+                        code = a?.getString("code").orEmpty(),
+                        initialMonth = a?.getString("month") ?: AttendanceMonth.current(),
+                    )
+                }
                 composable("notifications") { NotificationsScreen(auth, nav) }
                 composable("payslip_pdf") { PayslipPdfScreen(nav) }
             }
@@ -317,10 +335,11 @@ private fun AppDrawerContent(auth: AuthViewModel, currentRoute: String?, onNavig
 
             // Longest-prefix match, not plain startsWith — "timesheet_week" starts with the clock
             // screen's "timesheet" route, and only the more specific row should highlight.
-            val selectedRoute = DRAWER_ITEMS
+            val items = if (isApprover(auth)) DRAWER_ITEMS + ADMIN_DRAWER_ITEMS else DRAWER_ITEMS
+            val selectedRoute = items
                 .filter { currentRoute?.startsWith(it.route) == true }
                 .maxByOrNull { it.route.length }?.route
-            DRAWER_ITEMS.forEach { item ->
+            items.forEach { item ->
                 val selected = item.route == selectedRoute
                 Row(
                     modifier = Modifier

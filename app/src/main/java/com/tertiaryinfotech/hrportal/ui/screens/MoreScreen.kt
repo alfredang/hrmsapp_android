@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MoreTime
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
@@ -84,6 +85,10 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             MenuDivider()
             MenuLink("Clock in / out", Icons.Filled.AccessTime, IconTint.Emerald) { nav.navigate("timesheet") }
             MenuDivider()
+            if (isApprover(auth)) {
+                MenuLink("Intern attendance", Icons.Filled.Groups, IconTint.Blue) { nav.navigate("intern_attendance") }
+                MenuDivider()
+            }
             MenuLink("Time off", Icons.Filled.MoreTime, IconTint.Purple) { nav.navigate("time_off") }
             MenuDivider()
             MenuLink("My profile", Icons.Filled.AccountCircle, IconTint.Amber) { nav.navigate("profile") }
@@ -96,6 +101,10 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             modifier = Modifier.padding(top = 6.dp))
     }
 }
+
+/** Approver roles (mirrors the web's `hasAdminAccess`) see the intern attendance roll-up. */
+fun isApprover(auth: AuthViewModel): Boolean =
+    auth.user?.primaryRole?.uppercase() in setOf("ADMIN", "HR", "MANAGER")
 
 @Composable
 private fun MenuLink(title: String, icon: ImageVector, tint: IconTint.Tint, onClick: () -> Unit) {

@@ -19,19 +19,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,11 +46,8 @@ import com.tertiaryinfotech.hrportal.data.AttendanceResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
-import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.LoadState
-import com.tertiaryinfotech.hrportal.ui.components.StatTile
 import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
-import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
 import kotlinx.coroutines.delay
@@ -59,10 +56,11 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * Timesheet — a simple **clock in / out** with a live elapsed timer and a last-7-days log, ported
+ * Timesheet — a simple **clock in / out** with a live elapsed timer and the monthly daily history, ported
  * from the native iOS `ClockView`/`TimesheetView` so the two platforms behave identically. Every
  * punch is stored centrally (AttendancePunch table) via `/api/mobile/attendance` +
- * `attendance/clock-{in,out}`; this screen shows today's state live plus the last 7 days. (Regular
+ * `attendance/clock-{in,out}`; this screen shows today's state live plus the month's daily
+ * check-in/out history and total hours (`AttendanceHistorySection`, same as web/iOS). (Regular
  * work hours are derived from clock in/out; there is no separate weekly OT grid here.)
  */
 @Composable
@@ -70,6 +68,9 @@ fun TimesheetScreen(nav: NavController) {
     var state by remember { mutableStateOf<LoadState<AttendanceResponse>>(LoadState.Idle) }
     var punching by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var historyMonth by rememberSaveable { mutableStateOf(AttendanceMonth.current()) }
+    // Bumped after each punch so the history refetches.
+    var punchCount by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
     suspend fun load() {
@@ -88,6 +89,7 @@ fun TimesheetScreen(nav: NavController) {
         try {
             if (clockIn) HrmsApi.clockIn() else HrmsApi.clockOut()
             load()
+            punchCount++
         } catch (e: Exception) {
             error = e.message ?: "Could not record your punch."
         } finally {
@@ -103,8 +105,9 @@ fun TimesheetScreen(nav: NavController) {
             ) {
                 TodayCard(data, punching) { clockIn -> scope.launch { punch(clockIn) } }
                 error?.let { StatusBanner(isError = true, text = it) }
-                WeekSummary(data)
-                RecentList(data)
+                AttendanceHistorySection(
+                    month = historyMonth, onMonthChange = { historyMonth = it }, reloadToken = punchCount,
+                )
             }
         }
     }
@@ -211,58 +214,6 @@ private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
             Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
                 modifier = Modifier.padding(start = 10.dp))
-        }
-    }
-}
-
-// MARK: - Week summary + recent list
-
-@Composable
-private fun WeekSummary(data: AttendanceResponse) {
-    val total = data.recent.mapNotNull { hoursOf(it) }.sum()
-    val daysWorked = data.recent.count { it.clockIn != null }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatTile(
-            value = String.format(Locale.US, "%.1f h", total), label = "Logged (last 7 days)",
-            icon = Icons.Filled.Functions, tint = Brand.Mint,
-            iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
-        )
-        StatTile(
-            value = "$daysWorked", label = "Days worked",
-            icon = Icons.Outlined.EventAvailable, tint = Brand.Blue,
-            iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun RecentList(data: AttendanceResponse) {
-    Text("Recent days", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-    if (data.recent.isEmpty()) {
-        EmptyHint(Icons.Outlined.EventAvailable, "No punches yet. Your log appears here.")
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            data.recent.forEach { p -> RecentRow(p) }
-        }
-    }
-}
-
-@Composable
-private fun RecentRow(p: AttendancePunch) {
-    Card {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(Fmt.date(p.date ?: p.clockIn), color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text(
-                    "${timeStr(p.clockIn)} – ${if (p.clockOut == null) "…" else timeStr(p.clockOut)}",
-                    color = Brand.TextSecondary, fontSize = 12.sp,
-                )
-            }
-            val hours = hoursOf(p)
-            when {
-                hours != null -> Text(String.format(Locale.US, "%.1f h", hours), color = Brand.Mint, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                p.clockIn != null -> StatusPill("WORKING")
-            }
         }
     }
 }

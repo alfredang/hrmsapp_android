@@ -78,9 +78,12 @@ Mirrors the iOS app 1:1:
 - **Payslips** — list + native **PdfRenderer** viewer for the authenticated payslip PDF.
 - **Expenses** — personal expense/medical claims with status, plus **submit a claim** with a
   receipt photo.
-- **Timesheet** — a simple **clock in / out** with a live elapsed timer and a last-7-days log
-  (ported from the iOS `ClockView`; punches stored via `/api/mobile/attendance` +
-  `attendance/clock-{in,out}`). *Not* a weekly OT grid.
+- **Timesheet** — a simple **clock in / out** with a live elapsed timer and a monthly daily
+  check-in/out history with total hours (`AttendanceHistorySection`, ported from iOS; punches via
+  `/api/mobile/attendance` + `attendance/clock-{in,out}`, history via
+  `/api/mobile/attendance/history?month=`). *Not* a weekly OT grid.
+- **Intern Attendance** (approvers only; More menu + drawer) — `InternAttendanceScreen` over
+  `/api/mobile/attendance/summary?month=`, drilling into `intern_attendance_detail/{id}`.
 - **Calendar** — the **team month grid** of everyone's approved leave (`/api/mobile/team-calendar`)
   with an Everyone / Only me filter and a per-day detail sheet, mirroring the iOS `TeamCalendarView`.
   A colleague's leave *type* is masked server-side unless the viewer is that person or an approver.

@@ -128,6 +128,16 @@ interface HrmsApiService {
     @GET("api/mobile/attendance")
     suspend fun attendance(): Response<AttendanceResponse>
 
+    @GET("api/mobile/attendance/history")
+    suspend fun attendanceHistory(
+        @Query("month") month: String,
+        @Query("employeeId") employeeId: String?,
+    ): Response<AttendanceHistory>
+
+    /** Admin only — the server returns 403 for everyone else. */
+    @GET("api/mobile/attendance/summary")
+    suspend fun attendanceSummary(@Query("month") month: String): Response<AttendanceSummary>
+
     @POST("api/mobile/attendance/clock-in")
     suspend fun clockIn(): Response<ClockPunchResult>
 

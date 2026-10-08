@@ -55,6 +55,11 @@ object HrmsApi {
     suspend fun teamCalendar(year: Int) = unwrap { service.teamCalendar(year) }
     suspend fun profile() = unwrap { service.profile() }
     suspend fun attendance() = unwrap { service.attendance() }
+    /** One month of daily check-in/out history; admins may pass another employee's id. */
+    suspend fun attendanceHistory(month: String, employeeId: String? = null) =
+        unwrap { service.attendanceHistory(month, employeeId) }
+    /** Admin roll-up: each intern's days worked + total hours for the month. */
+    suspend fun attendanceSummary(month: String) = unwrap { service.attendanceSummary(month) }
     suspend fun notifications() = unwrap { service.notifications() }
     suspend fun timesheet(weekStart: String? = null) = unwrap { service.timesheet(weekStart) }
 

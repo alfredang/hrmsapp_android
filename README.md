@@ -51,7 +51,8 @@ existing single sign-on session, exactly as a browser would.
 | **Expenses** | Submit and track expense / medical claims with a receipt photo and clear status badges |
 | **Team** | Search the company directory |
 | **Calendar** | Public holidays, personal events and approved leave, grouped by month |
-| **Timesheet** | Simple **clock in / out** with a live elapsed timer and a last-7-days log |
+| **Timesheet** | Simple **clock in / out** with a live elapsed timer and a monthly daily check-in/out history with total hours |
+| **Intern Attendance** (admin) | Each intern's days worked + total hours per month, drilling into their daily history |
 | **Notifications** | In-app bell with unread badge and a notifications list |
 | **Profile** | Full employee record, change password, and a **light / dark theme** toggle |
 
