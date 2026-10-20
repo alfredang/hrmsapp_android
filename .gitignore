@@ -26,3 +26,9 @@ play/service-account.json
 /play-signin.png
 /privacy-saved.png
 /signing-dialog.png
+
+# Distribution archives (rebuildable — never pushed to GitHub)
+*.zip
+
+# Source material the project was derived from — not ours to republish.
+**/reference/

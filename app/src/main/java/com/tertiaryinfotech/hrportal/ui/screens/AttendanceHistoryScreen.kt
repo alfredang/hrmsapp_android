@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.tertiaryinfotech.hrportal.data.AttendanceDay
 import com.tertiaryinfotech.hrportal.data.AttendanceHistory
 import com.tertiaryinfotech.hrportal.data.AttendanceSummary
 import com.tertiaryinfotech.hrportal.data.AttendanceSummaryRow
@@ -58,6 +59,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlinx.coroutines.delay
 
 /**
  * `yyyy-MM` month keys for the attendance screens — always Singapore time so a month boundary
@@ -93,10 +95,52 @@ object AttendanceMonth {
         return SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).apply { timeZone = utc }.format(d)
     }
 
+    /** Today's `yyyy-MM-dd` in Singapore time. */
+    fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = sgt }.format(java.util.Date())
+
     /** Clock time in Singapore time, e.g. "9:21 AM". */
     fun time(iso: String?): String {
         val d = Fmt.parse(iso) ?: return "—"
         return SimpleDateFormat("h:mm a", Locale.getDefault()).apply { timeZone = sgt }.format(d)
+    }
+}
+
+/**
+ * One day's check-in / check-out line. A punch with no clock-out shows the hours so far when it's
+ * today, or "No clock-out" for an earlier day (the person forgot to clock out, so the hours can't
+ * be worked out). Mirrors iOS `PunchLine`.
+ */
+@Composable
+fun PunchLine(day: AttendanceDay) {
+    val open = day.clockIn != null && day.clockOut == null
+    val inProgress = open && day.date == AttendanceMonth.today()
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    if (inProgress) {
+        LaunchedEffect(day.id) { while (true) { delay(60_000); now = System.currentTimeMillis() } }
+    }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(AttendanceMonth.dayLabel(day.date), color = Brand.TextPrimary,
+                fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            val out = when {
+                day.clockOut != null -> AttendanceMonth.time(day.clockOut)
+                inProgress -> "…"
+                else -> "—"
+            }
+            Text("In ${AttendanceMonth.time(day.clockIn)}  ·  Out $out",
+                color = Brand.TextSecondary, fontSize = 12.sp)
+        }
+        val start = Fmt.parse(day.clockIn)
+        when {
+            day.hours != null -> Text(String.format(Locale.US, "%.2f h", day.hours),
+                color = Brand.Mint, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            inProgress && start != null -> Column(horizontalAlignment = Alignment.End) {
+                Text(String.format(Locale.US, "%.2f h", maxOf(0.0, (now - start.time) / 3_600_000.0)),
+                    color = Brand.Amber, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("so far", color = Brand.TextSecondary, fontSize = 11.sp)
+            }
+            open -> Text("No clock-out", color = Brand.Amber, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        }
     }
 }
 
@@ -181,28 +225,7 @@ fun AttendanceHistorySection(
             }
             error != null -> StatusBanner(isError = true, text = error!!)
             d != null && d.days.isNotEmpty() -> {
-                d.days.forEach { day ->
-                    Card {
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(AttendanceMonth.dayLabel(day.date), color = Brand.TextPrimary,
-                                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                val out = when {
-                                    day.clockOut != null -> AttendanceMonth.time(day.clockOut)
-                                    day.clockIn != null -> "…"
-                                    else -> "—"
-                                }
-                                Text("In ${AttendanceMonth.time(day.clockIn)}  ·  Out $out",
-                                    color = Brand.TextSecondary, fontSize = 12.sp)
-                            }
-                            when {
-                                day.hours != null -> Text(String.format(Locale.US, "%.2f h", day.hours),
-                                    color = Brand.Mint, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                day.clockIn != null -> StatusPill("WORKING")
-                            }
-                        }
-                    }
-                }
+                d.days.forEach { day -> Card { PunchLine(day) } }
                 Card {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Text("Total", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp,
