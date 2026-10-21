@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.MedicalServices
 import androidx.compose.material.icons.outlined.MoreTime
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Schedule
@@ -132,6 +133,7 @@ private val DRAWER_ITEMS = listOf(
 /** Approver-only drawer rows (ADMIN/HR/MANAGER), appended after [DRAWER_ITEMS]. */
 private val ADMIN_DRAWER_ITEMS = listOf(
     DrawerItem("intern_attendance", "Intern Attendance", Icons.Outlined.Groups),
+    DrawerItem("mc_leave_summary", "Leave & MC Summary", Icons.Outlined.MedicalServices),
 )
 
 /** Drawer-only destinations (not a bottom [Tab]) that still share the hamburger top bar rather
@@ -150,6 +152,8 @@ private val DRAWER_ONLY_TOP_BAR_TITLES = mapOf(
     "time_off" to "Time Off",
     "approvals" to "Approvals",
     "intern_attendance" to "Intern Attendance",
+    // Not "leave_summary": the Leave tab's startsWith match would claim it.
+    "mc_leave_summary" to "Leave & MC Summary",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -285,6 +289,14 @@ fun MainScaffold(auth: AuthViewModel) {
                         name = a?.getString("name").orEmpty(),
                         code = a?.getString("code").orEmpty(),
                         initialMonth = a?.getString("month") ?: AttendanceMonth.current(),
+                    )
+                }
+                composable("mc_leave_summary") { LeaveSummaryScreen(nav) }
+                composable("mc_leave_summary_detail/{id}?month={month}") { e ->
+                    val a = e.arguments
+                    LeaveSummaryDetailScreen(
+                        employeeId = a?.getString("id").orEmpty(),
+                        month = a?.getString("month") ?: AttendanceMonth.current(),
                     )
                 }
                 composable("notifications") { NotificationsScreen(auth, nav) }

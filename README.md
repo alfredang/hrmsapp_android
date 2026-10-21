@@ -53,6 +53,7 @@ existing single sign-on session, exactly as a browser would.
 | **Calendar** | Public holidays, personal events and approved leave, grouped by month |
 | **Timesheet** | Simple **clock in / out** with a live elapsed timer and a monthly daily check-in/out history with total hours — an open punch shows **hours so far** today, or **"No clock-out"** for an earlier day |
 | **Intern Attendance** (admin) | Each intern's days worked + total hours per month, drilling into their daily history |
+| **Leave & MC Summary** (admin) | Every active staff member's and intern's MC and leave for the month, with totals, a Staff / Interns filter and a per-person drill-down |
 | **Notifications** | In-app bell with unread badge and a notifications list |
 | **Profile** | Full employee record, change password, and a **light / dark theme** toggle |
 

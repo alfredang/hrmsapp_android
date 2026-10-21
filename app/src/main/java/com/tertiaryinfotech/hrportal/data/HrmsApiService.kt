@@ -138,6 +138,10 @@ interface HrmsApiService {
     @GET("api/mobile/attendance/summary")
     suspend fun attendanceSummary(@Query("month") month: String): Response<AttendanceSummary>
 
+    /** Admin only — monthly leave + MC summary of all staff and interns (403 for everyone else). */
+    @GET("api/mobile/leave-summary")
+    suspend fun leaveSummary(@Query("month") month: String): Response<LeaveSummary>
+
     @POST("api/mobile/attendance/clock-in")
     suspend fun clockIn(): Response<ClockPunchResult>
 

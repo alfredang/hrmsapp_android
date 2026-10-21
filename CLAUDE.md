@@ -84,6 +84,10 @@ Mirrors the iOS app 1:1:
   `/api/mobile/attendance/history?month=`). *Not* a weekly OT grid.
 - **Intern Attendance** (approvers only; More menu + drawer) — `InternAttendanceScreen` over
   `/api/mobile/attendance/summary?month=`, drilling into `intern_attendance_detail/{id}`.
+- **Leave & MC Summary** (approvers only; More menu + drawer) — `LeaveSummaryScreen` over
+  `/api/mobile/leave-summary?month=`, drilling into `mc_leave_summary_detail/{employeeId}`. The route
+  is prefixed `mc_` on purpose: tab/title resolution is `startsWith`-based, so `leave_summary` would
+  be claimed by the Leave tab.
 - **Calendar** — the **team month grid** of everyone's approved leave (`/api/mobile/team-calendar`)
   with an Everyone / Only me filter and a per-day detail sheet, mirroring the iOS `TeamCalendarView`.
   A colleague's leave *type* is masked server-side unless the viewer is that person or an approver.

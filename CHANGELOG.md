@@ -4,6 +4,16 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.7] — 2026-10-21 · versionCode 19
+
+### Added
+- **Leave & MC Summary** (ADMIN/HR/MANAGER, More menu + drawer) — the month's leave and MC roll-up
+  of every active staff member and intern (`/api/mobile/leave-summary?month=`): headcount, MC days
+  and people on MC, annual-leave days, pending days, an All / Staff / Interns filter, and one row per
+  person (MC, AL, other leave, intern time-off hours, pending badge). Tapping a person shows that
+  month's requests (cross-month leave split by working days) and their year balances. Same data
+  as the AI-agent report on the web backend.
+
 ## [1.6] — 2026-10-08 · versionCode 18
 
 Attendance history parity with the web app and iOS (v1.8).

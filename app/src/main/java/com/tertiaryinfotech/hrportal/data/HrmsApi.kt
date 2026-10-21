@@ -60,6 +60,8 @@ object HrmsApi {
         unwrap { service.attendanceHistory(month, employeeId) }
     /** Admin roll-up: each intern's days worked + total hours for the month. */
     suspend fun attendanceSummary(month: String) = unwrap { service.attendanceSummary(month) }
+    /** Admin roll-up: every active staff member's and intern's leave + MC for the month. */
+    suspend fun leaveSummary(month: String) = unwrap { service.leaveSummary(month) }
     suspend fun notifications() = unwrap { service.notifications() }
     suspend fun timesheet(weekStart: String? = null) = unwrap { service.timesheet(weekStart) }
 

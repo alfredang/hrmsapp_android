@@ -464,6 +464,115 @@ data class AttendanceSummaryRow(
     val clockedInNow: Boolean = false,
 )
 
+// MARK: - Leave & MC summary, admin (/api/mobile/leave-summary?month=YYYY-MM)
+
+/** Monthly leave + MC roll-up of every active staff member and intern. Days are working days
+ *  inside the month; leaves crossing a month boundary are split server-side. */
+@Serializable
+data class LeaveSummary(
+    val company: String = "",
+    val month: String = "",
+    val balancesYear: Int = 0,
+    val totals: LeaveSummaryTotals = LeaveSummaryTotals(),
+    val employees: List<LeaveSummaryEmployee> = emptyList(),
+)
+
+@Serializable
+data class LeaveSummaryTotals(
+    val headcount: LeaveSummaryHeadcount = LeaveSummaryHeadcount(),
+    val employeesWithLeave: Int = 0,
+    val byLeaveType: List<LeaveSummaryTypeTotal> = emptyList(),
+    val mc: LeaveSummaryMc = LeaveSummaryMc(),
+    val timeOff: LeaveSummaryHours = LeaveSummaryHours(),
+)
+
+@Serializable
+data class LeaveSummaryHeadcount(val staff: Int = 0, val interns: Int = 0, val total: Int = 0)
+
+@Serializable
+data class LeaveSummaryTypeTotal(
+    val code: String = "",
+    val name: String = "",
+    val approvedDays: Double = 0.0,
+    val pendingDays: Double = 0.0,
+    val employeesOnLeave: Int = 0,
+)
+
+@Serializable
+data class LeaveSummaryMc(val approvedDays: Double = 0.0, val pendingDays: Double = 0.0, val employeesOnMc: Int = 0)
+
+@Serializable
+data class LeaveSummaryHours(val approvedHours: Double = 0.0, val pendingHours: Double = 0.0)
+
+@Serializable
+data class LeaveSummaryAmount(val approved: Double = 0.0, val pending: Double = 0.0)
+
+@Serializable
+data class LeaveSummaryEmployee(
+    val employeeId: String = "",
+    val name: String = "",
+    val email: String = "",
+    /** "STAFF" or "INTERN". */
+    val category: String = "STAFF",
+    val position: String? = null,
+    val department: String? = null,
+    val status: String = "",
+    val mcDays: Double = 0.0,
+    /** Keyed by leave type code (AL, MC, CL, NPL, AL_OT). */
+    val leaveTaken: Map<String, LeaveSummaryAmount> = emptyMap(),
+    val requests: List<LeaveSummaryRequest> = emptyList(),
+    val timeOff: LeaveSummaryTimeOff? = null,
+    val balances: List<LeaveSummaryBalance> = emptyList(),
+) {
+    val isIntern: Boolean get() = category == "INTERN"
+    fun approved(code: String) = leaveTaken[code]?.approved ?: 0.0
+    val pendingDays: Double get() = leaveTaken.values.sumOf { it.pending }
+    /** Approved days of every type other than AL and MC. */
+    val otherApproved: Double get() = leaveTaken.filterKeys { it != "AL" && it != "MC" }.values.sumOf { it.approved }
+}
+
+@Serializable
+data class LeaveSummaryRequest(
+    val leaveType: String = "",
+    val leaveTypeName: String = "",
+    val status: String = "",
+    val startDate: String = "",
+    val endDate: String = "",
+    val totalDays: Double = 0.0,
+    val daysInMonth: Double = 0.0,
+    val dayType: String? = null,
+    val halfDayPosition: String? = null,
+    val hasDocument: Boolean = false,
+)
+
+@Serializable
+data class LeaveSummaryTimeOff(
+    val approvedHours: Double = 0.0,
+    val pendingHours: Double = 0.0,
+    val requests: List<LeaveSummaryTimeOffRequest> = emptyList(),
+)
+
+@Serializable
+data class LeaveSummaryTimeOffRequest(
+    val date: String = "",
+    val startTime: String = "",
+    val endTime: String = "",
+    val hours: Double = 0.0,
+    val reason: String = "",
+    val status: String = "",
+)
+
+@Serializable
+data class LeaveSummaryBalance(
+    val code: String = "",
+    val name: String = "",
+    val entitlement: Double = 0.0,
+    val carriedOver: Double = 0.0,
+    val usedYtd: Double = 0.0,
+    val pending: Double = 0.0,
+    val available: Double = 0.0,
+)
+
 // MARK: - Time off (existing /api/time-off) — hourly requests, mostly for interns
 
 /**
