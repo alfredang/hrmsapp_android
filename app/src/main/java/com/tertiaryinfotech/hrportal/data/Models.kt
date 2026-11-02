@@ -443,6 +443,42 @@ data class AttendanceDay(
     val hours: Double? = null,
 )
 
+// MARK: - One person's records, approvers (/api/mobile/employees/{id}/records)
+
+/** Team drill-down: one person's clock-ins, MC and leave. Approver-or-self, enforced server-side. */
+@Serializable
+data class EmployeeRecords(
+    val employee: RecordsEmployee,
+    val attendance: RecordsAttendance = RecordsAttendance(),
+    val leave: List<LeaveRequest> = emptyList(),
+) {
+    /** Medical leave (MC / sick leave) — shown apart from other leave. */
+    val medical: List<LeaveRequest> get() = leave.filter { it.leaveCode.uppercase() in MEDICAL_CODES }
+    val otherLeave: List<LeaveRequest> get() = leave.filter { it.leaveCode.uppercase() !in MEDICAL_CODES }
+
+    companion object {
+        val MEDICAL_CODES = setOf("MC", "SL")
+    }
+}
+
+@Serializable
+data class RecordsEmployee(
+    val id: String = "",
+    val employeeCode: String = "",
+    val name: String = "",
+    val position: String? = null,
+    val department: String? = null,
+    val employmentType: String? = null,
+)
+
+/** Every punch on record, newest first, with all-time totals. */
+@Serializable
+data class RecordsAttendance(
+    val days: List<AttendanceDay> = emptyList(),
+    val totalHours: Double = 0.0,
+    val daysWorked: Int = 0,
+)
+
 // MARK: - Intern attendance summary, admin (/api/mobile/attendance/summary?month=YYYY-MM)
 
 @Serializable

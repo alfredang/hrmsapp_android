@@ -74,7 +74,10 @@ Mirrors the iOS app 1:1:
   |reject}`). **Enforced server-side** (403 for staff/interns); the client only shows the UI when
   `summary.isAdmin`. The two account admins (**Tan Soik Ching**, **Alfred Ang Chew Hoe**) hold role
   ADMIN and can action this queue.
-- **Team** — company directory (richer contact fields for supervisory roles).
+- **Team** — company directory (richer contact fields for supervisory roles). Approvers tap a person
+  for `EmployeeRecordsScreen` (`/api/mobile/employees/{id}/records`, approver-or-self): clock-in,
+  MC and leave history; the three stat tiles open `team_records_clock/{id}` and
+  `team_records_leave/{id}?kind=MC|LEAVE`. Routes start with `team` so the Team tab chrome stays.
 - **Payslips** — list + native **PdfRenderer** viewer for the authenticated payslip PDF.
 - **Expenses** — personal expense/medical claims with status, plus **submit a claim** with a
   receipt photo.

@@ -4,6 +4,21 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.8] — 2026-11-02 · versionCode 20
+
+Team drill-down parity with iOS (v1.9 + v1.12).
+
+### Added
+- **Team member records** (ADMIN/HR/MANAGER) — tap a colleague on the Team tab for their clock-in
+  history, MC history and leave history (`/api/mobile/employees/{id}/records`, approver-or-self,
+  enforced server-side). The **Days clocked**, **MC days** and **Leave days** tiles each open the
+  full history: every clock in/out grouped by month with hours, or the full MC / leave list.
+
+### Play submission
+- First release from the corporate account `sales@tertiarycourses.com.sg` (Developer ID
+  `6132721113732535566`) after the app transfer. Production track, full rollout; also carries the
+  1.7 Leave & MC Summary, which was never uploaded to Play.
+
 ## [1.7] — 2026-10-21 · versionCode 19
 
 ### Added

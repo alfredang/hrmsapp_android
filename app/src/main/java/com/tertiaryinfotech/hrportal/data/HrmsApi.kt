@@ -49,6 +49,8 @@ object HrmsApi {
     suspend fun leave() = unwrap { service.leave() }
     suspend fun publicHolidays(year: Int) = unwrap { service.publicHolidays(year) }
     suspend fun employees() = unwrap { service.employees() }
+    /** Team drill-down (approvers): one person's clock-ins, MC and leave. */
+    suspend fun employeeRecords(id: String) = unwrap { service.employeeRecords(id) }
     suspend fun expenses() = unwrap { service.expenses() }
     suspend fun payslips() = unwrap { service.payslips() }
     suspend fun calendar() = unwrap { service.calendar() }

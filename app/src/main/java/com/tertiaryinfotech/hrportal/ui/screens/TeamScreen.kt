@@ -1,11 +1,13 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -23,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.Employee
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
@@ -32,13 +35,14 @@ import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * Team tab — the company directory with a name/role search.
+ * Team tab — the company directory with a name/role search. Approvers tap a person for their
+ * clock-in, MC and leave history ([EmployeeRecordsScreen]).
  *
  * A bottom-tab destination, so it renders bare: MainScaffold supplies the shared top bar and
  * bottom nav (a BrandScaffold here would stack a second, back-arrow app bar on top).
  */
 @Composable
-fun TeamScreen() {
+fun TeamScreen(nav: NavController) {
     var query by remember { mutableStateOf("") }
 
     Column {
@@ -67,7 +71,7 @@ fun TeamScreen() {
                 item { EmptyHint(Icons.Filled.Group, "No colleagues found.") }
             } else {
                 items(filtered) { e ->
-                    EmployeeRow(e, data.isAdmin)
+                    EmployeeRow(e, data.isAdmin) { nav.navigate(RecordsRoutes.records(e.id)) }
                     Spacer12()
                 }
             }
@@ -86,8 +90,8 @@ private fun filterEmployees(list: List<Employee>, query: String): List<Employee>
 }
 
 @Composable
-private fun EmployeeRow(e: Employee, isAdmin: Boolean) {
-    Card {
+private fun EmployeeRow(e: Employee, isAdmin: Boolean, onOpen: () -> Unit) {
+    Card(modifier = if (isAdmin) Modifier.clickable(onClick = onOpen) else Modifier) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             InitialsAvatar(initials(e.name), 46, avatarUrl = e.avatarUrl)
             Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
@@ -99,6 +103,9 @@ private fun EmployeeRow(e: Employee, isAdmin: Boolean) {
                 if (isAdmin && !e.email.isNullOrEmpty()) {
                     Text(e.email, color = Brand.Primary, fontSize = 11.sp)
                 }
+            }
+            if (isAdmin) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Brand.TextMuted)
             }
         }
     }

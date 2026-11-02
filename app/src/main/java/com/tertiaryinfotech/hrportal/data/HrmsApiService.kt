@@ -102,6 +102,10 @@ interface HrmsApiService {
     @GET("api/mobile/employees")
     suspend fun employees(): Response<EmployeesResponse>
 
+    /** Approver-or-self — one person's clock-ins, MC and leave (403 otherwise). */
+    @GET("api/mobile/employees/{id}/records")
+    suspend fun employeeRecords(@Path("id") id: String): Response<EmployeeRecords>
+
     @GET("api/mobile/expenses")
     suspend fun expenses(): Response<ExpensesResponse>
 

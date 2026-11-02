@@ -49,7 +49,7 @@ existing single sign-on session, exactly as a browser would.
 | **Approvals** *(admins only)* | Approve or reject pending leave and expense requests in-app — enforced server-side (role ∈ Manager / HR / Admin) |
 | **Payslips** | Browse personal payslips and open the official PDF, rendered natively in-app via `PdfRenderer` |
 | **Expenses** | Submit and track expense / medical claims with a receipt photo and clear status badges |
-| **Team** | Search the company directory |
+| **Team** | Search the company directory; admins tap a person for their **clock-in, MC and leave history** — the Days clocked / MC days / Leave days tiles open each full history |
 | **Calendar** | Public holidays, personal events and approved leave, grouped by month |
 | **Timesheet** | Simple **clock in / out** with a live elapsed timer and a monthly daily check-in/out history with total hours — an open punch shows **hours so far** today, or **"No clock-out"** for an earlier day |
 | **Intern Attendance** (admin) | Each intern's days worked + total hours per month, drilling into their daily history |
@@ -157,7 +157,9 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 
 ## Deployment (Google Play)
 
-> **Live on Google Play** — [Tertiary HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download.
+> **Live on Google Play** — [Tertiary HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.8
+> (versionCode 20) was sent to Production review on 2026-11-02.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)

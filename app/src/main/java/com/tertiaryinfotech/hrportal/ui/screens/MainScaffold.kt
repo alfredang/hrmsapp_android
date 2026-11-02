@@ -250,7 +250,19 @@ fun MainScaffold(auth: AuthViewModel) {
                 // agenda-style list lives on at "calendar_list", still reachable from the grid's
                 // own overflow and from the existing day/new-event sub-routes.
                 composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
-                composable(Tab.TEAM.route) { TeamScreen() }
+                composable(Tab.TEAM.route) { TeamScreen(nav) }
+                // Team drill-down (approvers). Routes start with "team" so the Team tab's top bar
+                // and bottom nav stay in place, same trick as "leave_request" under Leave.
+                composable("team_records/{id}") { e ->
+                    EmployeeRecordsScreen(e.arguments?.getString("id").orEmpty(), nav)
+                }
+                composable("team_records_clock/{id}") { e ->
+                    RecordsClockScreen(e.arguments?.getString("id").orEmpty())
+                }
+                composable("team_records_leave/{id}?kind={kind}") { e ->
+                    val kind = RecordsLeaveKind.entries.firstOrNull { it.name == e.arguments?.getString("kind") }
+                    RecordsLeaveScreen(e.arguments?.getString("id").orEmpty(), kind ?: RecordsLeaveKind.LEAVE)
+                }
                 composable(Tab.MORE.route) { MoreScreen(auth, nav) }
                 composable(Tab.EXPENSES.route) { ExpensesScreen() }
                 composable(Tab.PAYROLL.route) { PayslipsScreen(nav) }
