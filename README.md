@@ -158,8 +158,8 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 ## Deployment (Google Play)
 
 > **Live on Google Play** — [Tertiary HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
-> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.8
-> (versionCode 20) is the current production release.
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.9
+> (versionCode 21) is the current production release.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)

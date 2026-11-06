@@ -10,7 +10,6 @@ import android.content.Context
 import com.tertiaryinfotech.hrportal.data.AuthService
 import com.tertiaryinfotech.hrportal.data.GoogleAuthException
 import com.tertiaryinfotech.hrportal.data.GoogleSignInService
-import com.tertiaryinfotech.hrportal.data.BrandingResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.SessionPrefs
 import com.tertiaryinfotech.hrportal.data.SessionUser
@@ -66,27 +65,10 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
 
     var rememberEmail by mutableStateOf(false)
 
-    /** Company logo/name for the login card — mirrors the web login page's `GET
-     *  /api/public/branding` fetch-on-mount, shown behind a skeleton while in flight
-     *  (`brandingLoading`). Unauthenticated endpoint, safe to call before sign-in. Falls back to
-     *  the bundled default mark on failure — never blocks the login form from being usable. */
-    var branding by mutableStateOf<BrandingResponse?>(null)
-        private set
-    var brandingLoading by mutableStateOf(true)
-        private set
-
     init {
         viewModelScope.launch {
             rememberEmail = sessionPrefs.rememberFlag()
             if (rememberEmail) email = sessionPrefs.rememberedEmail()
-        }
-        viewModelScope.launch {
-            branding = try {
-                HrmsApi.branding()
-            } catch (_: Exception) {
-                null
-            }
-            brandingLoading = false
         }
     }
 
@@ -127,11 +109,10 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         step = Step.EMAIL
     }
 
-    /** "Sign in with OTP instead" (password step) — mirrors the web's `goToEmail()`: returns to
-     *  the email step so the user re-sends an OTP themselves, it does not auto-send one. */
+    /** "Use a one-time code" on the password step sends the code straight away, as on iOS. */
     fun switchToOTP() {
-        errorMessage = null; infoMessage = null
-        step = Step.EMAIL
+        errorMessage = null
+        sendOTP()
     }
 
     fun switchToPassword() {

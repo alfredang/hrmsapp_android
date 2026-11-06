@@ -46,6 +46,8 @@ object Net {
             .cookieJar(cookieJar)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(90, TimeUnit.SECONDS) // receipt uploads on slow mobile data
+            .also { MockApi.install(it, context.applicationContext) }
             .build()
         retrofit = Retrofit.Builder()
             .baseUrl("$BASE_URL/")

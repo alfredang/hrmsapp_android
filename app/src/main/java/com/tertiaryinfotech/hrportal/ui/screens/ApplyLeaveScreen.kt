@@ -1,53 +1,32 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,44 +48,31 @@ import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.LeaveBalance
 import com.tertiaryinfotech.hrportal.data.LeaveType
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
+import com.tertiaryinfotech.hrportal.ui.components.AttachmentSection
+import com.tertiaryinfotech.hrportal.ui.components.PickedAttachment
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
+import com.tertiaryinfotech.hrportal.ui.components.encodeAttachment
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 import com.tertiaryinfotech.hrportal.util.Fmt
 import com.tertiaryinfotech.hrportal.util.WorkingDays
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
-/**
- * Apply-for-leave screen — a real nav destination (not a Dialog) so it shares the same
- * hamburger-drawer top bar and bottom nav as every other screen, mirroring the web's
- * `/leave/request` page being a normal page in the app shell rather than a modal. Its route
- * ("leave_request/...") deliberately starts with "leave" so `MainScaffold`'s existing
- * startsWith-based tab matching treats it as still being on the Leave tab for free — same shared
- * top bar, same bottom nav highlight — no changes needed there.
- */
+/** Apply-for-leave form (iOS `ApplyLeaveView`), a normal destination inside the app shell. */
 @Composable
 fun ApplyLeaveScreen(nav: NavController, initialTypeCode: String?) {
     AsyncListScreen(fetch = { HrmsApi.leave() }) { data ->
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Request Leave", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                Text("Submit a new leave application", color = Brand.TextSecondary, fontSize = 14.sp)
-            }
-        }
-        item { Spacer18() }
         item {
             ApplyLeaveForm(
                 types = data.types,
                 balances = data.balances,
                 initialTypeCode = initialTypeCode,
-                onCancel = { nav.popBackStack() },
                 onApplied = {
                     nav.previousBackStackEntry?.savedStateHandle?.set("leave_applied", true)
                     nav.popBackStack()
@@ -117,12 +83,10 @@ fun ApplyLeaveScreen(nav: NavController, initialTypeCode: String?) {
 }
 
 /**
- * The actual form — posts to the existing /api/leave endpoint; the server computes balance
- * deductions once it receives our client-computed `days`/`otDaysUsed`. Ported field-for-field
- * from the web's `leave-request-form.tsx` — working-days preview (via `/api/public-holidays`),
- * the AL Off-In-Lieu offset panel, MC document upload, and deficit-aware submit gating all mirror
- * that component exactly (values sourced from the same `/api/mobile/leave` balance rows already
- * fetched by [ApplyLeaveScreen] above — no separate backend call needed for the AL/OT numbers).
+ * Layout follows iOS. The server computes working days and the deduction, so no day count is sent.
+ * The annual-leave panel (advance leave, Off In Lieu, deficit preview) goes beyond the iOS form: it
+ * ports the web's `leave-request-form.tsx` and is an estimate, since only the server knows the
+ * prorated full-year entitlement.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,7 +94,6 @@ private fun ApplyLeaveForm(
     types: List<LeaveType>,
     balances: List<LeaveBalance>,
     initialTypeCode: String? = null,
-    onCancel: () -> Unit,
     onApplied: () -> Unit,
 ) {
     var typeId by remember {
@@ -146,11 +109,8 @@ private fun ApplyLeaveForm(
     var dayType by remember { mutableStateOf("FULL_DAY") }
     var halfDayPosition by remember { mutableStateOf<String?>(null) }
     var reason by remember { mutableStateOf("") }
-    var documentUrl by remember { mutableStateOf<String?>(null) }
-    var documentFileName by remember { mutableStateOf<String?>(null) }
-    var uploadingDoc by remember { mutableStateOf(false) }
-    var showAttachOptions by remember { mutableStateOf(false) }
-    var cameraCaptureUri by remember { mutableStateOf<Uri?>(null) }
+    var attachment by remember { mutableStateOf<PickedAttachment?>(null) }
+    var useAdvance by remember { mutableStateOf(false) }
     var useOt by remember { mutableStateOf(false) }
     var otDaysToUse by remember { mutableStateOf(0.0) }
     var holidays by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -172,16 +132,20 @@ private fun ApplyLeaveForm(
     val otBalance = balances.firstOrNull { it.code == "AL_OT" }?.available ?: 0.0
     val alBalance = balances.firstOrNull { it.code == "AL" }
     val alPersonalEntitlement = alBalance?.entitlement ?: 0.0
-    val alEarned = alBalance?.proRated ?: 0.0
     val alFullAvailable = alPersonalEntitlement + (alBalance?.carriedOver ?: 0.0) -
         (alBalance?.used ?: 0.0) - (alBalance?.pending ?: 0.0)
 
-    // Fetch public holidays whenever the start-date year changes.
-    LaunchedEffect(df.format(Date(startMillis)).take(4)) {
-        val year = df.format(Date(startMillis)).take(4).toIntOrNull() ?: return@LaunchedEffect
-        try {
-            holidays = HrmsApi.publicHolidays(year).dates.toSet()
-        } catch (_: Exception) { /* preview just won't exclude PH; server still validates */ }
+    // Every year the range covers, so a Dec-Jan request also skips 1 Jan.
+    val startYear = df.format(Date(startMillis)).take(4).toInt()
+    val endYear = df.format(Date(endMillis)).take(4).toInt()
+    LaunchedEffect(startYear, endYear) {
+        val dates = mutableSetOf<String>()
+        for (year in startYear..maxOf(startYear, endYear)) {
+            try {
+                dates += HrmsApi.publicHolidays(year).dates
+            } catch (_: Exception) { /* preview only; the server still computes the real count */ }
+        }
+        holidays = dates
     }
 
     // Working-days computation — mirrors calculateWorkingDays() exactly.
@@ -205,12 +169,20 @@ private fun ApplyLeaveForm(
     LaunchedEffect(isSingleDay) { if (isSingleDay) halfDayPosition = null else dayType = "FULL_DAY" }
     LaunchedEffect(isAL) { if (!isAL) { dayType = "FULL_DAY"; halfDayPosition = null } }
 
-    val deficitBeforeOt = if (isAL) max(0.0, daysNum - alFullAvailable) else 0.0
-    val nonEarnedDays = if (isAL) max(0.0, daysNum - alEarned) else 0.0
+    // Same arithmetic as the web form: earned balance first, then advance if switched on, and
+    // Off In Lieu covers the deficit before any advance so each day is only subtracted once.
+    val availableNow = max(0.0, alBalance?.available ?: 0.0)
+    val advanceAvailable = max(0.0, alFullAvailable - availableNow)
+    val alCover = if (useAdvance) availableNow + advanceAvailable else availableNow
+    val deficitBeforeOt = if (isAL) max(0.0, daysNum - alCover) else 0.0
+    val nonEarnedDays = if (isAL) max(0.0, daysNum - availableNow) else 0.0
     val effectiveOtUsed = if (useOt) minOf(otDaysToUse, otBalance, daysNum) else 0.0
-    val advanceDays = if (isAL) max(0.0, min(daysNum, alFullAvailable) - alEarned - effectiveOtUsed) else 0.0
-    val deficitDays = if (isAL) max(0.0, deficitBeforeOt - effectiveOtUsed) else 0.0
-    val fullyWithinEntitlement = isAL && daysNum <= alFullAvailable
+    val otForDeficit = min(effectiveOtUsed, deficitBeforeOt)
+    val otForAdvance = effectiveOtUsed - otForDeficit
+    val advanceBeforeOt = if (isAL && useAdvance) max(0.0, min(daysNum, alCover) - availableNow) else 0.0
+    val advanceDays = max(0.0, advanceBeforeOt - otForAdvance)
+    val deficitDays = if (isAL) max(0.0, deficitBeforeOt - otForDeficit) else 0.0
+    val fullyWithinEntitlement = isAL && daysNum <= alCover
     val otSliderMax = min(otBalance, nonEarnedDays)
 
     LaunchedEffect(useOt, deficitBeforeOt, nonEarnedDays, otBalance) {
@@ -219,311 +191,202 @@ private fun ApplyLeaveForm(
         otDaysToUse = min(target, otBalance)
     }
 
-    fun uploadDocument(uri: Uri, name: String, mime: String) {
-        scope.launch {
-            uploadingDoc = true
-            error = null
-            try {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: throw ApiException(ApiException.Kind.NETWORK, "Could not read the file.")
-                val result = HrmsApi.uploadFile(bytes, name, mime)
-                documentUrl = result.url
-                documentFileName = result.fileName
-            } catch (e: Exception) {
-                error = (e as? ApiException)?.message ?: "Could not upload the document."
-            } finally {
-                uploadingDoc = false
-            }
-        }
-    }
-
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val resolver = context.contentResolver
-        uploadDocument(uri, queryFileName(resolver, uri) ?: "document", resolver.getType(uri) ?: "application/octet-stream")
-    }
-
-    // Camera capture: TakePicture writes the full-resolution photo to a FileProvider-shared temp
-    // file so the MC document photo stays legible after upload.
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        val uri = cameraCaptureUri
-        if (success && uri != null) uploadDocument(uri, "mc_${System.currentTimeMillis()}.jpg", "image/jpeg")
-    }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            val uri = createCaptureUri(context)
-            cameraCaptureUri = uri
-            cameraLauncher.launch(uri)
-        } else {
-            error = "Camera permission is needed to take a photo."
-        }
-    }
-    fun startCameraCapture() {
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (granted) {
-            val uri = createCaptureUri(context)
-            cameraCaptureUri = uri
-            cameraLauncher.launch(uri)
-        } else {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    val canSubmit = typeId.isNotEmpty() && daysNum >= 0.5 && !uploadingDoc &&
-        !(isOT && daysNum > otBalance) && !(isMC && documentUrl == null)
+    val canSubmit = typeId.isNotEmpty() && daysNum >= 0.5 && !(isOT && daysNum > otBalance)
 
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         error?.let { StatusBanner(isError = true, text = it) }
 
-        // "Leave Application" card — mirrors the web's <Card className="bg-gray-950
-        // border-gray-800"> wrapper: every field below sits on a visibly darker,
-        // bordered surface distinct from the page background behind it.
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(Brand.Surface)
-                .border(1.dp, Brand.Border, MaterialTheme.shapes.medium)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Icon(Icons.Filled.CalendarToday, contentDescription = null, tint = Brand.Primary, modifier = Modifier.size(18.dp))
-                Text("Leave Application", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            }
-
-            // Leave type
-                    FieldLabel("Leave type *")
-                    var expanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                        FieldBox(modifier = Modifier.menuAnchor()) {
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    selectedType?.let { leaveTypeLabel(it, otBalance, alEarned) } ?: "Select…",
-                                    color = Brand.TextPrimary, modifier = Modifier.weight(1f),
-                                )
-                                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextPrimary)
-                            }
-                        }
-                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            types.forEach { t ->
-                                DropdownMenuItem(
-                                    text = { Text(leaveTypeLabel(t, otBalance, alEarned)) },
-                                    onClick = { typeId = t.id; expanded = false },
-                                )
-                            }
-                        }
-                    }
-                    if (isOT) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Filled.Info, contentDescription = null, tint = Brand.Emerald, modifier = Modifier.size(14.dp))
-                            Text(
-                                "You have ${Fmt.num(otBalance)} Off In Lieu day(s) earned from weekend/public holiday work.",
-                                color = Brand.Emerald, fontSize = 12.sp,
-                            )
-                        }
-                    }
-
-                    // Dates
-                    var showStart by remember { mutableStateOf(false) }
-                    var showEnd by remember { mutableStateOf(false) }
-                    FieldLabel("From")
-                    FieldBox(modifier = Modifier.clickable { showStart = true }) {
-                        Text(Fmt.date(df.format(Date(startMillis))), color = Brand.TextPrimary)
-                    }
-                    FieldLabel("To")
-                    FieldBox(modifier = Modifier.clickable { showEnd = true }) {
-                        Text(Fmt.date(df.format(Date(endMillis))), color = Brand.TextPrimary)
-                    }
-                    if (showStart) {
-                        DateField(initial = startMillis, onPick = {
-                            startMillis = it
-                            if (endMillis < it) endMillis = it
-                            showStart = false
-                        }, onCancel = { showStart = false })
-                    }
-                    if (showEnd) {
-                        DateField(initial = endMillis, minMillis = startMillis, onPick = {
-                            endMillis = it; showEnd = false
-                        }, onCancel = { showEnd = false })
-                    }
-
-                    // Day-type / half-day selector — AL only, mirrors renderDayTypeSelector().
-                    if (isAL && isSingleDay) {
-                        FieldLabel("Day Type *")
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            val opts = listOf("FULL_DAY" to "Full Day", "AM_HALF" to "AM Half", "PM_HALF" to "PM Half")
-                            opts.forEachIndexed { i, (value, label) ->
-                                SegmentedButton(
-                                    selected = dayType == value,
-                                    onClick = { dayType = value },
-                                    shape = SegmentedButtonDefaults.itemShape(i, opts.size),
-                                ) { Text(label) }
-                            }
-                        }
-                    } else if (isAL && isMultiDay) {
-                        FieldLabel("Include a half-day?")
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            ToggleChip(
-                                label = if (halfDayPosition != null) "Yes" else "No — all full days",
-                                selected = halfDayPosition != null,
-                                onClick = { halfDayPosition = if (halfDayPosition != null) null else "first" },
-                            )
-                        }
-                        if (halfDayPosition != null) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                                listOf("first" to df.format(Date(startMillis)), "last" to df.format(Date(endMillis))).forEach { (pos, date) ->
-                                    ToggleChip(
-                                        label = "Half on $pos day (${Fmt.date(date)})",
-                                        selected = halfDayPosition == pos,
-                                        onClick = { halfDayPosition = pos },
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Number of Working Days preview
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        FieldLabel("Number of Working Days")
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.small)
-                                .background(Brand.Border)
-                                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                        ) {
-                            Text(
-                                if (daysNum > 0) "${Fmt.num(daysNum)} " + (if (daysNum == 1.0) "working day" else "working days") else "—",
-                                color = Brand.TextPrimary, fontSize = 14.sp,
-                            )
-                        }
-                        if (showBreakdown && wd != null) { // wd non-null is implied by showBreakdown, kept for smart-cast
-                            Text(
-                                "${wd.calendarDays} calendar day${if (wd.calendarDays != 1) "s" else ""} → " +
-                                    "${Fmt.num(daysNum)} working day${if (daysNum != 1.0) "s" else ""}" +
-                                    (if (wd.weekendDays > 0) " (${wd.weekendDays} weekend${if (wd.weekendDays != 1) "s" else ""} skipped)" else "") +
-                                    (if (wd.holidayDays > 0) ", ${wd.holidayDays} public holiday${if (wd.holidayDays != 1) "s" else ""} skipped" else ""),
-                                color = Brand.Blue, fontSize = 11.sp,
-                            )
-                        }
-                        if (wd != null && wd.workingDays == 0 && isSingleDay) {
-                            Text("Selected date(s) fall on weekends or public holidays — no working days.", color = Brand.Amber, fontSize = 11.sp)
-                        }
-                        Text("Weekends and Singapore public holidays are automatically excluded.", color = Brand.TextMuted, fontSize = 11.sp)
-                    }
-
-                    if (isOT && daysNum > otBalance) {
-                        StatusBanner(isError = true, text = "Insufficient Off In Lieu balance. Available: ${Fmt.num(otBalance)} day(s).")
-                    }
-
-                    // AL Off-In-Lieu offset panel
-                    if (isAL && daysNum > 0) {
-                        AlBalancePanel(
-                            alEarned = alEarned, alPersonalEntitlement = alPersonalEntitlement, otBalance = otBalance,
-                            useOt = useOt, onUseOtChange = { useOt = it },
-                            otDaysToUse = otDaysToUse, onOtDaysChange = { otDaysToUse = it }, otSliderMax = otSliderMax,
-                            nonEarnedDays = nonEarnedDays, daysNum = daysNum, advanceDays = advanceDays,
-                            deficitDays = deficitDays, effectiveOtUsed = effectiveOtUsed,
-                            fullyWithinEntitlement = fullyWithinEntitlement,
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel("Leave type")
+            var expanded by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                FieldBox(modifier = Modifier.menuAnchor()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            selectedType?.let { leaveTypeLabel(it, otBalance, availableNow) } ?: "Select\u2026",
+                            color = Brand.TextPrimary, fontSize = 16.sp, modifier = Modifier.weight(1f),
                         )
+                        Icon(Icons.Filled.UnfoldMore, contentDescription = null, tint = Brand.TextMuted, modifier = Modifier.size(18.dp))
                     }
-
-                    FieldLabel("Reason (optional)")
-                    TextField(
-                        value = reason,
-                        onValueChange = { reason = it },
-                        placeholder = { Text("Enter reason for leave...", color = Brand.TextMuted) },
-                        modifier = Modifier.fillMaxWidth().height(110.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Brand.Border,
-                            unfocusedContainerColor = Brand.Border,
-                            focusedTextColor = Brand.TextPrimary,
-                            unfocusedTextColor = Brand.TextPrimary,
-                            focusedIndicatorColor = Brand.Primary,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                    )
-
-                    // Medical Certificate upload — MC/SL only, required.
-                    if (isMC) {
-                        FieldLabel("Medical Certificate / Doctor's Evidence *")
-                        if (documentFileName != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.small)
-                                    .background(Brand.Border)
-                                    .padding(Spacing.md),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Filled.UploadFile, contentDescription = null, tint = Brand.TextSecondary)
-                                Text(
-                                    documentFileName!!, color = Brand.TextSecondary, fontSize = 13.sp, maxLines = 1,
-                                    modifier = Modifier.padding(start = Spacing.sm).weight(1f),
-                                )
-                                IconButton(onClick = { documentUrl = null; documentFileName = null }) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Remove", tint = Brand.TextSecondary)
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.small)
-                                    .background(Color.Transparent)
-                                    .clickable(enabled = !uploadingDoc) { showAttachOptions = true }
-                                    .padding(Spacing.lg),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                                    if (uploadingDoc) {
-                                        CircularProgressIndicator(color = Brand.Primary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                                        Text("Uploading…", color = Brand.TextMuted, fontSize = 13.sp)
-                                    } else {
-                                        Icon(Icons.Filled.UploadFile, contentDescription = null, tint = Brand.TextSecondary)
-                                        Text("Upload MC document (Image or PDF, max 5MB)", color = Brand.TextMuted, fontSize = 13.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-            // Cancel + Submit side by side, right-aligned — mirrors the web's
-            // <div className="flex justify-end gap-3"> footer row exactly.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.End),
-            ) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    enabled = !submitting,
-                    shape = MaterialTheme.shapes.small,
-                    border = BorderStroke(1.dp, Brand.BorderLight),
-                ) { Text("Cancel", color = Brand.TextSecondary) }
-                PremierButton(
-                    fullWidth = false,
-                    title = if (deficitDays > 0) "Submit with ${Fmt.num(deficitDays)}d deficit" else "Submit Request",
-                    icon = Icons.Filled.Send,
-                    loading = submitting, enabled = canSubmit,
-                ) {
-                    error = null; submitting = true
-                    val s = df.format(Date(startMillis))
-                    val e = df.format(Date(endMillis))
-                    val dt = if (isSingleDay) dayType else "FULL_DAY"
-                    val hp = if (isMultiDay) halfDayPosition else null
-                    scope.launch {
-                        try {
-                            HrmsApi.applyLeave(typeId, s, e, daysNum, dt, hp, reason, documentUrl, documentFileName, effectiveOtUsed)
-                            submitting = false; done = true
-                        } catch (ex: Exception) {
-                            submitting = false
-                            error = (ex as? ApiException)?.message ?: "Could not submit your leave request."
-                        }
+                }
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    types.forEach { t ->
+                        DropdownMenuItem(
+                            text = { Text(leaveTypeLabel(t, otBalance, availableNow)) },
+                            onClick = { typeId = t.id; expanded = false },
+                        )
                     }
                 }
             }
-        } // end "Leave Application" card
+            if (selectedType?.paid == false) {
+                Text("This leave type is unpaid.", color = Brand.Amber, fontSize = 12.sp)
+            }
+            if (isOT) {
+                Text(
+                    "You have ${Fmt.num(otBalance)} Off In Lieu day(s) earned from weekend/public holiday work.",
+                    color = Brand.Mint, fontSize = 12.sp,
+                )
+            }
+        }
+
+        if (isMC) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                FieldLabel("Medical certificate")
+                FieldBox {
+                    AttachmentSection(
+                        attachment = attachment,
+                        onChange = { attachment = it },
+                        onError = { error = it },
+                        takeLabel = "Take photo of MC",
+                        baseName = "medical-certificate",
+                    )
+                    if (attachment == null) {
+                        Text(
+                            "Your MC is filed to your Medical Certificates folder and attached to this request.",
+                            color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        var showStart by remember { mutableStateOf(false) }
+        var showEnd by remember { mutableStateOf(false) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel("From")
+            FieldBox(modifier = Modifier.clickable { showStart = true }) {
+                Text(Fmt.date(df.format(Date(startMillis))), color = Brand.TextPrimary, fontSize = 16.sp)
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel("To")
+            FieldBox(modifier = Modifier.clickable { showEnd = true }) {
+                Text(Fmt.date(df.format(Date(endMillis))), color = Brand.TextPrimary, fontSize = 16.sp)
+            }
+        }
+        if (showStart) {
+            DateField(initial = startMillis, onPick = {
+                startMillis = it
+                if (endMillis < it) endMillis = it
+                showStart = false
+            }, onCancel = { showStart = false })
+        }
+        if (showEnd) {
+            DateField(initial = endMillis, minMillis = startMillis, onPick = {
+                endMillis = it; showEnd = false
+            }, onCancel = { showEnd = false })
+        }
+
+        // Half days are annual-leave only: the server records every other type as full days.
+        if (isAL && isSingleDay) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FieldLabel("Duration")
+                SegmentedPicker(
+                    options = listOf("FULL_DAY" to "Full day", "AM_HALF" to "Morning half", "PM_HALF" to "Afternoon half"),
+                    selected = dayType,
+                    onSelect = { dayType = it },
+                )
+            }
+        } else if (isAL && isMultiDay) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FieldLabel("Include a half day?")
+                SegmentedPicker(
+                    options = listOf("none" to "No", "first" to "First day", "last" to "Last day"),
+                    selected = halfDayPosition ?: "none",
+                    onSelect = { halfDayPosition = it.takeIf { v -> v != "none" } },
+                )
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel("Number of working days")
+            FieldBox {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(Fmt.num(daysNum), color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+                        Text(
+                            if (daysNum == 1.0) "working day" else "working days",
+                            color = Brand.TextSecondary, fontSize = 15.sp, modifier = Modifier.weight(1f),
+                        )
+                        Icon(Icons.Filled.EventAvailable, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(20.dp))
+                    }
+                    if (wd != null && wd.workingDays == 0) {
+                        Text("This range falls entirely on weekends / public holidays.", color = Brand.Amber, fontSize = 12.sp)
+                    } else if (showBreakdown && wd != null) {
+                        val parts = buildList {
+                            if (wd.weekendDays > 0) add("${wd.weekendDays} weekend${if (wd.weekendDays != 1) "s" else ""} skipped")
+                            if (wd.holidayDays > 0) add("${wd.holidayDays} public holiday${if (wd.holidayDays != 1) "s" else ""} skipped")
+                        }
+                        Text(
+                            "${wd.calendarDays} calendar day${if (wd.calendarDays != 1) "s" else ""} \u2192 " +
+                                "${Fmt.num(daysNum)} working day${if (daysNum != 1.0) "s" else ""}" +
+                                (if (parts.isNotEmpty()) " (${parts.joinToString(", ")})" else ""),
+                            color = Brand.TextSecondary, fontSize = 12.sp,
+                        )
+                    }
+                    Text(
+                        "Weekends and Singapore public holidays are automatically excluded.",
+                        color = Brand.TextPrimary.copy(alpha = 0.5f), fontSize = 11.sp,
+                    )
+                }
+            }
+        }
+
+        if (isOT && daysNum > otBalance) {
+            StatusBanner(isError = true, text = "Insufficient Off In Lieu balance. Available: ${Fmt.num(otBalance)} day(s).")
+        }
+
+        if (isAL && daysNum > 0) {
+            AlBalancePanel(
+                availableNow = availableNow, alPersonalEntitlement = alPersonalEntitlement, otBalance = otBalance,
+                advanceAvailable = advanceAvailable, useAdvance = useAdvance, onUseAdvanceChange = { useAdvance = it },
+                useOt = useOt, onUseOtChange = { useOt = it },
+                otDaysToUse = otDaysToUse, onOtDaysChange = { otDaysToUse = it }, otSliderMax = otSliderMax,
+                nonEarnedDays = nonEarnedDays, daysNum = daysNum, advanceDays = advanceDays,
+                deficitDays = deficitDays, effectiveOtUsed = effectiveOtUsed,
+                fullyWithinEntitlement = fullyWithinEntitlement,
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel("Reason (optional)")
+            FormTextField(reason, { reason = it }, "e.g. Family matters")
+        }
+
+        PremierButton(
+            title = if (deficitDays > 0) "Submit with ${Fmt.num(deficitDays)}d deficit" else "Submit request",
+            icon = Icons.AutoMirrored.Filled.Send,
+            loading = submitting, enabled = canSubmit,
+        ) {
+            error = null; submitting = true
+            val s = df.format(Date(startMillis))
+            val e = df.format(Date(endMillis))
+            val dt = if (isSingleDay && isAL) dayType else "FULL_DAY"
+            val hp = if (isMultiDay && isAL) halfDayPosition else null
+            val picked = if (isMC) attachment else null
+            scope.launch {
+                try {
+                    var documentUrl: String? = null
+                    var documentFileName: String? = null
+                    if (picked != null) {
+                        val encoded = encodeAttachment(context, picked, onTooLarge = { error = "That file is over the 5 MB limit." })
+                            ?: throw ApiException(ApiException.Kind.NETWORK, error ?: "Could not read the file.")
+                        val uploaded = HrmsApi.uploadFile(encoded.bytes, encoded.fileName, encoded.mimeType)
+                        documentUrl = uploaded.url
+                        documentFileName = uploaded.fileName
+                    }
+                    HrmsApi.applyLeave(
+                        typeId, s, e, dt, hp, reason, documentUrl, documentFileName,
+                        effectiveOtUsed, isAL && useAdvance,
+                    )
+                    submitting = false; done = true
+                } catch (ex: Exception) {
+                    submitting = false
+                    error = (ex as? ApiException)?.message ?: "Could not submit your leave request."
+                }
+            }
+        }
     }
 
     if (done) {
@@ -534,54 +397,24 @@ private fun ApplyLeaveForm(
             text = { Text("Your leave request was submitted for approval.") },
         )
     }
-
-    if (showAttachOptions) {
-        AttachOptionsDialog(
-            onDismiss = { showAttachOptions = false },
-            onTakePhoto = { showAttachOptions = false; startCameraCapture() },
-            onChooseFile = { showAttachOptions = false; filePicker.launch("image/*,application/pdf") },
-        )
-    }
 }
 
-/**
- * A filled-when-selected / outlined-when-not pill button — mirrors the web's literal toggle
- * class logic (`renderDayTypeSelector()`): `bg-primary text-primary-foreground border-primary`
- * when active, `bg-gray-900 text-gray-400 border-gray-700` otherwise. Used for the half-day
- * Yes/No toggle and the first/last half-day position picks.
- */
-@Composable
-private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.small)
-            .background(if (selected) Brand.Primary else Brand.Surface)
-            .border(1.dp, if (selected) Brand.Primary else Brand.BorderLight, MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
-    ) {
-        Text(
-            label,
-            color = if (selected) Color.White else Brand.TextSecondary,
-            fontWeight = FontWeight.Medium, fontSize = 13.sp,
-        )
-    }
-}
-
-private fun leaveTypeLabel(type: LeaveType, otBalance: Double, alEarned: Double): String = when {
+private fun leaveTypeLabel(type: LeaveType, otBalance: Double, alAvailable: Double): String = when {
     type.code == "AL_OT" -> "${type.name} (${Fmt.num(otBalance)} days available)"
-    type.code == "AL" -> "${type.name} (${Fmt.num(alEarned)} days available)"
+    type.code == "AL" -> "${type.name} (${Fmt.num(alAvailable)} days available)"
     type.defaultDays > 0 -> "${type.name} (${type.defaultDays} days/year)"
     else -> type.name
 }
 
-/** Mirrors `renderAlBalancePanel()` — Leave Balance Summary grid, the Off-In-Lieu offset
- *  toggle + slider, and the color-coded earned/advance/OT-used/deficit breakdown. */
+/** Balance summary, the advance and Off In Lieu switches, and the earned/advance/deficit breakdown. */
 @Composable
 private fun AlBalancePanel(
-    alEarned: Double,
+    availableNow: Double,
     alPersonalEntitlement: Double,
     otBalance: Double,
+    advanceAvailable: Double,
+    useAdvance: Boolean,
+    onUseAdvanceChange: (Boolean) -> Unit,
     useOt: Boolean,
     onUseOtChange: (Boolean) -> Unit,
     otDaysToUse: Double,
@@ -606,9 +439,32 @@ private fun AlBalancePanel(
         ) {
             Text("LEAVE BALANCE SUMMARY", color = Brand.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SummaryStat("Earned to Date", Fmt.num(alEarned), if (alEarned >= daysNum) Brand.Green else Brand.Amber)
-                SummaryStat("Full Entitlement", Fmt.num(alPersonalEntitlement), Brand.Blue)
-                SummaryStat("Off In Lieu Available", Fmt.num(otBalance), Brand.Emerald)
+                SummaryStat("Remaining Balance", Fmt.num(availableNow), if (availableNow >= daysNum) Brand.Green else Brand.Amber)
+                SummaryStat("Full Entitlement", Fmt.num(alPersonalEntitlement), Brand.Accent)
+                SummaryStat("Off In Lieu Available", Fmt.num(otBalance), Brand.Mint)
+            }
+        }
+
+        // Advance toggle: borrow what's still to be earned this year.
+        if (advanceAvailable > 0 && daysNum > availableNow) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Brand.Surface)
+                    .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Use advance annual leave", color = Brand.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Borrow up to ${Fmt.num(advanceAvailable)} day(s) you'll earn by the end of this year." +
+                            if (useAdvance) "" else " If off, days beyond your balance count as deficit.",
+                        color = Brand.TextMuted, fontSize = 11.sp,
+                    )
+                }
+                Switch(checked = useAdvance, onCheckedChange = onUseAdvanceChange, colors = SwitchDefaults.colors(checkedTrackColor = Brand.Orange))
             }
         }
 
@@ -630,7 +486,7 @@ private fun AlBalancePanel(
                         color = Brand.TextMuted, fontSize = 11.sp,
                     )
                 }
-                Switch(checked = useOt, onCheckedChange = onUseOtChange, colors = SwitchDefaults.colors(checkedTrackColor = Brand.Emerald))
+                Switch(checked = useOt, onCheckedChange = onUseOtChange, colors = SwitchDefaults.colors(checkedTrackColor = Brand.Green))
             }
         }
 
@@ -640,27 +496,26 @@ private fun AlBalancePanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.small)
-                    .background(Brand.Emerald.copy(alpha = 0.08f))
+                    .background(Brand.Green.copy(alpha = 0.08f))
                     .padding(Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Off In Lieu days to use", color = Brand.Emerald, fontSize = 11.sp)
-                    Text("${Fmt.num(otDaysToUse)} day(s)", color = Brand.Emerald, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Off In Lieu days to use", color = Brand.Green, fontSize = 11.sp)
+                    Text("${Fmt.num(otDaysToUse)} day(s)", color = Brand.Green, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
                 Slider(
                     value = otDaysToUse.toFloat(),
                     onValueChange = { onOtDaysChange((it * 2).toInt() / 2.0) },
                     valueRange = 0f..otSliderMax.toFloat().coerceAtLeast(0f),
                     steps = (if (otSliderMax > 0) (otSliderMax / 0.5).toInt() - 1 else 0).coerceAtLeast(0),
-                    colors = SliderDefaults.colors(thumbColor = Brand.Emerald, activeTrackColor = Brand.Emerald),
+                    colors = SliderDefaults.colors(thumbColor = Brand.Green, activeTrackColor = Brand.Green),
                 )
             }
         }
 
         // Breakdown
         if (daysNum > 0) {
-            val borderColor = if (deficitDays > 0) Brand.Red else if (advanceDays > 0) Brand.Amber else Brand.Green
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -669,14 +524,14 @@ private fun AlBalancePanel(
                     .padding(Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
-                if (min(alEarned, daysNum) > 0) {
-                    BreakdownRow("Already earned (accrued):", "${Fmt.num(min(alEarned, daysNum))} day(s)", Brand.TextSecondary, Brand.TextPrimary)
+                if (min(availableNow, daysNum) > 0) {
+                    BreakdownRow("From your remaining balance:", "${Fmt.num(min(availableNow, daysNum))} day(s)", Brand.TextSecondary, Brand.TextPrimary)
                 }
                 if (advanceDays > 0) {
                     BreakdownRow("Advance (within entitlement):", "${Fmt.num(advanceDays)} day(s)", Brand.Amber, Brand.Amber)
                 }
                 if (effectiveOtUsed > 0) {
-                    BreakdownRow("Off In Lieu days used:", "${Fmt.num(effectiveOtUsed)} day(s)", Brand.TextSecondary, Brand.Emerald)
+                    BreakdownRow("Off In Lieu days used:", "${Fmt.num(effectiveOtUsed)} day(s)", Brand.TextSecondary, Brand.Green)
                 }
                 if (deficitDays > 0) {
                     BreakdownRow("Deficit (beyond entitlement):", "${Fmt.num(deficitDays)} day(s)", Brand.Red, Brand.Red)

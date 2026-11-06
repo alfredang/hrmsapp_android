@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.ApiException
 import com.tertiaryinfotech.hrportal.data.HrmsApi
-import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
@@ -93,20 +92,14 @@ fun AddCalendarEventScreen(nav: NavController, initialDateIso: String?) {
     val displayFmt = remember { SimpleDateFormat("dd/MM/yyyy", Locale.US) }
     val canSubmit = typeCode != null && title.isNotBlank() && startMillis != null && !submitting
 
-    BrandScaffold(title = "Back to Calendar", onBack = { nav.popBackStack() }) { inner ->
+    run {
         Column(
             modifier = Modifier
-                .padding(inner)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Add Event", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                Text("Create a new calendar event", color = Brand.TextSecondary, fontSize = 14.sp)
-            }
-
             error?.let { StatusBanner(isError = true, text = it) }
 
             Column(
@@ -119,7 +112,7 @@ fun AddCalendarEventScreen(nav: NavController, initialDateIso: String?) {
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Icon(Icons.Filled.Event, contentDescription = null, tint = Brand.Primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Event, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(18.dp))
                     Text("New Calendar Event", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 }
 
@@ -277,10 +270,10 @@ fun AddCalendarEventScreen(nav: NavController, initialDateIso: String?) {
 
 @Composable
 private fun fieldColors() = TextFieldDefaults.colors(
-    focusedContainerColor = Brand.Border,
-    unfocusedContainerColor = Brand.Border,
+    focusedContainerColor = Brand.Field,
+    unfocusedContainerColor = Brand.Field,
     focusedTextColor = Brand.TextPrimary,
     unfocusedTextColor = Brand.TextPrimary,
-    focusedIndicatorColor = Brand.Primary,
+    focusedIndicatorColor = Brand.Accent,
     unfocusedIndicatorColor = Color.Transparent,
 )

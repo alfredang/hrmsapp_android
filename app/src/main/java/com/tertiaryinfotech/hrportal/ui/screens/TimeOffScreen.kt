@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.TimeOffRequest
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
@@ -81,10 +82,7 @@ fun TimeOffScreen(nav: NavController) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncContent(state = state, load = { load() }) { requests ->
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            RefreshableColumn(scope, { load() }) {
                 PremierButton(title = "Request Time Off", icon = Icons.Filled.AddCircle) {
                     nav.navigate("time_off_request")
                 }
@@ -168,8 +166,12 @@ private fun TimeOffRow(r: TimeOffRequest, onCancel: () -> Unit) {
 }
 
 /** "Exams" / "Emergency" / "Others — <detail>", title-cased from the server's enum. */
+/** "UNPAID_LEAVE" to "Unpaid Leave". */
+internal fun reasonName(reason: String): String =
+    reason.split('_').joinToString(" ") { w -> w.lowercase(Locale.US).replaceFirstChar { it.uppercase() } }
+
 internal fun timeOffReasonLabel(r: TimeOffRequest): String {
-    val base = r.reason.lowercase(Locale.US).replaceFirstChar { it.uppercase() }
+    val base = reasonName(r.reason)
     return if (r.reason.equals("OTHERS", ignoreCase = true) && !r.reasonDetail.isNullOrBlank()) {
         "$base — ${r.reasonDetail}"
     } else base

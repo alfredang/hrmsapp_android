@@ -84,7 +84,7 @@ fun CalendarDayScreen(nav: NavController, dateIso: String) {
             item {
                 Card {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = Brand.Primary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(18.dp))
                         Text("Events", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.padding(start = 8.dp))
                     }
                     if (nonLeave.isEmpty()) {

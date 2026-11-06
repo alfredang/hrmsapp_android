@@ -1,141 +1,167 @@
 package com.tertiaryinfotech.hrportal.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.tertiaryinfotech.hrportal.ui.components.BannerKind
 import com.tertiaryinfotech.hrportal.ui.components.BrandHeader
+import com.tertiaryinfotech.hrportal.ui.components.GoogleSignInButton
+import com.tertiaryinfotech.hrportal.ui.components.OrDivider
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.PremierField
 import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
-import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 
 /**
- * The login frontend, ported 1:1 from the web app's `(auth)/login/page.tsx`: a progressive
- * email -> OTP (default) / password flow on a flat gray-950 surface with an indigo accent.
- * Authenticates real employees against the Coolify-hosted HRMS backend. All colors, text sizes,
- * spacing and corner radii here are read from the `ui/theme` token files — nothing is hardcoded inline
- * (DESIGN_SYSTEM.md). Behavior — steps, states, and the branding fetch/skeleton — mirrors the
- * `/login` entry in SCREEN_MAP.md.
+ * The login frontend (iOS `LoginView`): a progressive email, then password or one-time-code flow on
+ * the Premier Blue backdrop. Authenticates real employees against the Coolify-hosted HRMS backend.
  */
 @Composable
 fun LoginScreen(auth: AuthViewModel) {
+    val panel = RoundedCornerShape(24.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(vertical = Spacing.huge),
+            .padding(vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.xxl),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        BrandHeader(branding = auth.branding, loading = auth.brandingLoading)
+        Spacer(Modifier.height(24.dp))
+        BrandHeader()
 
         Column(
             modifier = Modifier
-                .padding(horizontal = Spacing.xl)
+                .padding(horizontal = 22.dp)
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(Brand.Surface)
-                .border(1.dp, Brand.Border, MaterialTheme.shapes.medium)
-                .padding(Spacing.xl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+                .clip(panel)
+                .background(if (Brand.isDark) Color.White.copy(alpha = 0.06f) else Brand.Surface)
+                .border(1.dp, Brand.Border, panel)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            auth.errorMessage?.let { StatusBanner(isError = true, text = it) }
-            auth.infoMessage?.let { StatusBanner(isError = false, text = it) }
+            auth.infoMessage?.let { StatusBanner(BannerKind.Info, it) }
+            auth.errorMessage?.let { StatusBanner(BannerKind.Error, it) }
 
             when (auth.step) {
                 AuthViewModel.Step.EMAIL -> EmailStep(auth)
-                AuthViewModel.Step.OTP -> OtpStep(auth)
                 AuthViewModel.Step.PASSWORD -> PasswordStep(auth)
+                AuthViewModel.Step.OTP -> OtpStep(auth)
             }
         }
 
         Text(
-            "Powered by Tertiary Infotech Academy Pte Ltd",
-            color = Brand.TextFaint,
-            style = MaterialTheme.typography.labelSmall,
+            "Authorized employees only \u00b7 Secured by Tertiary Infotech",
+            color = Brand.TextPrimary.copy(alpha = 0.55f),
+            fontSize = 11.sp,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = Spacing.xxxl),
+            modifier = Modifier.padding(horizontal = 32.dp),
         )
     }
 }
 
-/** email step — default entry point, primary action sends an OTP (mirrors `login/page.tsx:286-336`). */
 @Composable
 private fun EmailStep(auth: AuthViewModel) {
-    FieldLabel("Email")
+    SectionTitle("Sign in", "Enter your work email to continue.")
     PremierField(
-        title = "name@company.com", icon = Icons.Filled.Email,
+        title = "Work email", icon = Icons.Filled.Email,
         value = auth.email, onValueChange = { auth.email = it },
-        keyboardType = KeyboardType.Email, imeAction = ImeAction.Go,
-        onSubmit = { auth.sendOTP() },
+        keyboardType = KeyboardType.Email, imeAction = ImeAction.Next,
+        onSubmit = { auth.continueFromEmail() },
     )
     RememberRow(auth)
     PremierButton(
-        title = "Send OTP", icon = Icons.Filled.Email,
-        loading = auth.isWorking, enabled = auth.email.isNotEmpty(),
-        onClick = { auth.sendOTP() },
+        title = "Continue", icon = Icons.AutoMirrored.Filled.ArrowForward,
+        enabled = auth.email.isNotEmpty(),
+        onClick = { auth.continueFromEmail() },
     )
-    CenteredLink("Sign in with password instead", onClick = { auth.continueFromEmail() })
     GoogleOption(auth)
 }
 
+@Composable
+private fun PasswordStep(auth: AuthViewModel) {
+    SectionTitle("Welcome back", auth.email)
+    PremierField(
+        title = "Password", icon = Icons.Filled.Lock,
+        value = auth.password, onValueChange = { auth.password = it },
+        isSecure = true, imeAction = ImeAction.Go,
+        onSubmit = { auth.signInWithPassword() },
+    )
+    PremierButton(
+        title = "Sign in", icon = Icons.Filled.CheckCircle,
+        loading = auth.isWorking, enabled = auth.password.isNotEmpty(),
+        onClick = { auth.signInWithPassword() },
+    )
+    GoogleOption(auth)
+    LinkRow(
+        "Use a one-time code" to { auth.switchToOTP() },
+        "Change email" to { auth.backToEmail() },
+    )
+}
+
+@Composable
+private fun OtpStep(auth: AuthViewModel) {
+    SectionTitle("Enter your code", "We sent a 6-digit code to ${auth.email}.")
+    PremierField(
+        title = "6-digit code", icon = Icons.Filled.Numbers,
+        value = auth.otp, onValueChange = { new -> auth.otp = new.filter { it.isDigit() }.take(6) },
+        keyboardType = KeyboardType.Number, imeAction = ImeAction.Go,
+        onSubmit = { auth.verifyOTP() },
+    )
+    PremierButton(
+        title = "Verify & sign in", icon = Icons.Filled.CheckCircle,
+        loading = auth.isWorking, enabled = auth.otp.length >= 4,
+        onClick = { auth.verifyOTP() },
+    )
+    Text(
+        "Check your spam or junk folder if you don't see the email.",
+        color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    LinkRow(
+        (if (auth.isResending) "Resending\u2026" else "Resend code") to { if (!auth.isResending) auth.resendOTP() },
+        "Use password" to { auth.switchToPassword() },
+    )
+}
+
 /**
- * Google sign-in, offered alongside password and OTP (iOS `LoginView.googleOption`). Hidden
- * entirely when the build carries no Google client id, so it can never dead-end the user.
+ * Google sign-in, offered alongside password and OTP. Hidden entirely when the build carries no
+ * Google client id, so it can never dead-end the user.
  */
 @Composable
 private fun GoogleOption(auth: AuthViewModel) {
@@ -154,197 +180,43 @@ private fun GoogleOption(auth: AuthViewModel) {
     }
 
     OrDivider()
-    OutlinedButton(
-        onClick = { auth.signInWithGoogle(context) },
-        enabled = !auth.isWorking,
-        shape = RoundedCornerShape(Brand.Corner.dp),
-        border = BorderStroke(1.dp, Brand.BorderLight),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.TextPrimary),
-        modifier = Modifier.fillMaxWidth().height(52.dp),
-    ) {
-        Text("Continue with Google", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+    GoogleSignInButton(loading = auth.isWorking, enabled = !auth.isWorking) {
+        auth.signInWithGoogle(context)
     }
 }
 
-/** "Or" rule between the primary sign-in actions and the Google option. */
 @Composable
-private fun OrDivider() {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        HorizontalDivider(modifier = Modifier.weight(1f), color = Brand.Border)
-        Text("  or  ", color = Brand.TextMuted, fontSize = 12.sp)
-        HorizontalDivider(modifier = Modifier.weight(1f), color = Brand.Border)
+private fun SectionTitle(title: String, subtitle: String) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        Text(subtitle, color = Brand.TextSecondary, fontSize = 15.sp)
     }
 }
 
-/** otp step — 6-digit code verification (mirrors `login/page.tsx:339-409`). */
 @Composable
-private fun OtpStep(auth: AuthViewModel) {
-    BackRow(onClick = { auth.backToEmail() })
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-    ) {
-        Text("Verify your identity", color = Brand.TextPrimary, style = MaterialTheme.typography.titleSmall)
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = Brand.TextSecondary)) { append("An OTP has been sent to ") }
-                withStyle(SpanStyle(color = Brand.TextPrimary, fontWeight = FontWeight.Medium)) { append(auth.email) }
-            },
-            style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
-        )
-    }
-    OtpField(value = auth.otp, onValueChange = { auth.otp = it }, onSubmit = { auth.verifyOTP() })
-    Text(
-        "Check your spam/junk folder if you don't see the email in your inbox.",
-        color = Brand.TextMuted, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    PremierButton(
-        title = "Verify & Sign In", icon = Icons.Filled.CheckCircle,
-        loading = auth.isWorking, enabled = auth.otp.length >= 4,
-        onClick = { auth.verifyOTP() },
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            if (auth.isResending) "Resending..." else "Resend OTP",
-            color = if (auth.isResending) Brand.TextMuted else Brand.Primary,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.clickable(enabled = !auth.isResending) { auth.resendOTP() },
-        )
-        Text("   |   ", color = Brand.TextFaint, style = MaterialTheme.typography.bodySmall)
-        Text(
-            "Use password instead", color = Brand.TextSecondary, style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.clickable { auth.switchToPassword() },
-        )
-    }
-}
-
-/**
- * The OTP entry field — deliberately not a [PremierField]. Web's `otp-input` has no icon, no
- * visible label, and very specific styling (`login/page.tsx:360-372`): centered, 24sp, monospace,
- * `tracking-[0.5em]` letter-spacing (≈12sp at this size). Replicated exactly here rather than
- * reusing the generic labeled-icon field style every other input on this screen uses.
- */
-@Composable
-private fun OtpField(value: String, onValueChange: (String) -> Unit, onSubmit: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    val borderColor = if (focused) Brand.Primary else Brand.BorderLight
-    val otpTextStyle = MaterialTheme.typography.headlineSmall.copy(
-        fontFamily = FontFamily.Monospace,
-        letterSpacing = 12.sp,
-        textAlign = TextAlign.Center,
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(Brand.ControlHeight.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(Brand.Border)
-            .border(1.dp, borderColor, MaterialTheme.shapes.small)
-            .padding(horizontal = Spacing.md),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (value.isEmpty()) {
-            Text("000000", color = Brand.TextFaint, style = otpTextStyle, modifier = Modifier.fillMaxWidth())
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = { new -> onValueChange(new.filter { it.isDigit() }.take(6)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { focused = it.isFocused },
-            singleLine = true,
-            textStyle = otpTextStyle.copy(color = Brand.TextPrimary),
-            cursorBrush = SolidColor(Brand.Primary),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
-            keyboardActions = KeyboardActions(onGo = { onSubmit() }),
-        )
-    }
-}
-
-/** password step — email + password fallback (mirrors `login/page.tsx:412-499`). */
-@Composable
-private fun PasswordStep(auth: AuthViewModel) {
-    BackRow(onClick = { auth.backToEmail() })
-    FieldLabel("Email")
-    PremierField(
-        title = "name@company.com", icon = Icons.Filled.Email,
-        value = auth.email, onValueChange = { auth.email = it },
-        keyboardType = KeyboardType.Email, imeAction = ImeAction.Next,
-    )
+private fun LinkRow(left: Pair<String, () -> Unit>, right: Pair<String, () -> Unit>) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        FieldLabel("Password")
-        Text("Default: Password123", color = Brand.TextMuted, style = MaterialTheme.typography.labelSmall)
-    }
-    PremierField(
-        title = "Enter your password", icon = Icons.Filled.Lock,
-        value = auth.password, onValueChange = { auth.password = it },
-        isSecure = true, imeAction = ImeAction.Go,
-        onSubmit = { auth.signInWithPassword() },
-    )
-    RememberRow(auth)
-    PremierButton(
-        title = "Sign In", icon = Icons.Filled.Key,
-        loading = auth.isWorking, enabled = auth.password.isNotEmpty(),
-        onClick = { auth.signInWithPassword() },
-    )
-    CenteredLink("Sign in with OTP instead", onClick = { auth.switchToOTP() })
-}
-
-@Composable
-private fun FieldLabel(text: String) {
-    Text(text, color = Brand.TextSecondary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-}
-
-@Composable
-private fun CenteredLink(text: String, onClick: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(
-            text, color = Brand.Primary, style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.clickable(onClick = onClick),
-        )
+        Text(left.first, color = Brand.Accent, fontSize = 13.sp, modifier = Modifier.clickable(onClick = left.second))
+        Text(right.first, color = Brand.Accent, fontSize = 13.sp, modifier = Modifier.clickable(onClick = right.second))
     }
 }
 
-@Composable
-private fun BackRow(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-    ) {
-        Icon(
-            Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back",
-            tint = Brand.TextSecondary, modifier = Modifier.padding(Spacing.xxs),
-        )
-        Text("Back", color = Brand.TextSecondary, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-/** Mirrors the web's literal HTML checkbox input (`login/page.tsx:307-315`) — a checkbox + label
- *  pair, not a switch. */
 @Composable
 private fun RememberRow(auth: AuthViewModel) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { auth.setRemember(!auth.rememberEmail) },
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Checkbox(
+        Text("Remember my email", color = Brand.TextPrimary.copy(alpha = 0.85f), fontSize = 13.sp)
+        Switch(
             checked = auth.rememberEmail,
             onCheckedChange = { auth.setRemember(it) },
-            colors = CheckboxDefaults.colors(checkedColor = Brand.Primary),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Brand.Azure,
+                checkedBorderColor = Brand.Azure,
+            ),
         )
-        Text("Remember my email", color = Brand.TextSecondary, style = MaterialTheme.typography.bodySmall)
     }
 }

@@ -35,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -48,16 +50,12 @@ import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
-import com.tertiaryinfotech.hrportal.ui.components.PremierButton
-import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.ThemePrefs
 import com.tertiaryinfotech.hrportal.util.Fmt
 
-/** My profile — full employee record from /api/mobile/profile, self-editable (mirrors
- *  `employee-detail-editable.tsx`) plus a password-change card (mirrors `password-change-card.tsx`)
- *  and a Dark/Light theme card. A real destination sharing the app's hamburger top bar (not its
- *  own back-button scaffold), matching the web's own page-not-modal presentation. */
+/** My profile (iOS `ProfileView`): the employee record, self-edit and change password. The Dark /
+ *  Light theme card is an Android extra. */
 @Composable
 fun ProfileScreen(nav: NavController) {
     var showEdit by remember { mutableStateOf(false) }
@@ -72,62 +70,39 @@ fun ProfileScreen(nav: NavController) {
             if (e == null) {
                 item { EmptyHint(Icons.Filled.PersonOff, "No profile linked to this account.") }
             } else {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("My Profile", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                        Text("Your personal information", color = Brand.TextSecondary, fontSize = 14.sp)
-                    }
-                }
-                item { Spacer18() }
                 item { AvatarHeader(e) }
-                item { Spacer12() }
-                item {
-                    PremierButton(title = "Edit Employee", icon = Icons.Filled.Edit, fullWidth = false) { showEdit = true }
-                }
                 item { Spacer18() }
                 item {
-                    Card {
-                        CardHeading(Icons.Filled.Person, "Personal Information")
-                        IconDetail(Icons.Filled.Email, "Email", e.email)
-                        IconDetail(Icons.Filled.Phone, "Phone", e.phone ?: "—")
-                        IconDetail(Icons.Filled.CalendarToday, "Date of Birth", Fmt.date(e.dateOfBirth))
-                        PlainDetail("Gender", cap(e.gender))
-                        PillDetail("Nationality", e.nationality, Brand.Green)
-                        if (!e.educationLevel.isNullOrBlank()) {
-                            PillDetail("Highest Education Level", cap(e.educationLevel), Brand.Blue)
-                        }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ActionButton("Edit profile", Icons.Filled.Edit, Modifier.weight(1f)) { showEdit = true }
+                        ActionButton("Password", Icons.Filled.Lock, Modifier.weight(1f)) { showPassword = true }
                     }
                 }
                 item { Spacer18() }
                 item {
                     Card {
-                        CardHeading(Icons.Filled.Work, "Employment Details")
-                        IconDetail(Icons.Filled.Work, "Job Function", e.department ?: "—")
-                        if (e.roles.isNotEmpty()) {
-                            RolesDetail("User Type", e.roles)
-                        }
-                        IconDetail(Icons.Filled.CalendarToday, "Start Date", Fmt.date(e.startDate))
-                        if (!e.endDate.isNullOrBlank()) {
-                            IconDetail(Icons.Filled.CalendarToday, "End Date", Fmt.date(e.endDate))
-                        }
-                        IconDetail(Icons.Filled.Work, "Employment", cap(e.employmentType))
-                        StatusDetail("Status", cap(e.status), last = true)
+                        Detail("Employee ID", e.employeeId)
+                        Detail("Email", e.email)
+                        Detail("Phone", e.phone ?: "\u2014")
+                        Detail("Position", e.position ?: "\u2014")
+                        Detail("Department", e.department ?: "\u2014")
+                        Detail("Employment", cap(e.employmentType), last = true)
+                    }
+                }
+                item { Spacer18() }
+                item {
+                    Card {
+                        Detail("Nationality", e.nationality)
+                        Detail("Gender", cap(e.gender))
+                        Detail("Date of birth", Fmt.date(e.dateOfBirth))
+                        if (!e.educationLevel.isNullOrBlank()) Detail("Education", cap(e.educationLevel))
+                        Detail("Joined", Fmt.date(e.startDate))
+                        if (!e.endDate.isNullOrBlank()) Detail("End date", Fmt.date(e.endDate))
+                        Detail("Status", cap(e.status), last = true)
                     }
                 }
                 item { Spacer18() }
                 item { ThemeCard() }
-                item { Spacer18() }
-                item {
-                    PremierButton(title = "Change password", icon = Icons.Filled.Lock) { showPassword = true }
-                }
-                item { Spacer18() }
-                item {
-                    Text(
-                        "Powered by Tertiary Infotech Academy Pte Ltd",
-                        color = Brand.TextFaint, fontSize = 11.sp,
-                        modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
             }
         }
     }
@@ -152,130 +127,59 @@ private fun AvatarHeader(e: EmployeeProfile) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box {
+        Box(
+            modifier = Modifier.shadow(10.dp, CircleShape, spotColor = Brand.Premier, ambientColor = Brand.Premier),
+        ) {
             InitialsAvatar(initials(e.name), 88, avatarUrl = e.avatarUrl)
+        }
+        Text(e.name, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        if (e.roles.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(20.dp)
                     .clip(CircleShape)
-                    .background(Brand.Background)
-                    .padding(2.dp)
-                    .clip(CircleShape)
-                    .background(Brand.Green),
-            )
-        }
-        Text(e.name, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.padding(top = 6.dp))
-        if (!e.position.isNullOrBlank()) {
-            Text(e.position, color = Brand.TextSecondary, fontSize = 13.sp)
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(top = 2.dp),
-        ) {
-            StatusPill(cap(e.status))
-            Text("ID: ${e.employeeId}", color = Brand.TextSecondary, fontSize = 12.sp)
+                    .background(if (Brand.isDark) Color.White.copy(alpha = 0.16f) else Brand.SurfaceStrong)
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+            ) {
+                Text(e.roles.joinToString(" \u00b7 "), color = Brand.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
 
 @Composable
-private fun CardHeading(icon: ImageVector, text: String) {
+private fun ActionButton(title: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Brand.SmallCorner.dp)
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = Brand.Primary, modifier = Modifier.size(20.dp))
-        Text(text, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.padding(start = 8.dp))
-    }
-    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border).padding(bottom = 4.dp))
-}
-
-@Composable
-private fun IconDetail(icon: ImageVector, label: String, value: String, last: Boolean = false) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        Text(label, color = Brand.TextSecondary, fontSize = 12.sp)
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-            Icon(icon, contentDescription = null, tint = Brand.TextSecondary, modifier = Modifier.size(15.dp))
-            Text(
-                value, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
-    }
-    if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border))
-}
-
-@Composable
-private fun PlainDetail(label: String, value: String, last: Boolean = false) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        Text(label, color = Brand.TextSecondary, fontSize = 12.sp)
-        Text(value, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
-    }
-    if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border))
-}
-
-@Composable
-private fun PillDetail(label: String, value: String, color: Color, last: Boolean = false) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        Text(label, color = Brand.TextSecondary, fontSize = 12.sp)
-        OutlinePill(value.uppercase(), color, modifier = Modifier.padding(top = 6.dp))
-    }
-    if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border))
-}
-
-@Composable
-private fun RolesDetail(label: String, roles: List<String>, last: Boolean = false) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        Text(label, color = Brand.TextSecondary, fontSize = 12.sp)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(top = 6.dp),
-        ) {
-            roles.forEach { role -> OutlinePill(cap(role), roleColor(role)) }
-        }
-    }
-    if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border))
-}
-
-@Composable
-private fun StatusDetail(label: String, value: String, last: Boolean = false) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = Brand.TextSecondary, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        StatusPill(value)
-    }
-    if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.Border))
-}
-
-@Composable
-private fun OutlinePill(text: String, color: Color, modifier: Modifier = Modifier) {
-    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .border(1.dp, color, RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 3.dp),
+            .height(44.dp)
+            .clip(shape)
+            .background(Brand.Field)
+            .border(1.dp, Brand.TextPrimary.copy(alpha = 0.18f), shape)
+            .clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Icon(icon, contentDescription = null, tint = Brand.TextPrimary, modifier = Modifier.size(16.dp))
+        Text(title, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
 @Composable
-private fun roleColor(role: String): Color = when (role.uppercase()) {
-    "ACCOUNTANT" -> Brand.Green
-    "ADMIN" -> Brand.Purple
-    "INTERN" -> Brand.Amber
-    "STAFF" -> Brand.Blue
-    else -> Brand.TextSecondary
+private fun Detail(label: String, value: String, last: Boolean = false) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, color = Brand.TextSecondary, fontSize = 15.sp)
+        Text(
+            value, color = Brand.TextPrimary, fontWeight = FontWeight.Medium, fontSize = 15.sp,
+            textAlign = TextAlign.End, modifier = Modifier.weight(1f),
+        )
+    }
+    if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.TextPrimary.copy(alpha = 0.08f)))
 }
 
-/** Dark/Light appearance card — mirrors the web's `theme-toggle.tsx` settings card. Flips every
- *  reactive [Brand] token app-wide and persists the choice via [ThemePrefs]. */
+/** Dark/Light appearance card. Flips every reactive [Brand] token app-wide and persists the choice
+ *  via [ThemePrefs]. */
 @Composable
 private fun ThemeCard() {
     val context = LocalContext.current
@@ -305,7 +209,7 @@ private fun ThemeOption(icon: ImageVector, label: String, selected: Boolean, mod
         modifier = modifier
             .clip(RoundedCornerShape(Brand.Corner.dp))
             .let {
-                if (selected) it.background(Brand.Primary)
+                if (selected) it.background(Brand.AccentGradient)
                 else it.border(1.dp, Brand.BorderLight, RoundedCornerShape(Brand.Corner.dp))
             }
             .clickable(onClick = onClick)
@@ -322,7 +226,9 @@ private fun ThemeOption(icon: ImageVector, label: String, selected: Boolean, mod
     }
 }
 
-private fun cap(s: String): String = s.lowercase().replaceFirstChar { it.uppercase() }
+/** "FULL_TIME" to "Full Time". */
+private fun cap(s: String): String =
+    s.split('_').joinToString(" ") { w -> w.lowercase().replaceFirstChar { it.uppercase() } }
 
 private fun initials(name: String): String =
     name.split(" ").filter { it.isNotBlank() }.take(2).mapNotNull { it.firstOrNull() }.joinToString("").uppercase()

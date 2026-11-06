@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.LeaveSummary
 import com.tertiaryinfotech.hrportal.data.LeaveSummaryEmployee
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
@@ -55,7 +57,6 @@ import java.util.Locale
 private fun days(v: Double): String =
     if (v % 1.0 == 0.0) String.format(Locale.US, "%.0f", v) else String.format(Locale.US, "%.1f", v)
 
-private enum class SummaryFilter(val label: String) { All("All"), Staff("Staff"), Interns("Interns") }
 
 /**
  * Admin: the month's leave + MC roll-up of every active staff member and intern — totals up top,
@@ -65,7 +66,8 @@ private enum class SummaryFilter(val label: String) { All("All"), Staff("Staff")
 @Composable
 fun LeaveSummaryScreen(nav: NavController) {
     var month by rememberSaveable { mutableStateOf(AttendanceMonth.current()) }
-    var filter by rememberSaveable { mutableStateOf(SummaryFilter.All) }
+    var interns by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf<LoadState<LeaveSummary>>(LoadState.Idle) }
 
     suspend fun load() {
@@ -83,44 +85,35 @@ fun LeaveSummaryScreen(nav: NavController) {
         val t = data.totals
         val al = t.byLeaveType.firstOrNull { it.code == "AL" }
         val pending = t.byLeaveType.sumOf { it.pendingDays }
-        val rows = data.employees.filter {
-            when (filter) {
-                SummaryFilter.All -> true
-                SummaryFilter.Staff -> !it.isIntern
-                SummaryFilter.Interns -> it.isIntern
-            }
-        }
+        val rows = data.employees.filter { it.isIntern == interns }
 
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        RefreshableColumn(scope, { load() }) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Leave & MC", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                Text("Leave & MC", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
                     modifier = Modifier.weight(1f))
                 MonthSwitcher(month) { month = it }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
-                    value = "${t.headcount.total}", label = "${t.headcount.staff} staff · ${t.headcount.interns} interns",
-                    icon = Icons.Outlined.Groups, tint = Brand.Blue, iconBg = Color.White.copy(alpha = 0.12f),
+                    value = "${t.headcount.total}", label = "People",
+                    icon = Icons.Outlined.Groups, tint = Brand.Accent,
                     modifier = Modifier.weight(1f),
                 )
                 StatTile(
-                    value = "${days(t.mc.approvedDays)} d", label = "MC · ${t.mc.employeesOnMc} people",
-                    icon = Icons.Outlined.MedicalServices, tint = Brand.Red, iconBg = Color.White.copy(alpha = 0.12f),
+                    value = days(t.mc.approvedDays), label = "MC days · ${t.mc.employeesOnMc} on MC",
+                    icon = Icons.Outlined.MedicalServices, tint = Brand.Pink,
                     modifier = Modifier.weight(1f),
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
-                    value = "${days(al?.approvedDays ?: 0.0)} d", label = "Annual leave · ${al?.employeesOnLeave ?: 0} people",
-                    icon = Icons.Outlined.BeachAccess, tint = Brand.Mint, iconBg = Color.White.copy(alpha = 0.12f),
+                    value = days(al?.approvedDays ?: 0.0), label = "AL days",
+                    icon = Icons.Outlined.BeachAccess, tint = Brand.Orange,
                     modifier = Modifier.weight(1f),
                 )
                 StatTile(
-                    value = "${days(pending)} d", label = "Pending approval",
-                    icon = Icons.Outlined.HourglassTop, tint = Brand.Amber, iconBg = Color.White.copy(alpha = 0.12f),
+                    value = days(pending), label = "Pending days",
+                    icon = Icons.Outlined.HourglassTop, tint = Brand.Amber,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -132,10 +125,17 @@ fun LeaveSummaryScreen(nav: NavController) {
                 )
             }
 
-            FilterChips(filter) { filter = it }
+            SegmentedPicker(
+                options = listOf(
+                    "staff" to "Staff (${t.headcount.staff})",
+                    "interns" to "Interns (${t.headcount.interns})",
+                ),
+                selected = if (interns) "interns" else "staff",
+                onSelect = { interns = it == "interns" },
+            )
 
             if (rows.isEmpty()) {
-                EmptyHint(Icons.Outlined.EventNote, "No one to show for ${AttendanceMonth.label(month)}.")
+                EmptyHint(Icons.Outlined.EventNote, "No ${if (interns) "interns" else "staff"} for ${AttendanceMonth.label(month)}.")
             }
             rows.forEach { e ->
                 SummaryRow(e) {
@@ -145,26 +145,6 @@ fun LeaveSummaryScreen(nav: NavController) {
             Text(
                 "Working days within the month. Leave spanning two months is split between them.",
                 color = Brand.TextMuted, fontSize = 11.sp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun FilterChips(selected: SummaryFilter, onSelect: (SummaryFilter) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Brand.Surface).padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        SummaryFilter.entries.forEach { f ->
-            val on = f == selected
-            Text(
-                f.label,
-                color = if (on) Color.White else Brand.TextSecondary,
-                fontWeight = FontWeight.SemiBold, fontSize = 13.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
-                    .background(if (on) Brand.Primary else Color.Transparent)
-                    .clickable { onSelect(f) }.padding(vertical = 10.dp),
             )
         }
     }
@@ -225,6 +205,12 @@ fun LeaveSummaryDetailScreen(employeeId: String, month: String) {
                 color = Brand.TextSecondary, fontSize = 13.sp,
             )
 
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                fun available(code: String) = e.balances.firstOrNull { it.code == code }?.let { days(it.available) } ?: "\u2014"
+                StatTile(available("AL"), "AL available", Modifier.weight(1f), Icons.Outlined.BeachAccess, Brand.Orange)
+                StatTile(available("MC"), "MC available", Modifier.weight(1f), Icons.Outlined.MedicalServices, Brand.Pink)
+            }
+
             Text("${AttendanceMonth.label(month)} leave", color = Brand.TextPrimary,
                 fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
             if (e.requests.isEmpty() && e.timeOff == null) {
@@ -258,7 +244,7 @@ fun LeaveSummaryDetailScreen(employeeId: String, month: String) {
                 Card {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Time off · ${t.reason}", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text("Time off · ${reasonName(t.reason)}", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             Text("${AttendanceMonth.dayLabel(t.date)} · ${t.startTime}–${t.endTime}",
                                 color = Brand.TextSecondary, fontSize = 12.sp)
                         }

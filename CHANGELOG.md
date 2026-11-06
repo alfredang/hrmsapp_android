@@ -4,6 +4,44 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.9] — 2026-11-06 · versionCode 21
+
+Full parity with the iOS app, in both features and look.
+
+### Added
+- **Medical claims** — New claim now offers Expense or Medical and files the receipt in the matching
+  Google Drive folder, the same flow as iOS.
+- **Snap a claim** and **Clock in / out** quick actions on Home.
+- Photo preview with Retake and Remove on claims and medical certificates.
+- Pull to refresh on Clock, Timesheet, Time Off, Approvals, Intern Attendance, Leave & MC Summary and
+  team records.
+- Pinch to zoom on payslips, AL and MC available tiles on the Leave & MC Summary detail, and Privacy
+  and Terms links on More.
+- **Use advance annual leave** switch on the leave form.
+
+### Changed
+- New look matching iOS: login, top bar with the company logo, tab bar on every screen, Home, More,
+  Leave, Payslips, Expenses, Profile and Clock, with iOS buttons, cards, status pills and colours.
+- The Leave tab lists every leave type's balance and requests in one list.
+- Signing in now asks for your email first, then your password or a one-time code.
+
+### Fixed
+- **No Pay and Compassionate Leave were invisible after applying**, because the Leave tab only showed
+  Annual and Medical.
+- Removed the default password hint from the login screen.
+- Saving your profile no longer overwrites a blank date of birth with today's date.
+- Leave spanning December and January now skips the new year's public holidays.
+- Photos are resized before upload, so large camera photos no longer hit the 5 MB limit.
+- Clearing a weekend or holiday on the timesheet now works, and locked weeks say so.
+- The real reason is shown when the server refuses an action, instead of "session expired".
+- The keyboard no longer covers form fields, and Next moves to the next field.
+
+### Removed
+- The hamburger menu, role switcher and avatar menu. Everything in them is on the More tab.
+
+### Play submission
+- Production track, full rollout, corporate account `sales@tertiarycourses.com.sg`.
+
 ## [1.8] — 2026-11-02 · versionCode 20
 
 Team drill-down parity with iOS (v1.9 + v1.12).

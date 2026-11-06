@@ -79,15 +79,16 @@ Mirrors the iOS app 1:1:
   MC and leave history; the three stat tiles open `team_records_clock/{id}` and
   `team_records_leave/{id}?kind=MC|LEAVE`. Routes start with `team` so the Team tab chrome stays.
 - **Payslips** — list + native **PdfRenderer** viewer for the authenticated payslip PDF.
-- **Expenses** — personal expense/medical claims with status, plus **submit a claim** with a
-  receipt photo.
+- **Expenses** — personal expense/medical claims with status, plus **submit an Expense or Medical
+  claim** with a receipt (`POST /api/mobile/claims`, which files it in the employee's Drive folder).
 - **Timesheet** — a simple **clock in / out** with a live elapsed timer and a monthly daily
   check-in/out history with total hours (`AttendanceHistorySection`, ported from iOS; punches via
   `/api/mobile/attendance` + `attendance/clock-{in,out}`, history via
-  `/api/mobile/attendance/history?month=`). *Not* a weekly OT grid.
-- **Intern Attendance** (approvers only; More menu + drawer) — `InternAttendanceScreen` over
+  `/api/mobile/attendance/history?month=`). The separate weekly weekend/holiday grid is
+  `WeeklyTimesheetScreen`.
+- **Intern Attendance** (approvers only; More menu) — `InternAttendanceScreen` over
   `/api/mobile/attendance/summary?month=`, drilling into `intern_attendance_detail/{id}`.
-- **Leave & MC Summary** (approvers only; More menu + drawer) — `LeaveSummaryScreen` over
+- **Leave & MC Summary** (approvers only; More menu) — `LeaveSummaryScreen` over
   `/api/mobile/leave-summary?month=`, drilling into `mc_leave_summary_detail/{employeeId}`. The route
   is prefixed `mc_` on purpose: tab/title resolution is `startsWith`-based, so `leave_summary` would
   be claimed by the Leave tab.
@@ -105,7 +106,9 @@ flows (web-only). **Woods Square building access** is **not** part of this app (
 the iOS app either).
 
 **Google Sign-In** is implemented (see above) and appears only when the build carries a
-`GOOGLE_ANDROID_CLIENT_ID` in `local.properties`; password + OTP are always available.
+`GOOGLE_ANDROID_CLIENT_ID` in `local.properties`; password + OTP are always available. Leave it unset
+until the OAuth client has **"Enable custom URI scheme"** switched on under its Advanced Settings in
+Google Cloud Console: as of 2026-11-06 Google rejects this flow with `invalid_request`.
 
 ## Build & run
 
@@ -134,11 +137,11 @@ Single-activity (`MainActivity`) Compose app. `AuthViewModel` (`AndroidViewModel
 source of truth, driving `data/AuthService` (NextAuth sign-in) and `data/HrmsApi` (typed reads +
 apply-leave + PDF download), both riding one shared OkHttp client + `PersistentCookieJar`.
 `RootScreen` routes loading → `LoginScreen` → `MainScaffold` via a `NavHost`. The bottom nav is
-**five tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView` 1:1; the
-hamburger drawer is a secondary path to the same destinations, and the remaining modules
-(Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are nested destinations that share
-the same top-bar chrome. Tab destinations render **bare** — `MainScaffold` already supplies the
-top bar and bottom nav, so wrapping one in `BrandScaffold` would stack a second app bar.
+**five tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView` 1:1, shown on
+every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
+nested destinations reached from More or Home, with a back chevron. All destinations render **bare**:
+`MainScaffold` supplies the top bar and tab bar, so wrapping one in `BrandScaffold` would stack a
+second app bar.
 Reusable Premier Blue controls live in `ui/components/`.
 
 ## Signing & Google Play
@@ -153,9 +156,24 @@ Reusable Premier Blue controls live in `ui/components/`.
 ## Conventions
 
 Follow the bundled `mobile-android-design` skill: Material Design 3, Compose idioms, large
-typography, ≥48dp touch targets. The app runs on the web app's flat dark surface (`darkColorScheme`
-in `ui/theme/Theme.kt` — `Brand.Background`/`Brand.Surface`, no gradients), indigo accent, and
-pastel status-badge/banner tints (`StatusTint`, `IconTint`, `BannerTint`) copied from the web app's
-Tailwind classes. Keep parity with the iOS app for *functional* behavior — when a feature changes
-on one platform, mirror it on the other — but for *visual* design, the web app is the source of
-truth.
+typography, >=48dp touch targets. **The iOS app is the source of truth for both behaviour and visual
+design**: when a feature or screen changes on one platform, mirror it on the other. Use `Brand.Accent`
+for text, icons and selected states, and `Brand.Primary` only as a fill, because premier-blue text is
+unreadable on the gradient.
+
+Deliberate Android-only extras: the Dark / Light theme card on Profile, the expense filter panel,
+receipt viewing, "Payment Received", PDF receipts, the annual-leave advance / Off In Lieu panel, and
+Add Event on the calendar list.
+
+## Previewing without a backend
+
+Debug builds contain `MockApi` (`app/src/debug`), the counterpart of iOS `-uiPreview`. Release builds
+get the no-op in `app/src/release`.
+
+```bash
+adb shell "run-as com.tertiaryinfotech.hrportal sh -c 'mkdir -p files; echo admin > files/ui_preview'"
+adb shell am force-stop com.tertiaryinfotech.hrportal
+```
+
+Use admin, staff, intern or signedout. Writes are logged under the `MockApi` logcat tag, not sent.
+Delete the file to go back to the real backend.

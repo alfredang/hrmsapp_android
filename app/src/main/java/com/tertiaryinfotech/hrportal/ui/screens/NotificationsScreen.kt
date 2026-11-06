@@ -40,7 +40,6 @@ import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.STAFF_NOTIFICATION_TYPES
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
-import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
@@ -58,8 +57,8 @@ fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
     val scope = rememberCoroutineScope()
     var reloadKey by remember { mutableStateOf(0) }
 
-    BrandScaffold(title = "Notifications", onBack = { nav.popBackStack() }) { inner ->
-        Column(modifier = Modifier.padding(inner)) {
+    run {
+        Column {
             key(reloadKey) {
                 AsyncListScreen(fetch = { HrmsApi.notifications().filter { it.type in STAFF_NOTIFICATION_TYPES } }) { list ->
                     if (list.isEmpty()) {

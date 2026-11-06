@@ -151,11 +151,11 @@ fun RequestTimeOffScreen(nav: NavController) {
                 placeholder = { Text("Describe the reason...", color = Brand.TextMuted) },
                 modifier = Modifier.fillMaxWidth().height(110.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Brand.Border,
-                    unfocusedContainerColor = Brand.Border,
+                    focusedContainerColor = Brand.Field,
+                    unfocusedContainerColor = Brand.Field,
                     focusedTextColor = Brand.TextPrimary,
                     unfocusedTextColor = Brand.TextPrimary,
-                    focusedIndicatorColor = Brand.Primary,
+                    focusedIndicatorColor = Brand.Accent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
             )

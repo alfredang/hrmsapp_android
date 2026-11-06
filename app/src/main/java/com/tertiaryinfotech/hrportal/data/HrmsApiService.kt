@@ -2,6 +2,7 @@ package com.tertiaryinfotech.hrportal.data
 
 import kotlinx.serialization.Serializable
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -25,16 +26,13 @@ data class SubmitTimesheetBody(val weekStart: String, val entries: List<Timeshee
 
 @Serializable
 data class ApplyLeaveBody(
-    val leaveTypeId: String, val startDate: String, val endDate: String, val days: Double,
+    val leaveTypeId: String, val startDate: String, val endDate: String,
     val dayType: String, val halfDayPosition: String? = null, val reason: String,
     val documentUrl: String? = null, val documentFileName: String? = null,
     val otDaysUsed: Double? = null,
-)
-
-@Serializable
-data class CreateExpenseBody(
-    val categoryId: String, val description: String, val amount: Double, val expenseDate: String,
-    val receiptUrl: String? = null, val receiptFileName: String? = null,
+    /** Annual leave only: borrow from the rest of the year's entitlement. Off, days beyond the
+     *  earned balance count as deficit. The server works out the day count itself. */
+    val useAdvance: Boolean = false,
 )
 
 @Serializable
@@ -68,9 +66,6 @@ data class CreateCalendarEventBody(
  * this replaces.
  */
 interface HrmsApiService {
-
-    @GET("api/public/branding")
-    suspend fun branding(): Response<BrandingResponse>
 
     @GET("api/mobile/summary")
     suspend fun summary(): Response<DashboardSummary>
@@ -177,8 +172,16 @@ interface HrmsApiService {
     @POST("api/leave")
     suspend fun applyLeave(@Body body: ApplyLeaveBody): Response<ResponseBody>
 
-    @POST("api/expenses")
-    suspend fun createExpense(@Body body: CreateExpenseBody): Response<ResponseBody>
+    @Multipart
+    @POST("api/mobile/claims")
+    suspend fun submitClaim(
+        @Part("claimType") claimType: RequestBody,
+        @Part("categoryId") categoryId: RequestBody?,
+        @Part("description") description: RequestBody,
+        @Part("amount") amount: RequestBody,
+        @Part("expenseDate") expenseDate: RequestBody,
+        @Part receipt: MultipartBody.Part,
+    ): Response<ResponseBody>
 
     @POST("api/expenses/{id}/acknowledge")
     suspend fun acknowledgeExpense(@Path("id") id: String): Response<ResponseBody>

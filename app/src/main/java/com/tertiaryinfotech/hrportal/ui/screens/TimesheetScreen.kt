@@ -36,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.AttendancePunch
 import com.tertiaryinfotech.hrportal.data.AttendanceResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.LoadState
@@ -99,10 +102,7 @@ fun TimesheetScreen(nav: NavController) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncContent(state = state, load = { load() }) { data ->
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
+            RefreshableColumn(scope, { load() }, Arrangement.spacedBy(16.dp)) {
                 TodayCard(data, punching) { clockIn -> scope.launch { punch(clockIn) } }
                 error?.let { StatusBanner(isError = true, text = it) }
                 AttendanceHistorySection(
@@ -112,6 +112,9 @@ fun TimesheetScreen(nav: NavController) {
         }
     }
 }
+
+/** iOS `[.orange, .red.opacity(0.85)]`. */
+private val ClockOutGradient = Brush.linearGradient(listOf(Color(0xFFFF9F0A), Color(0xD9FF453A)))
 
 // MARK: - Today card (three phases: not-clocked-in / working / done)
 
@@ -146,11 +149,11 @@ private fun TodayCard(data: AttendanceResponse, punching: Boolean, onPunch: (Boo
                         title = "Not clocked in yet",
                         subtitle = "Tap below when you start work — your time is logged to HR automatically.",
                     )
-                    PunchButton("Clock in", Icons.AutoMirrored.Filled.Login, Brand.Primary, punching) { onPunch(true) }
+                    PunchButton("Clock in", Icons.AutoMirrored.Filled.Login, Brand.AccentGradient, punching) { onPunch(true) }
                 }
                 is Phase.Working -> {
                     LiveTimer(p.sinceMs)
-                    PunchButton("Clock out", Icons.AutoMirrored.Filled.Logout, Color(0xFFF97316), punching) { onPunch(false) }
+                    PunchButton("Clock out", Icons.AutoMirrored.Filled.Logout, ClockOutGradient, punching) { onPunch(false) }
                 }
                 is Phase.Done -> {
                     StatusHeader(
@@ -192,17 +195,20 @@ private fun LiveTimer(sinceMs: Long) {
         Text(
             String.format(Locale.US, "%d:%02d:%02d", h, m, s),
             color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 44.sp,
+            style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"), // no jitter as digits change
         )
     }
 }
 
 @Composable
-private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, loading: Boolean, onClick: () -> Unit) {
+private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Brush, loading: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Brand.Corner.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(Brand.Corner.dp))
+            .shadow(8.dp, shape)
+            .clip(shape)
             .background(tint)
             .then(if (loading) Modifier else Modifier.clickable(onClick = onClick)),
         horizontalArrangement = Arrangement.Center,
@@ -212,7 +218,7 @@ private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector
             CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
         } else {
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
                 modifier = Modifier.padding(start = 10.dp))
         }
     }

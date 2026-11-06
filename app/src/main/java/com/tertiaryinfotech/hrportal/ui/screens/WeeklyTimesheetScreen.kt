@@ -1,5 +1,11 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +48,9 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.TimesheetDay
 import com.tertiaryinfotech.hrportal.data.TimesheetResponse
+import com.tertiaryinfotech.hrportal.ui.components.alphaIf
+import com.tertiaryinfotech.hrportal.ui.components.BannerKind
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
@@ -104,29 +113,32 @@ fun WeeklyTimesheetScreen(nav: NavController) {
         AsyncContent(state = state, load = { load() }) { data ->
             val submittableDays = data.days.filter { it.isSubmittable }
             val weekOtTotal = data.days.sumOf { otPreview(selections[it.date] ?: 0.0) }
+            // Off (0h) is sent only for a day that already had hours, which clears it. Otherwise
+            // leaving a day on Off would raise an empty pending row.
             val pendingEntries = submittableDays
-                .map { it.date to (selections[it.date] ?: 0.0) }
-                .filter { (_, h) -> h > 0.0 }
+                .map { Triple(it.date, selections[it.date] ?: 0.0, it.hours) }
+                .filter { (_, selected, saved) -> selected > 0.0 || saved > 0.0 }
+                .map { (date, selected, _) -> date to selected }
 
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            RefreshableColumn(scope, { load() }) {
                 WeekNav(
                     weekStart = weekStart,
-                    atCurrentWeek = weekStart >= currentMonday,
+                    atCurrentWeek = weekStart == currentMonday,
                     onPrev = { weekStart = addWeeks(weekStart, -1) },
                     onNext = { weekStart = addWeeks(weekStart, 1) },
                     onJumpToCurrent = { weekStart = currentMonday },
                 )
+
+                if (data.isLocked) {
+                    StatusBanner(BannerKind.Info, "This week is locked and can no longer be edited.")
+                }
 
                 StatTile(
                     value = Fmt.days(weekOtTotal),
                     label = "Off In Lieu this week",
                     icon = Icons.Filled.Functions,
                     tint = Brand.Mint,
-                    iconBg = Color.White.copy(alpha = 0.12f),
-                )
+                    )
 
                 message?.let { (isError, text) -> StatusBanner(isError = isError, text = text) }
 
@@ -165,13 +177,8 @@ fun WeeklyTimesheetScreen(nav: NavController) {
             if (showConfirm) {
                 AlertDialog(
                     onDismissRequest = { showConfirm = false },
-                    title = { Text("Submit for approval?") },
-                    text = {
-                        Text(
-                            "Submit ${pendingEntries.size} day(s) — ${Fmt.days(weekOtTotal)} Off In Lieu — " +
-                                "for admin approval?",
-                        )
-                    },
+                    title = { Text("Submit timesheet?") },
+                    text = { Text("Submit this week's weekend and public-holiday hours for admin approval?") },
                     confirmButton = {
                         TextButton(onClick = {
                             showConfirm = false
@@ -180,7 +187,7 @@ fun WeeklyTimesheetScreen(nav: NavController) {
                             scope.launch {
                                 try {
                                     HrmsApi.submitTimesheet(weekStart, pendingEntries)
-                                    message = false to "Submitted for approval."
+                                    message = false to "Your hours were submitted. Off In Lieu days are credited after admin approval."
                                     load()
                                 } catch (e: Exception) {
                                     message = true to (e.message ?: "Could not submit your hours.")
@@ -191,7 +198,7 @@ fun WeeklyTimesheetScreen(nav: NavController) {
                         }) { Text("Submit") }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showConfirm = false }) { Text("Go Back") }
+                        TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
                     },
                 )
             }
@@ -213,25 +220,28 @@ private fun WeekNav(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            IconButton(onClick = onPrev) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous week", tint = Brand.TextPrimary)
+            WeekButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous week", onPrev)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Week of", color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp)
+                Text(Fmt.date(weekStart), color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             }
-            Text(
-                weekRangeLabel(weekStart),
-                color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-            )
-            IconButton(onClick = onNext, enabled = !atCurrentWeek) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next week",
-                    tint = if (atCurrentWeek) Brand.TextMuted else Brand.TextPrimary,
-                )
-            }
+            WeekButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next week", onNext)
         }
         if (!atCurrentWeek) {
             TextButton(onClick = onJumpToCurrent) {
-                Text("Jump to current week", color = Brand.Primary, fontSize = 13.sp)
+                Text("Jump to current week", color = Brand.Accent, fontSize = 13.sp)
             }
         }
+    }
+}
+
+@Composable
+private fun WeekButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(40.dp).clip(CircleShape).background(Brand.Field),
+    ) {
+        Icon(icon, contentDescription = description, tint = Brand.Accent)
     }
 }
 
@@ -252,15 +262,12 @@ private fun DayRow(day: TimesheetDay, selectedHours: Double, locked: Boolean, on
             day.status?.let { StatusPill(it) }
         }
         if (day.isNonWorkDay) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
-                HOUR_OPTIONS.forEachIndexed { i, (hours, label) ->
-                    SegmentedButton(
-                        selected = selectedHours == hours,
-                        onClick = { onHoursChange(hours) },
-                        enabled = day.isSubmittable && !locked,
-                        shape = SegmentedButtonDefaults.itemShape(i, HOUR_OPTIONS.size),
-                    ) { Text(label) }
-                }
+            Box(modifier = Modifier.padding(top = 10.dp).alphaIf(!(day.isSubmittable && !locked), 0.5f)) {
+                SegmentedPicker(
+                    options = HOUR_OPTIONS.map { (hours, label) -> hours.toString() to label },
+                    selected = selectedHours.toString(),
+                    onSelect = { if (day.isSubmittable && !locked) onHoursChange(it.toDouble()) },
+                )
             }
             val ot = otPreview(selectedHours)
             if (ot > 0) {

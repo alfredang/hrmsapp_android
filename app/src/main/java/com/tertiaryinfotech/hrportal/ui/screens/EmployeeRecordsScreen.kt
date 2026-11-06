@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,9 +41,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import kotlinx.coroutines.CoroutineScope
 import com.tertiaryinfotech.hrportal.data.EmployeeRecords
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.LeaveRequest
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
@@ -78,16 +81,18 @@ private fun approvedDays(rows: List<LeaveRequest>): String =
 
 /** Fetches one person's records and renders [content] once loaded. */
 @Composable
-private fun RecordsLoader(employeeId: String, content: @Composable (EmployeeRecords) -> Unit) {
+private fun RecordsLoader(employeeId: String, content: @Composable (EmployeeRecords, suspend () -> Unit, CoroutineScope) -> Unit) {
     var state by remember(employeeId) { mutableStateOf<LoadState<EmployeeRecords>>(LoadState.Idle) }
-    AsyncContent(state = state, load = {
+    val scope = rememberCoroutineScope()
+    val load: suspend () -> Unit = {
         if (state !is LoadState.Loaded) state = LoadState.Loading
         state = try {
             LoadState.Loaded(HrmsApi.employeeRecords(employeeId))
         } catch (e: Exception) {
             LoadState.Failed(e.message ?: "Could not load records.")
         }
-    }, content = content)
+    }
+    AsyncContent(state = state, load = load) { data -> content(data, load, scope) }
 }
 
 /**
@@ -97,12 +102,9 @@ private fun RecordsLoader(employeeId: String, content: @Composable (EmployeeReco
  */
 @Composable
 fun EmployeeRecordsScreen(employeeId: String, nav: NavController) {
-    RecordsLoader(employeeId) { data ->
+    RecordsLoader(employeeId) { data, load, scope ->
         val e = data.employee
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
+        RefreshableColumn(scope, load, Arrangement.spacedBy(14.dp)) {
             Card {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(e.name, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -204,7 +206,7 @@ private fun LeaveSection(kind: RecordsLeaveKind, icon: ImageVector, rows: List<L
 /** Every clock in / out on record for one person, grouped by month with each month's hours. */
 @Composable
 fun RecordsClockScreen(employeeId: String) {
-    RecordsLoader(employeeId) { data ->
+    RecordsLoader(employeeId) { data, _, _ ->
         val a = data.attendance
         // `days` arrives newest first, so grouping preserves that order.
         val months = a.days.groupBy { it.date.take(7) }
@@ -216,12 +218,12 @@ fun RecordsClockScreen(employeeId: String) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
                     value = String.format(Locale.US, "%.1f h", a.totalHours), label = "Total hours",
-                    icon = Icons.Filled.Functions, tint = Brand.Mint, iconBg = Color.White.copy(alpha = 0.12f),
+                    icon = Icons.Filled.Functions, tint = Brand.Mint,
                     modifier = Modifier.weight(1f),
                 )
                 StatTile(
                     value = "${a.daysWorked}", label = "Days worked", icon = Icons.Outlined.EventAvailable,
-                    tint = Brand.Blue, iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
+                    tint = Brand.Blue, modifier = Modifier.weight(1f),
                 )
             }
             if (a.days.isEmpty()) EmptyHint(Icons.Outlined.AccessTime, "No clock-ins on record.")
@@ -244,7 +246,7 @@ fun RecordsClockScreen(employeeId: String) {
 /** The full list of one person's MC or leave requests. */
 @Composable
 fun RecordsLeaveScreen(employeeId: String, kind: RecordsLeaveKind) {
-    RecordsLoader(employeeId) { data ->
+    RecordsLoader(employeeId) { data, _, _ ->
         val rows = if (kind == RecordsLeaveKind.MC) data.medical else data.otherLeave
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),

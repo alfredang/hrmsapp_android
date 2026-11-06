@@ -46,7 +46,6 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.CalendarEvent
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
-import com.tertiaryinfotech.hrportal.ui.components.BrandScaffold
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.PremierButton

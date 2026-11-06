@@ -18,9 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * A screen scaffold with a flat `gray-950` top bar (white title, optional back button) — mirrors
- * the web app's header over its `bg-gray-950` page background. The background is provided by the
- * enclosing GradientScreen.
+ * A screen scaffold with the opaque navy top bar. Only full-screen dialogs use it; regular
+ * destinations share the top bar in MainScaffold. The background comes from GradientScreen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

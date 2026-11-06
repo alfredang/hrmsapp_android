@@ -62,27 +62,39 @@ object Brand {
         val Red: Color
         val Amber: Color
         val Purple: Color
+        val Orange: Color
+        val Pink: Color
+        val Teal: Color
+        val Accent: Color            // readable accent for text, icons and selection
+        val Dialog: Color            // opaque container for dialogs, menus and pickers
         val gradient: List<Color>    // GradientScreen stops
     }
 
     /** Dark = the iOS Premier Blue look: navy→premier→azure gradient, frosted-white cards, white text. */
     private object DarkPalette : PaletteTokens {
-        override val Background = Navy
-        override val Surface = Color.White.copy(alpha = 0.08f)
+        // Opaque tab / nav bars — iOS MainTabView's UIColor(0.04, 0.10, 0.22).
+        override val Background = Color(0xFF0A1A38)
+        override val Surface = Color.White.copy(alpha = 0.07f)     // iOS Card fill
         override val SurfaceStrong = Color.White.copy(alpha = 0.12f)
-        override val Border = Color.White.copy(alpha = 0.18f)
+        override val Border = Color.White.copy(alpha = 0.12f)      // iOS Card stroke
         override val BorderLight = Color.White.copy(alpha = 0.22f)
         override val Field = Color.White.copy(alpha = 0.12f)
         override val FieldBorder = Color.White.copy(alpha = 0.22f)
         override val TextPrimary = Color.White
-        override val TextSecondary = Color.White.copy(alpha = 0.72f)
+        override val TextSecondary = Color.White.copy(alpha = 0.7f)
         override val TextMuted = Color.White.copy(alpha = 0.55f)
         override val TextFaint = Color.White.copy(alpha = 0.40f)
-        override val Green = Color(0xFF34D399)
-        override val Mint = Color(0xFF6EE7B7)
-        override val Red = Color(0xFFF87171)
-        override val Amber = Color(0xFFFBBF24)
-        override val Purple = Color(0xFFC4B5FD)
+        // iOS system colours as they resolve in dark mode, which is what the iOS app always runs in.
+        override val Green = Color(0xFF30D158)
+        override val Mint = Color(0xFF63E6E2)
+        override val Red = Color(0xFFFF453A)
+        override val Amber = Color(0xFFFFD60A)
+        override val Purple = Color(0xFFBF5AF2)
+        override val Orange = Color(0xFFFF9F0A)
+        override val Pink = Color(0xFFFF375F)
+        override val Teal = Color(0xFF40C8E0)
+        override val Accent = Sky
+        override val Dialog = Color(0xFF12264D)
         override val gradient = listOf(Navy, Premier, Azure)
     }
 
@@ -104,6 +116,11 @@ object Brand {
         override val Red = Color(0xFFB91C1C)
         override val Amber = Color(0xFFB45309)
         override val Purple = Color(0xFF7E22CE)
+        override val Orange = Color(0xFFC2410C)
+        override val Pink = Color(0xFFBE123C)
+        override val Teal = Color(0xFF0F766E)
+        override val Accent = Premier
+        override val Dialog = Color.White
         override val gradient = listOf(Color(0xFFF7FAFF), Color(0xFFEFF4FF), Color(0xFFE7EFFF))
     }
 
@@ -128,14 +145,26 @@ object Brand {
     var Red: Color by mutableStateOf(DarkPalette.Red); private set
     var Amber: Color by mutableStateOf(DarkPalette.Amber); private set
     var Purple: Color by mutableStateOf(DarkPalette.Purple); private set
+    var Orange: Color by mutableStateOf(DarkPalette.Orange); private set
+    var Pink: Color by mutableStateOf(DarkPalette.Pink); private set
+    var Teal: Color by mutableStateOf(DarkPalette.Teal); private set
+    /** Accent for text, icons and selected states: sky on the dark gradient, premier on light.
+     *  [Primary] is a fill colour only, because premier-blue text is unreadable on the gradient. */
+    var Accent: Color by mutableStateOf(DarkPalette.Accent); private set
+    var Dialog: Color by mutableStateOf(DarkPalette.Dialog); private set
     // Kept for call sites that referenced these previously.
     val Blue = Sky
     var Emerald: Color by mutableStateOf(DarkPalette.Green); private set
 
     var GradientStops: List<Color> by mutableStateOf(DarkPalette.gradient); private set
 
+    /** iOS `Theme.accent` — the gradient on primary buttons, avatars and selected chips. */
+    val AccentGradient: Brush = Brush.linearGradient(listOf(Azure, Premier))
+
     const val Corner = 16 // dp — iOS Theme.corner
-    const val LogoCorner = 16 // dp
+    const val CardCorner = 18 // dp — iOS Card
+    const val SmallCorner = 12 // dp — iOS banners, form rows and secondary buttons
+    const val LogoCorner = 24 // dp — iOS BrandHeader
     const val ControlHeight = 56 // dp — iOS Theme.controlHeight
 
     /** Switches every reactive token between the dark (default) and light Premier-Blue palette.
@@ -160,6 +189,11 @@ object Brand {
         Red = p.Red
         Amber = p.Amber
         Purple = p.Purple
+        Orange = p.Orange
+        Pink = p.Pink
+        Teal = p.Teal
+        Accent = p.Accent
+        Dialog = p.Dialog
         Emerald = p.Green
         GradientStops = p.gradient
         BannerTint.applyTheme(dark)
@@ -220,14 +254,16 @@ object BannerTint {
 fun TertiaryHRMSTheme(content: @Composable () -> Unit) {
     val base = if (Brand.isDark) darkColorScheme() else lightColorScheme()
     val colorScheme = base.copy(
-        primary = Brand.Primary,
-        onPrimary = Color.White,
+        // Material uses `primary` for text buttons, selected dates and focus, so it has to stay
+        // readable on dark surfaces. Filled controls here set their own premier fill.
+        primary = Brand.Accent,
+        onPrimary = if (Brand.isDark) Brand.Navy else Color.White,
         primaryContainer = Brand.SurfaceStrong,
         onPrimaryContainer = Brand.TextPrimary,
         inversePrimary = Brand.Sky,
 
-        secondary = Brand.Primary,
-        onSecondary = Color.White,
+        secondary = Brand.Accent,
+        onSecondary = if (Brand.isDark) Brand.Navy else Color.White,
         secondaryContainer = Brand.Border,
         onSecondaryContainer = Brand.TextPrimary,
         tertiary = Brand.Purple,
@@ -247,9 +283,12 @@ fun TertiaryHRMSTheme(content: @Composable () -> Unit) {
         outline = Brand.BorderLight,
         outlineVariant = Brand.Border,
 
-        surfaceContainer = Brand.Background,
-        surfaceContainerHigh = Brand.SurfaceStrong,
-        surfaceContainerHighest = Brand.SurfaceStrong,
+        // Opaque: dialogs, menus and date pickers read these and float over the gradient.
+        surfaceContainer = Brand.Dialog,
+        surfaceContainerHigh = Brand.Dialog,
+        surfaceContainerHighest = Brand.Dialog,
+        surfaceContainerLow = Brand.Dialog,
+        surfaceBright = Brand.Dialog,
     )
 
     MaterialTheme(

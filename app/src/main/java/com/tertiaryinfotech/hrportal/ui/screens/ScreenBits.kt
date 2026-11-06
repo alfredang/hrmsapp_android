@@ -6,6 +6,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,14 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -29,6 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,13 +51,13 @@ fun Spacer14() = Spacer(Modifier.height(14.dp))
 /** A white section heading, matching the iOS `.headline` section titles. */
 @Composable
 fun SectionTitle(text: String) {
-    Text(text, color = Brand.TextPrimary.copy(alpha = 0.9f), fontWeight = FontWeight.Bold, fontSize = 17.sp)
+    Text(text, color = Brand.TextPrimary.copy(alpha = 0.9f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
 }
 
 /** A field label used above form inputs (apply-leave, new-expense, etc.). */
 @Composable
 fun FieldLabel(text: String) {
-    Text(text, color = Brand.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+    Text(text, color = Brand.TextPrimary.copy(alpha = 0.85f), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
 }
 
 /** A tappable/static field surface used to host form content (dropdowns, date pickers). */
@@ -63,17 +66,69 @@ fun FieldBox(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Brand.Corner.dp))
-            .background(Brand.Border)
-            .padding(14.dp),
+            .clip(RoundedCornerShape(Brand.SmallCorner.dp))
+            .background(Brand.Surface)
+            .padding(12.dp),
     ) { content() }
+}
+
+/** A multi-line text input on a form row, for reasons and notes. */
+@Composable
+fun FormTextField(value: String, onValueChange: (String) -> Unit, placeholder: String, minLines: Int = 2, keyboardType: KeyboardType = KeyboardType.Text) {
+    FieldBox {
+        Box {
+            if (value.isEmpty()) Text(placeholder, color = Brand.TextPrimary.copy(alpha = 0.5f), fontSize = 16.sp)
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                minLines = minLines,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = TextStyle(color = Brand.TextPrimary, fontSize = 16.sp),
+                cursorBrush = SolidColor(Brand.Accent),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            )
+        }
+    }
+}
+
+/** An iOS-style segmented control on the gradient. */
+@Composable
+fun SegmentedPicker(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    val shape = RoundedCornerShape(9.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(shape).background(Brand.Surface).padding(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        options.forEach { (value, label) ->
+            val on = value == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(if (on) Brand.Field else Color.Transparent)
+                    .clickable { onSelect(value) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label, color = Brand.TextPrimary, fontSize = 13.sp, maxLines = 1,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+        }
+    }
 }
 
 /** A native Material date picker dialog, clamped to [minMillis] when given. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DateField(initial: Long, minMillis: Long? = null, onPick: (Long) -> Unit, onCancel: () -> Unit) {
-    val state = rememberDatePickerState(initialSelectedDateMillis = initial)
+fun DateField(initial: Long, minMillis: Long? = null, maxMillis: Long? = null, onPick: (Long) -> Unit, onCancel: () -> Unit) {
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = maxMillis == null || utcTimeMillis <= maxMillis
+        },
+    )
     DatePickerDialog(
         onDismissRequest = onCancel,
         confirmButton = {
@@ -105,33 +160,4 @@ fun createCaptureUri(context: Context): Uri {
     val dir = File(context.cacheDir, "captures").apply { mkdirs() }
     val file = File(dir, "capture_${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-}
-
-/** "Take Photo" / "Choose from Files" chooser — shown when tapping a document/receipt upload
- *  field, so the same field can offer both a live camera capture and a file/gallery pick. */
-@Composable
-fun AttachOptionsDialog(onDismiss: () -> Unit, onTakePhoto: () -> Unit, onChooseFile: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add document") },
-        text = {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onTakePhoto).padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Filled.PhotoCamera, contentDescription = null, tint = Brand.Primary)
-                    Text("Take Photo", color = Brand.TextPrimary, modifier = Modifier.padding(start = 14.dp))
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onChooseFile).padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Filled.AttachFile, contentDescription = null, tint = Brand.Primary)
-                    Text("Choose from Files", color = Brand.TextPrimary, modifier = Modifier.padding(start = 14.dp))
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }

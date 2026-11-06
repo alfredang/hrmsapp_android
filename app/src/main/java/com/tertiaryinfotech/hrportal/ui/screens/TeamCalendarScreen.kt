@@ -181,7 +181,7 @@ private fun SegmentButton(label: String, selected: Boolean, modifier: Modifier =
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) Brand.Primary else Color.Transparent)
+            .background(if (selected) Brand.Premier else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
@@ -283,12 +283,12 @@ private fun DayCell(
             modifier = Modifier
                 .size(22.dp)
                 .clip(CircleShape)
-                .background(if (isToday) Brand.Primary else Color.Transparent),
+                .background(if (isToday) Brand.Accent else Color.Transparent),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 dayOfMonth(day).toString(),
-                color = if (isToday) Color.White else Brand.TextSecondary,
+                color = if (isToday) (if (Brand.isDark) Brand.Navy else Color.White) else Brand.TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.SemiBold,
             )

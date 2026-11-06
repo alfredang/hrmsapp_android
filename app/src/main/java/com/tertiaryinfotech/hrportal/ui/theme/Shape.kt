@@ -6,9 +6,8 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * Corner-radius scale — mirrors DESIGN_SYSTEM.md §3's border-radius buckets: `rounded-lg` (12dp,
- * the workhorse for buttons/inputs/selects — [Brand.Corner]), `rounded-xl`/`rounded-2xl` (larger
- * cards and feature panels/modals — [Brand.LogoCorner]).
+ * Corner-radius scale, matching the iOS app: 12dp form rows and secondary buttons, 16dp primary
+ * controls ([Brand.Corner]), 18dp cards ([Brand.CardCorner]), 24dp large panels.
  *
  * `extraLarge` is deliberately NOT a pill — native M3 components (`AlertDialog`,
  * `DatePickerDialog`, `ModalBottomSheet`) default their *container* corner radius to
@@ -20,8 +19,8 @@ import androidx.compose.ui.unit.dp
  */
 val HrmsShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(Brand.Corner.dp), // buttons / inputs / fields — web `rounded-lg`
-    medium = RoundedCornerShape(Brand.LogoCorner.dp), // cards / panels — web `rounded-xl`/`rounded-2xl`
+    small = RoundedCornerShape(Brand.SmallCorner.dp), // form rows, secondary buttons
+    medium = RoundedCornerShape(Brand.Corner.dp), // primary controls
     large = RoundedCornerShape(24.dp), // large modals/sheets
     extraLarge = RoundedCornerShape(28.dp), // dialog/bottom-sheet container radius (M3 baseline)
 )

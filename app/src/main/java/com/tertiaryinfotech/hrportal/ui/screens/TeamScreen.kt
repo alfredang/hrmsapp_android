@@ -1,6 +1,6 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,9 +55,10 @@ fun TeamScreen(nav: NavController) {
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Brand.TextSecondary) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(Brand.SmallCorner.dp),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Brand.Border,
-                        unfocusedContainerColor = Brand.Border,
+                        focusedContainerColor = Brand.Field,
+                        unfocusedContainerColor = Brand.Field,
                         focusedTextColor = Brand.TextPrimary,
                         unfocusedTextColor = Brand.TextPrimary,
                         focusedIndicatorColor = Color.Transparent,
@@ -91,7 +92,7 @@ private fun filterEmployees(list: List<Employee>, query: String): List<Employee>
 
 @Composable
 private fun EmployeeRow(e: Employee, isAdmin: Boolean, onOpen: () -> Unit) {
-    Card(modifier = if (isAdmin) Modifier.clickable(onClick = onOpen) else Modifier) {
+    Card(onClick = if (isAdmin) onOpen else null) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             InitialsAvatar(initials(e.name), 46, avatarUrl = e.avatarUrl)
             Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
@@ -101,7 +102,7 @@ private fun EmployeeRow(e: Employee, isAdmin: Boolean, onOpen: () -> Unit) {
                     color = Brand.TextSecondary, fontSize = 12.sp,
                 )
                 if (isAdmin && !e.email.isNullOrEmpty()) {
-                    Text(e.email, color = Brand.Primary, fontSize = 11.sp)
+                    Text(e.email, color = Brand.Accent, fontSize = 11.sp)
                 }
             }
             if (isAdmin) {

@@ -75,7 +75,11 @@ fun EditProfileSheet(employee: EmployeeProfile, onDismiss: () -> Unit, onSaved: 
     var gender by remember { mutableStateOf(employee.gender.ifEmpty { "MALE" }) }
     var educationLevel by remember { mutableStateOf(employee.educationLevel ?: "DIPLOMA") }
     val df = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
-    var dobMillis by remember { mutableStateOf(Fmt.parse(employee.dateOfBirth)?.time ?: System.currentTimeMillis()) }
+    // A missing date of birth stays missing unless the user picks one: never save today by default.
+    val todayMillis = remember { System.currentTimeMillis() }
+    val parsedDob = remember { Fmt.parse(employee.dateOfBirth)?.time }
+    var hasDob by remember { mutableStateOf(parsedDob != null) }
+    var dobMillis by remember { mutableStateOf(parsedDob ?: 631152000000L) } // 1990-01-01 picker start
     var showDob by remember { mutableStateOf(false) }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -146,32 +150,39 @@ fun EditProfileSheet(employee: EmployeeProfile, onDismiss: () -> Unit, onSaved: 
 
                     FieldLabel("Date of birth")
                     FieldBox(modifier = Modifier.clickable { showDob = true }) {
-                        Text(Fmt.date(df.format(Date(dobMillis))), color = Brand.TextPrimary)
+                        Text(
+                            if (hasDob) Fmt.date(df.format(Date(dobMillis))) else "Not set",
+                            color = if (hasDob) Brand.TextPrimary else Brand.TextMuted,
+                        )
                     }
                     if (showDob) {
-                        DateField(initial = dobMillis, onPick = { dobMillis = it; showDob = false }, onCancel = { showDob = false })
+                        DateField(
+                            initial = dobMillis, maxMillis = todayMillis,
+                            onPick = { dobMillis = it; hasDob = true; showDob = false },
+                            onCancel = { showDob = false },
+                        )
                     }
 
                     PremierButton(
                         title = "Save changes", icon = Icons.Filled.Save,
-                        loading = submitting, enabled = fullName.isNotEmpty() && email.isNotEmpty() && nationality.isNotEmpty(),
+                        loading = submitting, enabled = fullName.isNotBlank() && email.contains("@") && nationality.isNotBlank(),
                     ) {
                         error = null; submitting = true
                         scope.launch {
                             try {
                                 HrmsApi.updateProfile(
                                     employee.id,
-                                    mapOf(
-                                        "fullName" to fullName,
-                                        "email" to email,
-                                        "phone" to phone,
-                                        "dateOfBirth" to df.format(Date(dobMillis)),
-                                        "gender" to gender,
-                                        "nationality" to nationality,
-                                        "nric" to nric,
-                                        "address" to address,
-                                        "educationLevel" to educationLevel,
-                                    ),
+                                    buildMap {
+                                        put("fullName", fullName.trim())
+                                        put("email", email.trim())
+                                        put("nationality", nationality.trim())
+                                        put("gender", gender)
+                                        put("educationLevel", educationLevel)
+                                        phone.trim().takeIf { it.isNotEmpty() }?.let { put("phone", it) }
+                                        nric.trim().takeIf { it.isNotEmpty() }?.let { put("nric", it) }
+                                        address.trim().takeIf { it.isNotEmpty() }?.let { put("address", it) }
+                                        if (hasDob) put("dateOfBirth", df.format(Date(dobMillis)))
+                                    },
                                 )
                                 submitting = false
                                 onSaved()

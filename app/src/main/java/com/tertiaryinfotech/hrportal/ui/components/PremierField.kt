@@ -39,10 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 
-/**
- * A text field styled to match the web's Input component exactly: `bg-gray-800 border-gray-700
- * text-white placeholder:text-gray-500 focus:border-primary` (`login/page.tsx:297`).
- */
+/** A glassy text field for the Premier Blue surface (iOS `PremierField`). */
 @Composable
 fun PremierField(
     title: String,
@@ -57,14 +54,14 @@ fun PremierField(
 ) {
     var focused by remember { mutableStateOf(false) }
     var revealed by remember { mutableStateOf(false) }
-    val borderColor = if (focused) Brand.Primary else Brand.BorderLight
+    val borderColor = if (focused) Brand.Accent.copy(alpha = 0.8f) else Brand.FieldBorder
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(Brand.ControlHeight.dp)
             .clip(RoundedCornerShape(Brand.Corner.dp))
-            .background(Brand.Border)
+            .background(Brand.Field)
             .border(1.dp, borderColor, RoundedCornerShape(Brand.Corner.dp))
             .padding(horizontal = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically,
@@ -82,13 +79,15 @@ fun PremierField(
                     .onFocusChangedCompat { focused = it },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(color = Brand.TextPrimary, fontSize = MaterialTheme.typography.bodyLarge.fontSize),
-                cursorBrush = SolidColor(Brand.Primary),
+                cursorBrush = SolidColor(Brand.Accent),
                 visualTransformation = if (isSecure && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+                // Without a submit handler, fall back to the default so Next moves focus and Done
+                // closes the keyboard.
                 keyboardActions = KeyboardActions(
-                    onNext = { onSubmit?.invoke() },
+                    onNext = { if (onSubmit != null) onSubmit() else defaultKeyboardAction(ImeAction.Next) },
                     onGo = { onSubmit?.invoke() },
-                    onDone = { onSubmit?.invoke() },
+                    onDone = { if (onSubmit != null) onSubmit() else defaultKeyboardAction(ImeAction.Done) },
                     onSend = { onSubmit?.invoke() },
                 ),
             )

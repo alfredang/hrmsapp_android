@@ -45,6 +45,7 @@ import com.tertiaryinfotech.hrportal.data.ApprovalsResponse
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.PendingClaim
 import com.tertiaryinfotech.hrportal.data.PendingLeave
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.LoadState
@@ -96,10 +97,7 @@ fun ApprovalsScreen(nav: NavController) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncContent(state = state, load = { load() }) { a ->
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
+            RefreshableColumn(scope, { load() }, Arrangement.spacedBy(18.dp)) {
                 error?.let { StatusBanner(isError = true, text = it) }
 
                 SectionTitle("Pending leave (${a.leaves.size})")

@@ -29,7 +29,6 @@ object HrmsApi {
     // MARK: - Typed reads
 
     /** Unauthenticated — safe to call before sign-in to drive the login card's logo/name. */
-    suspend fun branding() = unwrap { service.branding() }
 
     suspend fun summary() = unwrap { service.summary() }
 
@@ -97,25 +96,35 @@ object HrmsApi {
     // MARK: - Apply for leave (POST /api/leave)
 
     suspend fun applyLeave(
-        leaveTypeId: String, startDate: String, endDate: String, days: Double, dayType: String,
+        leaveTypeId: String, startDate: String, endDate: String, dayType: String,
         halfDayPosition: String? = null, reason: String, documentUrl: String? = null,
-        documentFileName: String? = null, otDaysUsed: Double? = null,
+        documentFileName: String? = null, otDaysUsed: Double? = null, useAdvance: Boolean = false,
     ): Unit = unwrapUnit("Could not submit your leave request.") {
         service.applyLeave(
             ApplyLeaveBody(
-                leaveTypeId, startDate, endDate, days, dayType, halfDayPosition, reason,
-                documentUrl, documentFileName, otDaysUsed,
+                leaveTypeId, startDate, endDate, dayType, halfDayPosition, reason,
+                documentUrl, documentFileName, otDaysUsed, useAdvance,
             ),
         )
     }
 
-    // MARK: - Create an expense claim (POST /api/expenses)
+    // MARK: - Submit a claim with its receipt (POST /api/mobile/claims, multipart)
 
-    suspend fun createExpense(
-        categoryId: String, description: String, amount: Double, expenseDate: String,
-        receiptUrl: String? = null, receiptFileName: String? = null,
-    ): Unit = unwrapUnit("Could not submit your expense claim.") {
-        service.createExpense(CreateExpenseBody(categoryId, description, amount, expenseDate, receiptUrl, receiptFileName))
+    /** The single-shot claim route iOS uses. It stores the receipt, raises the claim and files the
+     *  receipt in the employee's "Expense Claims" or "Medical Claims" Drive folder. */
+    suspend fun submitClaim(
+        claimType: String, categoryId: String?, description: String, amount: Double,
+        expenseDate: String, receipt: ByteArray, fileName: String, mimeType: String,
+    ): Unit = unwrapUnit("Could not submit your claim.") {
+        val text = "text/plain".toMediaType()
+        service.submitClaim(
+            claimType = claimType.toRequestBody(text),
+            categoryId = categoryId?.toRequestBody(text),
+            description = description.toRequestBody(text),
+            amount = String.format(java.util.Locale.US, "%.2f", amount).toRequestBody(text),
+            expenseDate = expenseDate.toRequestBody(text),
+            receipt = MultipartBody.Part.createFormData("receipt", fileName, receipt.toRequestBody(mimeType.toMediaType())),
+        )
     }
 
     // MARK: - Acknowledge payment received on an approved expense claim (POST /api/expenses/{id}/acknowledge)
@@ -184,7 +193,9 @@ object HrmsApi {
      *  when present (falling back to [defaultError]) — identical semantics to the raw-OkHttp
      *  version this replaces. */
     private fun checkSuccess(resp: Response<*>, defaultError: String) {
-        if (resp.code() == 401 || resp.code() == 403)
+        // Only a 401 means the session is gone. A 403 is a real refusal with its own message, for
+        // example "Cannot edit a past week", so it falls through to the server's error below.
+        if (resp.code() == 401)
             throw ApiException(ApiException.Kind.UNAUTHORIZED, "Your session expired. Please sign in again.")
         if (!resp.isSuccessful) {
             val errText = resp.errorBody()?.string().orEmpty()

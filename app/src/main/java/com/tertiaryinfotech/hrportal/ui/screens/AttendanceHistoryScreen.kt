@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ import com.tertiaryinfotech.hrportal.data.AttendanceHistory
 import com.tertiaryinfotech.hrportal.data.AttendanceSummary
 import com.tertiaryinfotech.hrportal.data.AttendanceSummaryRow
 import com.tertiaryinfotech.hrportal.data.HrmsApi
+import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
@@ -211,12 +213,12 @@ fun AttendanceHistorySection(
             StatTile(
                 value = d?.let { String.format(Locale.US, "%.1f h", it.totalHours) } ?: "—",
                 label = "Total hours", icon = Icons.Filled.Functions, tint = Brand.Mint,
-                iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f),
             )
             StatTile(
                 value = d?.daysWorked?.toString() ?: "—", label = "Days worked",
                 icon = Icons.Outlined.EventAvailable, tint = Brand.Blue,
-                iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f),
             )
         }
         when {
@@ -261,24 +263,22 @@ fun InternAttendanceScreen(nav: NavController) {
 
     LaunchedEffect(month) { if (state !is LoadState.Idle) load() }
 
+    val scope = rememberCoroutineScope()
     AsyncContent(state = state, load = { load() }) { data ->
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        RefreshableColumn(scope, { load() }) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Intern Attendance", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                Text("Intern Attendance", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
                     modifier = Modifier.weight(1f))
                 MonthSwitcher(month) { month = it }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
                     value = "${data.employees.size}", label = "People tracked", icon = Icons.Outlined.Groups,
-                    tint = Brand.Blue, iconBg = Color.White.copy(alpha = 0.12f), modifier = Modifier.weight(1f),
+                    tint = Brand.Blue, modifier = Modifier.weight(1f),
                 )
                 StatTile(
                     value = String.format(Locale.US, "%.1f h", data.totalHours), label = "Total hours",
-                    icon = Icons.Filled.Functions, tint = Brand.Mint, iconBg = Color.White.copy(alpha = 0.12f),
+                    icon = Icons.Filled.Functions, tint = Brand.Mint,
                     modifier = Modifier.weight(1f),
                 )
             }

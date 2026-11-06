@@ -2,6 +2,7 @@ package com.tertiaryinfotech.hrportal.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,90 +33,74 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
-import com.tertiaryinfotech.hrportal.ui.theme.StatusTint
 import kotlinx.coroutines.launch
 
-/** A flat card surface — mirrors the web's `bg-gray-900 border-gray-800 rounded-xl` card. Pass
- *  [containerColor] for cards that mirror a `bg-gray-950` variant instead (e.g. Recent Activity). */
+/** The glassy card surface used across feature screens (iOS `Card`). */
 @Composable
 fun Card(
     modifier: Modifier = Modifier,
     padding: Int = 16,
     containerColor: Color = Brand.Surface,
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val shape = RoundedCornerShape(Brand.CardCorner.dp)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Brand.Corner.dp))
+            .clip(shape)
             .background(containerColor)
-            .border(1.dp, Brand.Border, RoundedCornerShape(Brand.Corner.dp))
+            .border(1.dp, Brand.Border, shape)
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(padding.dp),
         content = content,
     )
 }
 
-/**
- * Small stat tile (value + label) for dashboards — the icon sits in a pastel rounded chip when
- * [iconBg] is given, mirroring the web's KPI cards (`dashboard/stats-cards.tsx:85-87`); otherwise
- * it renders as a plain tinted glyph for tighter grids (e.g. the leave/OT balance rows).
- */
+/** Small stat tile stacking icon, value and label (iOS `StatTile`). */
 @Composable
 fun StatTile(
     value: String,
     label: String,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    tint: Color = Brand.Primary,
-    iconBg: Color? = null,
+    tint: Color = Brand.Accent,
+    onClick: (() -> Unit)? = null,
 ) {
-    Card(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(label, color = Brand.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Text(value, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            }
-            if (icon != null) {
-                if (iconBg != null) {
-                    Box(
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(iconBg).padding(8.dp),
-                    ) {
-                        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-                    }
-                } else {
-                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
-                }
-            }
+    Card(modifier = modifier, onClick = onClick) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (icon != null) Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            Text(value, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1)
+            Text(label, color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1)
         }
     }
 }
 
-/** Status pill — mirrors the web's shadcn Badge pastel tint variants exactly. */
+/** Status pill: translucent tint with a matching stroke and label (iOS `StatusPill`). */
 @Composable
 fun StatusPill(status: String) {
-    val tint = when (status.uppercase()) {
-        "APPROVED", "PAID", "ACTIVE", "ACTIVATED" -> StatusTint.Green
-        "PENDING", "ON_LEAVE", "UPCOMING" -> StatusTint.Amber
-        "REJECTED", "CANCELLED", "TERMINATED", "RESIGNED", "EXPIRED" -> StatusTint.Red
-        "GENERATED" -> StatusTint.Blue
-        "DRAFT", "INACTIVE", "SENT" -> StatusTint.Gray
-        else -> StatusTint.Gray
+    val color = when (status.uppercase()) {
+        "APPROVED", "PAID", "ACTIVE", "ACTIVATED" -> Brand.Green
+        "PENDING", "ON_LEAVE", "UPCOMING" -> Brand.Amber
+        "REJECTED", "CANCELLED", "TERMINATED", "RESIGNED", "EXPIRED" -> Brand.Red
+        else -> Brand.Accent
     }
     Box(
         modifier = Modifier
             .clip(CircleShape)
-            .background(tint.bg)
+            .background(color.copy(alpha = 0.25f))
+            .border(1.dp, color.copy(alpha = 0.5f), CircleShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
-        Text(
-            status.replaceFirstChar { it.uppercase() },
-            color = tint.text, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-        )
+        Text(statusLabel(status), color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
+
+/** "PENDING" to "Pending", "ON_LEAVE" to "On Leave". */
+private fun statusLabel(status: String): String =
+    status.split('_', ' ').filter { it.isNotEmpty() }.joinToString(" ") { word ->
+        word.lowercase().replaceFirstChar { it.uppercase() }
+    }
 
 @Composable
 fun EmptyHint(icon: ImageVector, text: String) {
@@ -154,7 +138,7 @@ fun <T> AsyncContent(
     when (state) {
         is LoadState.Idle, is LoadState.Loading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Brand.Primary)
+                CircularProgressIndicator(color = Brand.TextPrimary)
             }
         }
         is LoadState.Failed -> {
@@ -171,7 +155,7 @@ fun <T> AsyncContent(
                 val scope = rememberCoroutineScope()
                 Button(
                     onClick = { scope.launch { load() } },
-                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Primary),
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand.Primary, contentColor = Color.White),
                 ) { Text("Retry") }
             }
         }

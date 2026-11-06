@@ -42,33 +42,6 @@ data class SessionResponse(
     val expires: String? = null,
 )
 
-// MARK: - Public company branding (/api/public/branding) — unauthenticated, drives the login card
-
-@Serializable
-data class BrandingResponse(
-    val name: String = "",
-    val shortName: String? = null,
-    val logo: String? = null,
-) {
-    /** Mirrors the web login page's `displayName = branding.shortName || branding.name ||
-     *  "HR Portal"` exactly — including using the (possibly misspelled) `shortName` first, since
-     *  that's genuinely what the live company-settings data returns and what the reference app
-     *  displays everywhere. */
-    val displayName: String
-        get() = shortName?.takeIf { it.isNotBlank() } ?: name.takeIf { it.isNotBlank() } ?: "HR Portal"
-
-    /** Mirrors the web login page's own initials fallback: prefer a short name, else derive from
-     *  the first two words of the full name, else the app's own default mark. */
-    val initials: String
-        get() {
-            val source = displayName.trim()
-            if (source.isEmpty() || source == "HR Portal") return "TI"
-            val letters = source.split(' ').filter { it.isNotBlank() }.take(2).mapNotNull { it.firstOrNull() }
-            val s = letters.joinToString("").uppercase()
-            return s.ifEmpty { "TI" }
-        }
-}
-
 // MARK: - Dashboard summary (/api/mobile/summary)
 
 @Serializable

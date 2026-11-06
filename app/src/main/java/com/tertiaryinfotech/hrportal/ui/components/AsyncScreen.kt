@@ -1,6 +1,12 @@
 package com.tertiaryinfotech.hrportal.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -17,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.tertiaryinfotech.hrportal.data.ApiException
 import com.tertiaryinfotech.hrportal.data.AuthException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -72,6 +79,39 @@ fun <T> AsyncListScreen(
                 body(data)
             }
         }
+    }
+}
+
+/**
+ * A scrolling column with pull-to-refresh, for screens that manage their own [LoadState]. [scope]
+ * must belong to the screen, not to this content: `load` often flips the state back to Loading,
+ * which removes this composable and would cancel a scope created here.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RefreshableColumn(
+    scope: CoroutineScope,
+    load: suspend () -> Unit,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var refreshing by remember { mutableStateOf(false) }
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = {
+            refreshing = true
+            scope.launch {
+                load()
+                refreshing = false
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = verticalArrangement,
+            content = content,
+        )
     }
 }
 
