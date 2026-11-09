@@ -41,6 +41,11 @@ Neat, well-structured, interactive screens and one light theme, matching the web
   `TintButton`, `NoteDialog` components.
 - Unit tests for the trainer search port, WhatsApp links and the correction / Off In Lieu payloads.
 
+### Play submission
+- Production track, full rollout (`completed`), corporate account `sales@tertiarycourses.com.sg`;
+  uploaded 2026-11-10 through the Android Publisher API (shared service account), release
+  "1.11 (23)", en-US notes as above. Listing and store assets unchanged.
+
 ## [1.10] — 2026-11-09 · versionCode 22
 
 The app is now **TIA HRMS**, with the new leave rules and a trainer directory.
