@@ -75,7 +75,9 @@ object MockApi {
         path == "/api/mobile/team-calendar" -> TEAM_CALENDAR
         path == "/api/mobile/calendar" -> CALENDAR
         path == "/api/notifications" -> NOTIFICATIONS
-        path == "/api/time-off" -> TIME_OFF
+        path == "/api/time-off" -> if (role == "admin") TIME_OFF_ALL else TIME_OFF
+        path == "/api/attendance/corrections" -> CORRECTIONS
+        path == "/api/timesheet/admin" -> OIL
         path == "/api/timesheet" -> TIMESHEET
         path == "/api/mobile/trainers" -> TRAINERS
         path.startsWith("/api/mobile/trainers/") -> TRAINER
@@ -127,8 +129,8 @@ object MockApi {
         {"id":"lt-ot","code":"AL_OT","name":"Off In Lieu","paid":true,"defaultDays":0}
       ],
       "requests":[
-        {"id":"r1","leaveType":"No Pay Leave","leaveCode":"NPL","startDate":"2026-11-24","endDate":"2026-11-25","days":2,"dayType":"FULL_DAY","status":"PENDING","reason":"Family matters"},
-        {"id":"r2","leaveType":"Annual Leave","leaveCode":"AL","startDate":"2026-10-12","endDate":"2026-10-14","days":3,"dayType":"FULL_DAY","status":"APPROVED"},
+        {"id":"r1","leaveType":"No Pay Leave","leaveCode":"NPL","startDate":"2026-11-24","endDate":"2026-11-25","days":2,"dayType":"FULL_DAY","status":"PENDING","reason":"Family matters","createdAt":"2026-11-08T02:00:00.000Z"},
+        {"id":"r2","leaveType":"Annual Leave","leaveCode":"AL","startDate":"2026-10-12","endDate":"2026-10-14","days":3,"dayType":"FULL_DAY","status":"APPROVED","reason":"School holidays with the kids","createdAt":"2026-09-20T02:00:00.000Z"},
         {"id":"r3","leaveType":"Medical Leave","leaveCode":"MC","startDate":"2026-09-03","endDate":"2026-09-04","days":2,"dayType":"FULL_DAY","status":"APPROVED"},
         {"id":"r4","leaveType":"Compassionate Leave","leaveCode":"CL","startDate":"2026-08-03","endDate":"2026-08-03","days":1,"dayType":"FULL_DAY","status":"REJECTED","rejectionReason":"Please use annual leave"}
       ]}"""
@@ -149,8 +151,11 @@ object MockApi {
       ]}"""
 
     private const val APPROVALS = """{
-      "leaves":[{"id":"l1","employee":"Daniel Tan","leaveType":"No Pay Leave","leaveCode":"NPL","startDate":"2026-11-24","endDate":"2026-11-27","days":4,"dayType":"FULL_DAY","reason":"Personal trip"}],
-      "claims":[{"id":"c1","employee":"Amanda Halim","category":"Travel","description":"Grab to venue","amount":18.4,"expenseDate":"2026-11-03"}]}"""
+      "leaves":[
+        {"id":"l1","employee":"Daniel Tan","leaveType":"No Pay Leave","leaveCode":"NPL","startDate":"2026-11-24","endDate":"2026-11-27","days":4,"dayType":"FULL_DAY","reason":"Personal trip to visit family overseas; flights already booked for the 24th, returning on the 27th night.","createdAt":"2026-11-08T03:00:00.000Z"},
+        {"id":"l2","employee":"Sarah Lim","leaveType":"Annual Leave","leaveCode":"AL","startDate":"2026-12-22","endDate":"2026-12-24","days":2.5,"dayType":"FULL_DAY","reason":"Year-end holiday","createdAt":"2026-11-07T06:30:00.000Z"},
+        {"id":"l3","employee":"Kenneth Wang","leaveType":"Medical Leave","leaveCode":"MC","startDate":"2026-11-06","endDate":"2026-11-06","days":1,"dayType":"FULL_DAY","reason":"Fever and sore throat, MC attached","documentUrl":"/api/uploads/mc.jpg","createdAt":"2026-11-06T02:10:00.000Z"}],
+      "claims":[{"id":"c1","employee":"Amanda Halim","category":"Travel","description":"Grab to venue for the Python class at Woods Square","amount":18.4,"expenseDate":"2026-11-03","createdAt":"2026-11-04T01:00:00.000Z"}]}"""
 
     private const val EMPLOYEES = """{"isAdmin":ISADMIN,"employees":[
         {"id":"e1","name":"Sarah Lim","position":"Training Executive","department":"Operations","email":"sarah.lim@example.com","phone":"+65 9123 4567"},
@@ -167,9 +172,19 @@ object MockApi {
         {"id":"d1","date":"2026-11-05","clockIn":"2026-11-05T01:05:00.000Z","clockOut":"2026-11-05T10:02:00.000Z","hours":8.95},
         {"id":"d2","date":"2026-11-04","clockIn":"2026-11-04T01:00:00.000Z","clockOut":"2026-11-04T10:00:00.000Z","hours":9}],"totalHours":17.95,"daysWorked":2}"""
 
-    private const val ATTENDANCE_SUMMARY = """{"month":"2026-11","totalHours":61.5,"employees":[
+    private const val ATTENDANCE_SUMMARY = """{"month":"2026-11","totalHours":70.5,"employees":[
         {"id":"e5","name":"Amanda Halim","employeeCode":"I0002","isIntern":true,"daysWorked":4,"totalHours":32,"lastPunchDate":"2026-11-05","clockedInNow":true},
-        {"id":"e6","name":"Kenneth Wang","employeeCode":"I0012","isIntern":true,"daysWorked":4,"totalHours":29.5,"lastPunchDate":"2026-11-05"}]}"""
+        {"id":"e6","name":"Kenneth Wang","employeeCode":"I0012","isIntern":true,"daysWorked":4,"totalHours":29.5,"lastPunchDate":"2026-11-05"},
+        {"id":"e2","name":"Daniel Tan","employeeCode":"E0012","isIntern":false,"daysWorked":1,"totalHours":9,"lastPunchDate":"2026-11-04"}]}"""
+
+    private const val CORRECTIONS = """[
+        {"id":"pc1","employeeId":"e5","employeeName":"Amanda Halim","employeeCode":"I0002","date":"2026-11-05","kind":"CLOCK_OUT",
+         "requestedClockIn":null,"requestedClockOut":"2026-11-05T10:00:00.000Z","currentClockIn":"2026-11-05T01:02:00.000Z","currentClockOut":null,
+         "reason":"Forgot to clock out after the evening class.","status":"PENDING","rejectionReason":null,"createdAt":"2026-11-06T01:00:00.000Z"}]"""
+
+    private const val OIL = """[
+        {"id":"oil1","employeeId":"e6","employeeCode":"I0012","employeeName":"Kenneth Wang","date":"2026-11-08","dayName":"Sun","isPublicHoliday":true,"hours":8,"otCredited":0,"status":"PENDING","adminComment":null},
+        {"id":"oil2","employeeId":"e2","employeeCode":"E0012","employeeName":"Daniel Tan","date":"2026-11-01","dayName":"Sat","isPublicHoliday":false,"hours":4,"otCredited":0.5,"status":"APPROVED","adminComment":null}]"""
 
     private const val LEAVE_SUMMARY = """{"company":"Demo","month":"2026-11","balancesYear":2026,
       "totals":{"headcount":{"staff":2,"interns":1,"total":3},"employeesWithLeave":2,
@@ -192,6 +207,11 @@ object MockApi {
     private const val CALENDAR = """{"events":[{"id":"ev1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08","allDay":true,"type":"HOLIDAY"}]}"""
 
     private const val NOTIFICATIONS = """[{"id":"n1","title":"Leave approved","message":"Your annual leave was approved.","type":"LEAVE_APPROVED","read":false,"link":"/leave","createdAt":"2026-11-05T02:00:00.000Z"}]"""
+
+    private const val TIME_OFF_ALL = """[
+        {"id":"to2","employeeId":"e5","date":"2026-11-12","startTime":"14:00","endTime":"17:00","hours":3,"reason":"EXAMS","reasonDetail":"Final-year exam: Data Structures paper at NTU","status":"PENDING","createdAt":"2026-11-07T04:00:00.000Z","employee":{"name":"Amanda Halim"}},
+        {"id":"to3","employeeId":"e6","date":"2026-11-10","startTime":"09:00","endTime":"11:00","hours":2,"reason":"EMERGENCY","status":"PENDING","createdAt":"2026-11-09T23:30:00.000Z","employee":{"name":"Kenneth Wang"}},
+        {"id":"to4","employeeId":"e5","date":"2026-10-21","startTime":"10:00","endTime":"12:00","hours":2,"reason":"OTHERS","reasonDetail":"Dental appointment","status":"APPROVED","createdAt":"2026-10-15T04:00:00.000Z","employee":{"name":"Amanda Halim"}}]"""
 
     private const val TIME_OFF = """[{"id":"to1","date":"2026-11-07","startTime":"10:00","endTime":"12:00","hours":2,"reason":"UNPAID_LEAVE","status":"PENDING"}]"""
 

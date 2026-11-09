@@ -181,10 +181,13 @@ fun MainScaffold(auth: AuthViewModel) {
             }
             composable("timesheet") { TimesheetScreen(nav) }
             composable("timesheet_week") { WeeklyTimesheetScreen(nav) }
-            composable("time_off") { TimeOffScreen(nav) }
+            composable("time_off") { TimeOffScreen(nav, auth) }
             composable("time_off_request") { RequestTimeOffScreen(nav) }
             composable("approvals") { ApprovalsScreen(nav) }
-            composable("intern_attendance") { InternAttendanceScreen(nav) }
+            // One admin Timesheet (interns' days + hours, missing punches, Off In Lieu). The old
+            // "intern_attendance" route is kept as an alias for links that still point at it.
+            composable("timesheet_admin") { AdminTimesheetScreen(nav) }
+            composable("intern_attendance") { AdminTimesheetScreen(nav) }
             composable("intern_attendance_detail/{id}?name={name}&code={code}&month={month}") { e ->
                 val a = e.arguments
                 InternAttendanceDetailScreen(

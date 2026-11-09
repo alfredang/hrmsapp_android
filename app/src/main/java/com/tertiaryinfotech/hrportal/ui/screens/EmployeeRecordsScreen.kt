@@ -54,6 +54,9 @@ import com.tertiaryinfotech.hrportal.ui.components.StatTile
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
+import com.tertiaryinfotech.hrportal.ui.components.RecordDetailSheet
+import com.tertiaryinfotech.hrportal.ui.components.RecordRow
+import com.tertiaryinfotech.hrportal.ui.components.RecordTable
 import java.util.Locale
 
 /** How many rows each section previews before "See all". */
@@ -72,8 +75,8 @@ object RecordsRoutes {
     fun leave(id: String, kind: RecordsLeaveKind) = "team_records_leave/${Uri.encode(id)}?kind=${kind.name}"
 }
 
-/** Link / accent text that reads on both the dark gradient and the light theme. */
-private val accent: Color get() = if (Brand.isDark) Brand.Sky else Brand.Premier
+/** Link / accent text. */
+private val accent: Color get() = Brand.Premier
 
 /** Approved days only — pending/rejected requests weren't taken. */
 private fun approvedDays(rows: List<LeaveRequest>): String =
@@ -198,7 +201,7 @@ private fun LeaveSection(kind: RecordsLeaveKind, icon: ImageVector, rows: List<L
         if (rows.isEmpty()) {
             Card { Text(kind.empty, color = Brand.TextSecondary, fontSize = 14.sp) }
         } else {
-            rows.take(PREVIEW_COUNT).forEach { LeaveRequestRow(it) }
+            LeaveRecords(rows.take(PREVIEW_COUNT))
         }
     }
 }
@@ -253,28 +256,15 @@ fun RecordsLeaveScreen(employeeId: String, kind: RecordsLeaveKind) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("${data.employee.name} · ${kind.title}", color = Brand.TextSecondary, fontSize = 14.sp)
-            if (rows.isEmpty()) EmptyHint(Icons.Outlined.Inbox, kind.empty)
-            rows.forEach { LeaveRequestRow(it) }
+            if (rows.isEmpty()) EmptyHint(Icons.Outlined.Inbox, kind.empty) else LeaveRecords(rows)
         }
     }
 }
 
-/** A leave request card — type, dates, reason, status and days. */
+/** One person's leave / MC requests as one-line records; a tap shows the full reason. */
 @Composable
-private fun LeaveRequestRow(r: LeaveRequest) {
-    Card {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(r.leaveType, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("${Fmt.date(r.startDate)} → ${Fmt.date(r.endDate)}", color = Brand.TextSecondary, fontSize = 12.sp)
-                if (!r.reason.isNullOrEmpty()) {
-                    Text(r.reason, color = Brand.TextMuted, fontSize = 11.sp, maxLines = 2)
-                }
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                StatusPill(r.status)
-                Text(Fmt.days(r.days), color = Brand.TextSecondary, fontSize = 11.sp)
-            }
-        }
-    }
+private fun LeaveRecords(rows: List<LeaveRequest>) {
+    var opened by remember { mutableStateOf<RecordRow?>(null) }
+    RecordTable(rows.map(::leaveRequestRow), showName = false, onOpen = { opened = it })
+    opened?.let { RecordDetailSheet(it, onDismiss = { opened = null }) }
 }

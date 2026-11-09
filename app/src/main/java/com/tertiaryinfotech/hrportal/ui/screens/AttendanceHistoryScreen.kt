@@ -1,6 +1,5 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +19,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.outlined.EventAvailable
-import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -29,7 +27,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,20 +38,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.AttendanceDay
 import com.tertiaryinfotech.hrportal.data.AttendanceHistory
-import com.tertiaryinfotech.hrportal.data.AttendanceSummary
-import com.tertiaryinfotech.hrportal.data.AttendanceSummaryRow
 import com.tertiaryinfotech.hrportal.data.HrmsApi
-import com.tertiaryinfotech.hrportal.ui.components.RefreshableColumn
-import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
-import com.tertiaryinfotech.hrportal.ui.components.LoadState
 import com.tertiaryinfotech.hrportal.ui.components.StatTile
 import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
-import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
 import java.text.SimpleDateFormat
@@ -238,82 +228,6 @@ fun AttendanceHistorySection(
                 }
             }
             else -> EmptyHint(Icons.Outlined.EventAvailable, "No check-ins in ${AttendanceMonth.label(month)}.")
-        }
-    }
-}
-
-/**
- * Admin: each intern's days worked and total hours for a month, drilling into that intern's daily
- * check-in / check-out history. Mirrors the web's Intern Attendance page (`/attendance/overview`)
- * and iOS `InternAttendanceView`.
- */
-@Composable
-fun InternAttendanceScreen(nav: NavController) {
-    var month by rememberSaveable { mutableStateOf(AttendanceMonth.current()) }
-    var state by remember { mutableStateOf<LoadState<AttendanceSummary>>(LoadState.Idle) }
-
-    suspend fun load() {
-        if (state !is LoadState.Loaded) state = LoadState.Loading
-        state = try {
-            LoadState.Loaded(HrmsApi.attendanceSummary(month))
-        } catch (e: Exception) {
-            LoadState.Failed(e.message ?: "Could not load.")
-        }
-    }
-
-    LaunchedEffect(month) { if (state !is LoadState.Idle) load() }
-
-    val scope = rememberCoroutineScope()
-    AsyncContent(state = state, load = { load() }) { data ->
-        RefreshableColumn(scope, { load() }) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Intern Attendance", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                    modifier = Modifier.weight(1f))
-                MonthSwitcher(month) { month = it }
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatTile(
-                    value = "${data.employees.size}", label = "People tracked", icon = Icons.Outlined.Groups,
-                    tint = Brand.Blue, modifier = Modifier.weight(1f),
-                )
-                StatTile(
-                    value = String.format(Locale.US, "%.1f h", data.totalHours), label = "Total hours",
-                    icon = Icons.Filled.Functions, tint = Brand.Mint,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            if (data.employees.isEmpty()) {
-                EmptyHint(Icons.Outlined.Groups, "No interns or check-ins for ${AttendanceMonth.label(month)}.")
-            }
-            data.employees.forEach { r ->
-                InternRow(r) {
-                    val enc = { s: String -> Uri.encode(s) }
-                    nav.navigate("intern_attendance_detail/${enc(r.id)}?name=${enc(r.name)}&code=${enc(r.employeeCode)}&month=$month")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InternRow(r: AttendanceSummaryRow, onClick: () -> Unit) {
-    Card(modifier = Modifier.clickable(onClick = onClick)) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(r.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text(
-                    "${r.employeeCode}${if (r.isIntern) "" else " · non-intern"} · ${r.daysWorked} day${if (r.daysWorked == 1) "" else "s"}",
-                    color = Brand.TextSecondary, fontSize = 12.sp,
-                )
-                Text("Last check-in: ${r.lastPunchDate?.let(AttendanceMonth::dayLabel) ?: "—"}",
-                    color = Brand.TextMuted, fontSize = 11.sp)
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(String.format(Locale.US, "%.2f h", r.totalHours), color = Brand.Mint,
-                    fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                if (r.clockedInNow) StatusPill("WORKING")
-            }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Brand.TextMuted)
         }
     }
 }

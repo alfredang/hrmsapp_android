@@ -45,6 +45,18 @@ data class ChangePasswordBody(val currentPassword: String, val newPassword: Stri
 @Serializable
 data class RejectReasonBody(val reason: String? = null)
 
+/** `POST /api/attendance/corrections/{id}` — action is approve, reject or cancel. */
+@Serializable
+data class CorrectionActionBody(val action: String, val comment: String? = null)
+
+/** `POST /api/timesheet/admin` — action is APPROVE or REJECT. */
+@Serializable
+data class OilActionBody(val entryId: String, val action: String, val comment: String? = null)
+
+/** `POST /api/time-off/{id}/approve`. */
+@Serializable
+data class TimeOffApproveBody(val approvalComment: String? = null)
+
 /** `reasonDetail` is required by the server when [reason] is OTHERS (400 otherwise). */
 @Serializable
 data class CreateTimeOffBody(
@@ -162,6 +174,30 @@ interface HrmsApiService {
 
     @POST("api/time-off/{id}/cancel")
     suspend fun cancelTimeOff(@Path("id") id: String): Response<ResponseBody>
+
+    /** Admins: everyone's requests with scope=all (optionally status=PENDING); others: their own. */
+    @GET("api/attendance/corrections")
+    suspend fun corrections(
+        @Query("scope") scope: String?,
+        @Query("status") status: String?,
+    ): Response<List<AttendanceCorrection>>
+
+    @POST("api/attendance/corrections/{id}")
+    suspend fun correctionAction(@Path("id") id: String, @Body body: CorrectionActionBody): Response<ResponseBody>
+
+    /** Admin only — weekend / PH entries of the last 30 days for Off In Lieu approval. */
+    @GET("api/timesheet/admin")
+    suspend fun oilEntries(): Response<List<OilEntry>>
+
+    @POST("api/timesheet/admin")
+    suspend fun oilAction(@Body body: OilActionBody): Response<ResponseBody>
+
+    /** MANAGER / HR / ADMIN — approve or reject someone's hourly time off. */
+    @POST("api/time-off/{id}/approve")
+    suspend fun approveTimeOff(@Path("id") id: String, @Body body: TimeOffApproveBody): Response<ResponseBody>
+
+    @POST("api/time-off/{id}/reject")
+    suspend fun rejectTimeOff(@Path("id") id: String, @Body body: RejectReasonBody): Response<ResponseBody>
 
     @GET("api/timesheet")
     suspend fun timesheet(@Query("weekStart") weekStart: String?): Response<TimesheetResponse>

@@ -5,12 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -18,157 +14,78 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * TIA HRMS "premium blue" design tokens (BRAND.md, 9 Nov 2026) on the iOS app's layout system,
- * which stays the source of truth for structure (`Theme/Theme.swift`). Navy-950 → navy-800 →
- * royal-600 is the signature backdrop ([GradientScreen]); cards are translucent frosted panels on
- * top of it, bars are navy in both themes, and gold-400 is the single, sparing warm accent.
+ * which stays the source of truth for structure (`Theme/Theme.swift`).
  *
- * Unlike iOS (dark-only today), this Android build keeps a **light / dark toggle** — both themed in
- * Premier Blue. Dark is the iOS look (navy→azure gradient, frosted-white cards, white text). Light
- * is a Premier-Blue light remap (white / very-light-blue surfaces, premier-blue accents, dark ink
- * text) so the brand identity is preserved in both modes. iOS will gain the same toggle later.
- *
- * Every surface/text token below is a `mutableStateOf`-backed `var` so existing call sites
- * (`Brand.Background`, `Brand.TextPrimary`, `Brand.Surface`, …) stay untouched syntactically but now
- * read live theme state and recompose automatically when the user flips Dark/Light on Profile.
+ * **One theme only (Alfred, 10 Nov 2026):** a single light premium-blue look, matching the web app
+ * (tertiary-hrms 464200b). There is no dark mode, no dynamic colour and no theme switch. The top and
+ * tab bars stay navy-950 ([Bar]); content sits on a near-white → mist-blue backdrop with white cards,
+ * navy ink text and royal-600 accents. Gold-400 is the single, sparing warm accent (badges only,
+ * always a fill with navy text).
  */
 object Brand {
-    // MARK: Fixed brand colours (BRAND.md palette) — same in both themes.
-    /** navy-950 — darkest background, gradient start, bars. `#0D1638`. */
+    // MARK: Brand colours (BRAND.md palette)
+    /** navy-950 — bars, ink text, gold-badge text. `#0D1638`. */
     val Navy = Color(0xFF0D1638)
-    /** navy-800 — gradient middle, headers. `#1A2F86`. */
+    /** navy-800 — headers. `#1A2F86`. */
     val Navy800 = Color(0xFF1A2F86)
-    /** royal-600 — primary buttons, links and the active tab in light mode. `#2F5BE6`. */
+    /** royal-600 — primary buttons, links, selected states. `#2F5BE6`. */
     val Premier = Color(0xFF2F5BE6)
-    /** royal-500 — hover / pressed-light, top of the button gradient. `#3D6BF0`. */
+    /** royal-500 — pressed-light, top of the button gradient. `#3D6BF0`. */
     val Azure = Color(0xFF3D6BF0)
-    /** royal-300 — primary on dark backgrounds. `#8FB0FF`. */
+    /** royal-300 — the accent on the navy bars. `#8FB0FF`. */
     val Sky = Color(0xFF8FB0FF)
-    /** mist-100 — secondary text on blue. `#C9D8FF`. */
+    /** mist-100 — tinted fills and hairlines on light surfaces. `#C9D8FF`. */
     val Mist = Color(0xFFC9D8FF)
-    /** gold-400 — the single warm accent (badges, highlights, focus dots). Use sparingly, as a fill. */
+    /** gold-400 — the single warm accent (badges, unread dot). Use sparingly, as a fill. */
     val Gold = Color(0xFFF5B83D)
     /** gold-600 — gold pressed / gradient end. */
     val Gold600 = Color(0xFFD9921C)
 
-    /** Top bar + tab bar: navy in both themes, with white content and a royal-300 accent. */
+    /** Top bar + tab bar: navy, with white content and a royal-300 accent. */
     val Bar = Navy
     val OnBar = Color.White
     val BarAccent = Sky
 
-    /** Brand accent (premier blue) — button + tab tint. Identical in both themes. */
+    /** Brand fill (royal-600) for buttons and selected chips. */
     val Primary = Premier
 
-    private interface PaletteTokens {
-        val Background: Color        // opaque bar colour (top bar / bottom nav)
-        val Surface: Color           // card fill
-        val SurfaceStrong: Color     // brighter card fill (hero / balances)
-        val Border: Color
-        val BorderLight: Color
-        val Field: Color
-        val FieldBorder: Color
-        val TextPrimary: Color
-        val TextSecondary: Color
-        val TextMuted: Color
-        val TextFaint: Color
-        val Green: Color             // money / positive
-        val Mint: Color
-        val Red: Color
-        val Amber: Color
-        val Purple: Color
-        val Orange: Color
-        val Pink: Color
-        val Teal: Color
-        val Accent: Color            // readable accent for text, icons and selection
-        val Dialog: Color            // opaque container for dialogs, menus and pickers
-        val gradient: List<Color>    // GradientScreen stops
-    }
+    // MARK: Surfaces
+    /** Opaque app background behind the backdrop (Material background/surface). */
+    val Background = Color(0xFFEFF4FF)
+    /** Card fill. */
+    val Surface = Color.White
+    /** Hero / highlighted card fill (very light blue). */
+    val SurfaceStrong = Color(0xFFEAF1FF)
+    val Border = Color(0xFFD5E1F7)
+    val BorderLight = Color(0xFFC2D3F0)
+    val Field = Color(0xFFF3F6FD)
+    val FieldBorder = Color(0xFFD5E1F7)
+    /** Opaque container for dialogs, menus, sheets and pickers. */
+    val Dialog = Color.White
 
-    /** Dark = the iOS Premier Blue look: navy→premier→azure gradient, frosted-white cards, white text. */
-    private object DarkPalette : PaletteTokens {
-        override val Background = Navy
-        override val Surface = Color.White.copy(alpha = 0.07f)     // iOS Card fill
-        override val SurfaceStrong = Color.White.copy(alpha = 0.12f)
-        override val Border = Color.White.copy(alpha = 0.12f)      // iOS Card stroke
-        override val BorderLight = Color.White.copy(alpha = 0.22f)
-        override val Field = Color.White.copy(alpha = 0.12f)
-        override val FieldBorder = Color.White.copy(alpha = 0.22f)
-        override val TextPrimary = Color.White
-        override val TextSecondary = Mist.copy(alpha = 0.85f)
-        override val TextMuted = Mist.copy(alpha = 0.62f)
-        override val TextFaint = Color.White.copy(alpha = 0.40f)
-        // iOS system colours as they resolve in dark mode, which is what the iOS app always runs in.
-        override val Green = Color(0xFF30D158)
-        override val Mint = Color(0xFF63E6E2)
-        override val Red = Color(0xFFFF453A)
-        override val Amber = Color(0xFFFFD60A)
-        override val Purple = Color(0xFFBF5AF2)
-        override val Orange = Color(0xFFFF9F0A)
-        override val Pink = Color(0xFFFF375F)
-        override val Teal = Color(0xFF40C8E0)
-        override val Accent = Sky
-        override val Dialog = Color(0xFF16245E)
-        override val gradient = listOf(Navy, Navy800, Premier)
-    }
+    // MARK: Text
+    val TextPrimary = Navy
+    val TextSecondary = Color(0xFF3A4A7A)
+    val TextMuted = Color(0xFF64748B)
+    val TextFaint = Color(0xFF94A3B8)
 
-    /** Light = Premier-Blue light remap: near-white / very-light-blue surfaces, blue accents, ink text. */
-    private object LightPalette : PaletteTokens {
-        override val Background = Color(0xFFEFF4FF)                 // very light blue app bar
-        override val Surface = Color.White                          // solid white cards
-        override val SurfaceStrong = Color(0xFFEAF1FF)              // light-blue hero card
-        override val Border = Color(0xFFD5E1F7)
-        override val BorderLight = Color(0xFFC2D3F0)
-        override val Field = Color(0xFFF3F6FD)
-        override val FieldBorder = Color(0xFFD5E1F7)
-        override val TextPrimary = Navy                             // navy ink
-        override val TextSecondary = Color(0xFF3A4A7A)
-        override val TextMuted = Color(0xFF64748B)
-        override val TextFaint = Color(0xFF94A3B8)
-        override val Green = Color(0xFF15803D)
-        override val Mint = Color(0xFF0F766E)
-        override val Red = Color(0xFFB91C1C)
-        override val Amber = Color(0xFFB45309)
-        override val Purple = Color(0xFF7E22CE)
-        override val Orange = Color(0xFFC2410C)
-        override val Pink = Color(0xFFBE123C)
-        override val Teal = Color(0xFF0F766E)
-        override val Accent = Premier
-        override val Dialog = Color.White
-        override val gradient = listOf(Color(0xFFF7F9FF), Color(0xFFEEF2FF), Color(0xFFE4EBFF))
-    }
-
-    var isDark: Boolean by mutableStateOf(true)
-        private set
-
-    var Background: Color by mutableStateOf(DarkPalette.Background); private set
-    var Surface: Color by mutableStateOf(DarkPalette.Surface); private set
-    var SurfaceStrong: Color by mutableStateOf(DarkPalette.SurfaceStrong); private set
-    var Border: Color by mutableStateOf(DarkPalette.Border); private set
-    var BorderLight: Color by mutableStateOf(DarkPalette.BorderLight); private set
-    var Field: Color by mutableStateOf(DarkPalette.Field); private set
-    var FieldBorder: Color by mutableStateOf(DarkPalette.FieldBorder); private set
-
-    var TextPrimary: Color by mutableStateOf(DarkPalette.TextPrimary); private set
-    var TextSecondary: Color by mutableStateOf(DarkPalette.TextSecondary); private set
-    var TextMuted: Color by mutableStateOf(DarkPalette.TextMuted); private set
-    var TextFaint: Color by mutableStateOf(DarkPalette.TextFaint); private set
-
-    var Green: Color by mutableStateOf(DarkPalette.Green); private set
-    var Mint: Color by mutableStateOf(DarkPalette.Mint); private set
-    var Red: Color by mutableStateOf(DarkPalette.Red); private set
-    var Amber: Color by mutableStateOf(DarkPalette.Amber); private set
-    var Purple: Color by mutableStateOf(DarkPalette.Purple); private set
-    var Orange: Color by mutableStateOf(DarkPalette.Orange); private set
-    var Pink: Color by mutableStateOf(DarkPalette.Pink); private set
-    var Teal: Color by mutableStateOf(DarkPalette.Teal); private set
-    /** Accent for text, icons and selected states: sky on the dark gradient, premier on light.
-     *  [Primary] is a fill colour only, because premier-blue text is unreadable on the gradient. */
-    var Accent: Color by mutableStateOf(DarkPalette.Accent); private set
-    var Dialog: Color by mutableStateOf(DarkPalette.Dialog); private set
+    // MARK: Semantic colours (AA on white)
+    val Green = Color(0xFF15803D)
+    val Mint = Color(0xFF0F766E)
+    val Red = Color(0xFFB91C1C)
+    val Amber = Color(0xFFB45309)
+    val Purple = Color(0xFF7E22CE)
+    val Orange = Color(0xFFC2410C)
+    val Pink = Color(0xFFBE123C)
+    val Teal = Color(0xFF0F766E)
+    /** Accent for text, icons and selected states (royal-600). [Primary] is the fill twin. */
+    val Accent = Premier
     // Kept for call sites that referenced these previously.
-    val Blue = Sky
-    var Emerald: Color by mutableStateOf(DarkPalette.Green); private set
+    val Blue = Premier
+    val Emerald = Green
 
-    var GradientStops: List<Color> by mutableStateOf(DarkPalette.gradient); private set
+    /** Backdrop stops for [GradientScreen]: near-white → mist-blue. */
+    val GradientStops: List<Color> = listOf(Color(0xFFF7F9FF), Color(0xFFEEF2FF), Color(0xFFE4EBFF))
 
     /** iOS `Theme.accent` — the gradient on primary buttons, avatars and selected chips. */
     val AccentGradient: Brush = Brush.linearGradient(listOf(Azure, Premier))
@@ -178,41 +95,9 @@ object Brand {
     const val SmallCorner = 12 // dp — iOS banners, form rows and secondary buttons
     const val LogoCorner = 24 // dp — iOS BrandHeader
     const val ControlHeight = 56 // dp — iOS Theme.controlHeight
-
-    /** Switches every reactive token between the dark (default) and light Premier-Blue palette.
-     *  Called once at startup from persisted [ThemePrefs], and whenever the user flips the Theme
-     *  card on Profile. */
-    fun applyTheme(dark: Boolean) {
-        isDark = dark
-        val p: PaletteTokens = if (dark) DarkPalette else LightPalette
-        Background = p.Background
-        Surface = p.Surface
-        SurfaceStrong = p.SurfaceStrong
-        Border = p.Border
-        BorderLight = p.BorderLight
-        Field = p.Field
-        FieldBorder = p.FieldBorder
-        TextPrimary = p.TextPrimary
-        TextSecondary = p.TextSecondary
-        TextMuted = p.TextMuted
-        TextFaint = p.TextFaint
-        Green = p.Green
-        Mint = p.Mint
-        Red = p.Red
-        Amber = p.Amber
-        Purple = p.Purple
-        Orange = p.Orange
-        Pink = p.Pink
-        Teal = p.Teal
-        Accent = p.Accent
-        Dialog = p.Dialog
-        Emerald = p.Green
-        GradientStops = p.gradient
-        BannerTint.applyTheme(dark)
-    }
 }
 
-/** Pastel badge bg/text pairs for status pills — same pastel-on-dark-text pairs in both themes. */
+/** Pastel badge bg/text pairs for status pills. */
 object StatusTint {
     data class Tint(val bg: Color, val text: Color)
 
@@ -225,57 +110,39 @@ object StatusTint {
     val Gray = Tint(Color(0xFFE5E7EB), Color(0xFF374151))
 }
 
-/** Icon-chip bg/icon pairs for KPI stat tiles (Home) — reactive so tiles read in both themes. */
+/** Icon-chip bg/icon pairs for KPI stat tiles (Home): a light-blue chip behind a coloured glyph. */
 object IconTint {
     data class Tint(val bg: Color, val icon: Color)
 
-    // Translucent-white chips in dark, pastel chips in light — kept simple: derive from Brand.
-    val Amber get() = Tint(chip(), Brand.Amber)
-    val Red get() = Tint(chip(), Brand.Red)
-    val Purple get() = Tint(chip(), Brand.Purple)
-    val Blue get() = Tint(chip(), if (Brand.isDark) Brand.Sky else Brand.Premier)
-    val Green get() = Tint(chip(), Brand.Green)
-    val Emerald get() = Tint(chip(), Brand.Green)
-
-    private fun chip() = if (Brand.isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFEAF1FF)
+    private val chip = Color(0xFFEAF1FF)
+    val Amber = Tint(chip, Brand.Amber)
+    val Red = Tint(chip, Brand.Red)
+    val Purple = Tint(chip, Brand.Purple)
+    val Blue = Tint(chip, Brand.Premier)
+    val Green = Tint(chip, Brand.Green)
+    val Emerald = Tint(chip, Brand.Green)
 }
 
-/** Translucent alert-banner colors — reactive dark/light like [Brand]. */
+/** Alert-banner colours. */
 object BannerTint {
     data class Tint(val bg: Color, val border: Color, val text: Color)
 
-    private object DarkPalette {
-        val Error = Tint(Color(0xFF7F1D1D).copy(alpha = 0.45f), Color(0xFFF87171).copy(alpha = 0.6f), Color(0xFFFCA5A5))
-        val Success = Tint(Color(0xFF065F46).copy(alpha = 0.45f), Color(0xFF34D399).copy(alpha = 0.6f), Color(0xFF6EE7B7))
-    }
-    private object LightPalette {
-        val Error = Tint(Color(0xFFFEE2E2), Color(0xFFFCA5A5), Color(0xFF991B1B))
-        val Success = Tint(Color(0xFFDCFCE7), Color(0xFF86EFAC), Color(0xFF166534))
-    }
-
-    var Error: Tint by mutableStateOf(DarkPalette.Error); private set
-    var Success: Tint by mutableStateOf(DarkPalette.Success); private set
-
-    internal fun applyTheme(dark: Boolean) {
-        Error = if (dark) DarkPalette.Error else LightPalette.Error
-        Success = if (dark) DarkPalette.Success else LightPalette.Success
-    }
+    val Error = Tint(Color(0xFFFEE2E2), Color(0xFFFCA5A5), Color(0xFF991B1B))
+    val Success = Tint(Color(0xFFDCFCE7), Color(0xFF86EFAC), Color(0xFF166534))
 }
 
 @Composable
 fun TertiaryHRMSTheme(content: @Composable () -> Unit) {
-    val base = if (Brand.isDark) darkColorScheme() else lightColorScheme()
-    val colorScheme = base.copy(
-        // Material uses `primary` for text buttons, selected dates and focus, so it has to stay
-        // readable on dark surfaces. Filled controls here set their own premier fill.
+    // Light only: no dark scheme, no dynamic colour.
+    val colorScheme = lightColorScheme(
         primary = Brand.Accent,
-        onPrimary = if (Brand.isDark) Brand.Navy else Color.White,
+        onPrimary = Color.White,
         primaryContainer = Brand.SurfaceStrong,
         onPrimaryContainer = Brand.TextPrimary,
         inversePrimary = Brand.Sky,
 
         secondary = Brand.Accent,
-        onSecondary = if (Brand.isDark) Brand.Navy else Color.White,
+        onSecondary = Color.White,
         secondaryContainer = Brand.Border,
         onSecondaryContainer = Brand.TextPrimary,
         // The brand's single warm accent replaces Material's default purple tertiary.
@@ -296,7 +163,7 @@ fun TertiaryHRMSTheme(content: @Composable () -> Unit) {
         outline = Brand.BorderLight,
         outlineVariant = Brand.Border,
 
-        // Opaque: dialogs, menus and date pickers read these and float over the gradient.
+        // Opaque: dialogs, menus, sheets and date pickers read these.
         surfaceContainer = Brand.Dialog,
         surfaceContainerHigh = Brand.Dialog,
         surfaceContainerHighest = Brand.Dialog,
@@ -312,11 +179,7 @@ fun TertiaryHRMSTheme(content: @Composable () -> Unit) {
     )
 }
 
-/**
- * The signature Premier Blue backdrop. In dark mode it renders the navy → premier → azure diagonal
- * gradient (iOS `Theme.backdrop`); in light mode a soft light-blue near-flat surface. Every screen
- * renders inside this.
- */
+/** The light premium-blue backdrop (near-white → mist-blue diagonal). Every screen renders inside this. */
 @Composable
 fun GradientScreen(content: @Composable () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize(), color = Brand.Background) {

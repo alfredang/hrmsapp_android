@@ -110,7 +110,7 @@ private fun Greeting(s: DashboardSummary, auth: AuthViewModel) {
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
-                        .background(if (Brand.isDark) Color.White.copy(alpha = 0.16f) else Brand.SurfaceStrong)
+                        .background(Brand.SurfaceStrong)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 ) {
                     Text(

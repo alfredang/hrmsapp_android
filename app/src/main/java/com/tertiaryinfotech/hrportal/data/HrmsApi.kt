@@ -83,6 +83,34 @@ object HrmsApi {
         service.createTimeOff(CreateTimeOffBody(date, startTime, endTime, reason, reasonDetail))
     }
 
+    /** Approver decision on someone's time off; [note] is the approval comment or rejection reason. */
+    suspend fun decideTimeOff(id: String, approve: Boolean, note: String? = null): Unit = unwrapUnit(
+        if (approve) "Could not approve the request." else "Could not reject the request.",
+    ) {
+        val n = note?.trim()?.takeIf { it.isNotEmpty() }
+        if (approve) service.approveTimeOff(id, TimeOffApproveBody(n)) else service.rejectTimeOff(id, RejectReasonBody(n))
+    }
+
+    // MARK: - Missing-punch corrections + Off In Lieu approvals (admin Timesheet)
+
+    /** Everyone's pending missing-punch requests (admin). */
+    suspend fun pendingCorrections() = unwrap { service.corrections("all", "PENDING") }
+
+    suspend fun decideCorrection(id: String, approve: Boolean, comment: String? = null): Unit = unwrapUnit(
+        if (approve) "Could not approve the correction." else "Could not reject the correction.",
+    ) {
+        service.correctionAction(id, CorrectionActionBody(if (approve) "approve" else "reject", comment?.trim()?.takeIf { it.isNotEmpty() }))
+    }
+
+    /** Weekend / PH hours of the last 30 days (admin), pending and recent. */
+    suspend fun oilEntries() = unwrap { service.oilEntries() }
+
+    suspend fun decideOil(id: String, approve: Boolean, comment: String? = null): Unit = unwrapUnit(
+        if (approve) "Could not approve the entry." else "Could not reject the entry.",
+    ) {
+        service.oilAction(OilActionBody(id, if (approve) "APPROVE" else "REJECT", comment?.trim()?.takeIf { it.isNotEmpty() }))
+    }
+
     suspend fun cancelTimeOff(id: String): Unit = unwrapUnit("Could not cancel the request.") {
         service.cancelTimeOff(id)
     }

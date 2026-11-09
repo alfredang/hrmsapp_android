@@ -62,8 +62,8 @@ fun BrandHeader(compact: Boolean = false) {
             modifier = Modifier
                 .size(tile)
                 .clip(shape)
-                .background(if (Brand.isDark) Color.White.copy(alpha = 0.14f) else Brand.SurfaceStrong)
-                .border(1.dp, if (Brand.isDark) Color.White.copy(alpha = 0.25f) else Brand.BorderLight, shape),
+                .background(Brand.SurfaceStrong)
+                .border(1.dp, Brand.BorderLight, shape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

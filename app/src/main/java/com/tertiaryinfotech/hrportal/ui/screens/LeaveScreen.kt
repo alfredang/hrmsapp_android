@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarToday
@@ -38,12 +37,17 @@ import com.tertiaryinfotech.hrportal.ui.components.PremierButton
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
+import com.tertiaryinfotech.hrportal.ui.components.CollapsibleSection
+import com.tertiaryinfotech.hrportal.ui.components.RecordDetailSheet
+import com.tertiaryinfotech.hrportal.ui.components.RecordRow
+import com.tertiaryinfotech.hrportal.ui.components.RecordTable
 
 /** Leave tab (iOS `LeaveView`): every balance and every request, whatever the leave type, so No Pay
  *  and Compassionate Leave show up here after applying. */
 @Composable
 fun LeaveScreen(nav: NavController) {
     var reloadKey by remember { mutableStateOf(0) }
+    var opened by remember { mutableStateOf<RecordRow?>(null) }
 
     // ApplyLeaveScreen stashes a flag on this entry's saved state before popping back, which forces
     // a refetch here.
@@ -67,27 +71,31 @@ fun LeaveScreen(nav: NavController) {
             item { Spacer18() }
 
             if (data.balances.isNotEmpty()) {
-                item { SectionTitle("Balances") }
-                item { Spacer12() }
-                items(data.balances) { b ->
-                    BalanceCard(b)
-                    Spacer12()
+                // Folds away so "My requests" is one tap from the top.
+                item {
+                    CollapsibleSection("Balances", count = data.balances.size) {
+                        data.balances.forEach { BalanceCard(it) }
+                    }
                 }
-                item { Spacer(6) }
+                item { Spacer(10) }
             }
 
-            item { SectionTitle("My requests") }
+            item { SectionTitle("My requests (${data.requests.size})") }
             item { Spacer12() }
             if (data.requests.isEmpty()) {
                 item { EmptyHint(Icons.Filled.CalendarToday, "No leave requests yet.") }
             } else {
-                items(data.requests) { r ->
-                    RequestRow(r)
-                    Spacer12()
+                item {
+                    RecordTable(
+                        rows = data.requests.map(::leaveRequestRow),
+                        showName = false,
+                        onOpen = { opened = it },
+                    )
                 }
             }
         }
     }
+    opened?.let { RecordDetailSheet(it, onDismiss = { opened = null }) }
 }
 
 @Composable
@@ -180,24 +188,17 @@ private fun MiniStat(label: String, v: Double) {
     }
 }
 
-@Composable
-private fun RequestRow(r: LeaveRequest) {
-    Card {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(r.leaveType, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text("${Fmt.date(r.startDate)} → ${Fmt.date(r.endDate)}", color = Brand.TextSecondary, fontSize = 12.sp)
-                if (!r.reason.isNullOrEmpty()) {
-                    Text(r.reason, color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp, maxLines = 2)
-                }
-                if (!r.rejectionReason.isNullOrEmpty()) {
-                    Text(r.rejectionReason, color = Brand.Red.copy(alpha = 0.9f), fontSize = 11.sp, maxLines = 2)
-                }
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                StatusPill(r.status)
-                Text(Fmt.days(r.days), color = Brand.TextSecondary, fontSize = 11.sp)
-            }
-        }
-    }
-}
+/** One of the user's leave requests as a one-line record (status, type, dates, days, applied, reason). */
+internal fun leaveRequestRow(r: LeaveRequest) = RecordRow(
+    id = r.id,
+    status = r.status,
+    type = r.leaveType,
+    dates = Fmt.range(r.startDate, r.endDate),
+    amount = Fmt.num(r.days) + dayTypeSuffix(r.dayType),
+    applied = r.createdAt?.let { Fmt.date(it) },
+    reason = r.reason,
+    details = buildList {
+        if (!r.approver.isNullOrBlank()) add("Approver" to r.approver)
+        if (!r.rejectionReason.isNullOrBlank()) add("Rejected" to r.rejectionReason)
+    },
+)

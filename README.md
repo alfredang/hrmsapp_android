@@ -46,17 +46,18 @@ existing single sign-on session, exactly as a browser would.
 | **Login** | Email + password or one-time email code (OTP), via the web app's NextAuth session. **Persistent** — stays signed in across app restarts |
 | **Dashboard** | Annual, medical and OT leave balances plus expenses at a glance; **Approvals queue** cards for admins (Manager / HR / Admin) |
 | **Leave** | View balances (including the **No Pay Leave cap and days left**) and full request history, and apply for leave in a few taps (server computes working days and proration). **Medical leave (MC)** attaches an MC photo. AL beyond the balance offers **Apply as No Pay Leave instead**; interns' sick leave goes in as No Pay Leave |
-| **Approvals** *(admins only)* | Approve or reject pending leave and expense requests in-app — enforced server-side (role ∈ Manager / HR / Admin) |
+| **Approvals** *(admins only)* | Leave / MC / Claims tabs, one line per request (name, status, type, dates, days, applied, reason); tap a line for the full reason and Approve / Reject — enforced server-side (role ∈ Manager / HR / Admin) |
 | **Payslips** | Browse personal payslips and open the official PDF, rendered natively in-app via `PdfRenderer` |
 | **Expenses** | Submit and track expense / medical claims with a receipt photo and clear status badges |
 | **Team** | Search the company directory; admins tap a person for their **clock-in, MC and leave history** — the Days clocked / MC days / Leave days tiles open each full history |
 | **Calendar** | Public holidays, personal events and approved leave, grouped by month |
-| **Timesheet** | Simple **clock in / out** with a live elapsed timer and a monthly daily check-in/out history with total hours — an open punch shows **hours so far** today, or **"No clock-out"** for an earlier day |
-| **Intern Attendance** (admin) | Each intern's days worked + total hours per month, drilling into their daily history |
+| **Clock In / Out** | Simple **clock in / out** with a live elapsed timer and a monthly daily check-in/out history with total hours — an open punch shows **hours so far** today, or **"No clock-out"** for an earlier day |
+| **Timesheet** | Interns: the weekly weekend / public-holiday timesheet. Staff see the same page as **Off In Lieu**. Admins: one **Timesheet** screen — missing-punch and Off In Lieu approvals plus each intern's days worked and hours per month, drilling into their daily clock-in / out |
+| **Time Off** | Hourly time off; approvers see everyone's requests (Pending / All, one line each) and approve or reject |
 | **Leave & MC Summary** (admin) | Every active staff member's and intern's MC and leave for the month, with totals, a Staff / Interns filter and a per-person drill-down |
-| **Trainers** *(Trainer Admins)* | Read-only trainer directory: search, accreditation filters (ACLP / ACTA / DACE / DDDLP, Finance, IBF Fit) and full profiles with contact, accreditation, skills and classes taught |
+| **Trainers** *(Trainer Admins)* | Trainer directory: search with skill / certification suggestions (with counts) that become removable filter chips, an Accreditation menu (ACLP / ACTA / DACE / DDDLP / Finance / IBF Fit), compact rows with the matching skill first, and call / WhatsApp / email / copy contacts; full profiles with NRIC masked behind Show |
 | **Notifications** | In-app bell with unread badge and a notifications list |
-| **Profile** | Full employee record, change password, and a **light / dark theme** toggle |
+| **Profile** | Full employee record and change password. One light premium-blue theme app-wide |
 
 > **Secure by design** — for authorized Tertiary Infotech employees only. Sign in with email and
 > password or a one-time email code; the session cookie is reused for every call over HTTPS. No
