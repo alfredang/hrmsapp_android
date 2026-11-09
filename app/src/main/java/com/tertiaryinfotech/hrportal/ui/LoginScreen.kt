@@ -70,7 +70,7 @@ fun LoginScreen(auth: AuthViewModel) {
                 .padding(horizontal = 22.dp)
                 .fillMaxWidth()
                 .clip(panel)
-                .background(if (Brand.isDark) Color.White.copy(alpha = 0.06f) else Brand.Surface)
+                .background(Brand.Surface)
                 .border(1.dp, Brand.Border, panel)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

@@ -22,7 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
@@ -76,15 +76,22 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             MenuDivider()
             MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
             MenuDivider()
-            MenuLink("Clock In / Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
-            MenuDivider()
             if (isApprover(auth)) {
-                MenuLink("Intern Attendance", Icons.Filled.Badge, Brand.Teal) { nav.navigate("intern_attendance") }
+                // Admin: one Timesheet for interns (days, hours, missing punches, Off In Lieu).
+                MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
                 MenuDivider()
                 MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
                 MenuDivider()
             }
-            MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_week") }
+            MenuLink("Clock In / Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
+            MenuDivider()
+            // Only interns have timesheets; everyone else logs weekend / PH work for Off In Lieu on
+            // the same weekly page (web sidebar, 464200b).
+            if (auth.user?.isIntern == true) {
+                MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_week") }
+            } else {
+                MenuLink("Off In Lieu", Icons.Filled.EventAvailable, Brand.Mint) { nav.navigate("timesheet_week") }
+            }
             MenuDivider()
             MenuLink("Time Off", Icons.Filled.HourglassBottom, Brand.Purple) { nav.navigate("time_off") }
             MenuDivider()
@@ -123,7 +130,7 @@ private fun LegalLinks() {
     }
 }
 
-/** Approver roles (mirrors the web's `hasAdminAccess`) see the intern attendance and leave & MC roll-ups. */
+/** Approver roles (mirrors the web's `hasAdminAccess`) see the admin Timesheet and the leave & MC roll-up. */
 fun isApprover(auth: AuthViewModel): Boolean =
     auth.user?.primaryRole?.uppercase() in setOf("ADMIN", "HR", "MANAGER")
 

@@ -51,6 +51,17 @@ object Fmt {
         return SimpleDateFormat("d MMM", Locale.getDefault()).format(d)
     }
 
+    /** "24 Nov 2026" for one day, "24 Nov – 27 Nov 2026" within a year, full dates across years. */
+    fun range(start: String?, end: String?): String {
+        val s = date(start)
+        val e = date(end)
+        if (end.isNullOrBlank() || s == e) return s
+        val sd = parse(start)
+        val ed = parse(end)
+        val y = SimpleDateFormat("yyyy", Locale.US)
+        return if (sd != null && ed != null && y.format(sd) == y.format(ed)) "${dayMonth(start)} – $e" else "$s – $e"
+    }
+
     fun money(value: Double, currency: String = "SGD"): String {
         return try {
             NumberFormat.getCurrencyInstance(Locale("en", "SG")).apply {

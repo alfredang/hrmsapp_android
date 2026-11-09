@@ -8,6 +8,14 @@ native apps should follow.
 
 ## 1. Color tokens
 
+> **10 Nov 2026 — one light theme.** The web app (464200b) and this Android app now ship a single
+> light premium-blue theme: navy-950 bars, a near-white → mist-blue backdrop, white cards, navy ink
+> text, royal-600 accents, gold-400 only for badges (`tia-hrms-brand/BRAND.md`). Dark mode, dynamic
+> colour and the theme switch are gone; the "Dark" column below is history. Android tokens:
+> `ui/theme/Theme.kt` (`Brand.*`, plain `val`s). Shared list patterns: `RecordTable` (one line per
+> record, reason opens a sheet), `CollapsibleSection`, `FilterTabs`, `KpiStrip`
+> (`ui/components/`).
+
 Web is dark-first: hardcoded Tailwind `gray-950/900/800/700` classes rather than the shadcn
 semantic tokens for most surfaces (a light theme exists and remaps those specific classes at
 runtime via `html.light` overrides in `globals.css`).

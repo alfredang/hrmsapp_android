@@ -15,10 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOff
@@ -37,9 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,11 +47,9 @@ import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
-import com.tertiaryinfotech.hrportal.ui.theme.ThemePrefs
 import com.tertiaryinfotech.hrportal.util.Fmt
 
-/** My profile (iOS `ProfileView`): the employee record, self-edit and change password. The Dark /
- *  Light theme card is an Android extra. */
+/** My profile (iOS `ProfileView`): the employee record, self-edit and change password. */
 @Composable
 fun ProfileScreen(nav: NavController) {
     var showEdit by remember { mutableStateOf(false) }
@@ -101,8 +95,6 @@ fun ProfileScreen(nav: NavController) {
                         Detail("Status", cap(e.status), last = true)
                     }
                 }
-                item { Spacer18() }
-                item { ThemeCard() }
             }
         }
     }
@@ -139,7 +131,7 @@ private fun AvatarHeader(e: EmployeeProfile) {
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(if (Brand.isDark) Color.White.copy(alpha = 0.16f) else Brand.SurfaceStrong)
+                    .background(Brand.SurfaceStrong)
                     .padding(horizontal = 12.dp, vertical = 5.dp),
             ) {
                 Text(e.roles.joinToString(" \u00b7 "), color = Brand.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -176,54 +168,6 @@ private fun Detail(label: String, value: String, last: Boolean = false) {
         )
     }
     if (!last) Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Brand.TextPrimary.copy(alpha = 0.08f)))
-}
-
-/** Dark/Light appearance card. Flips every reactive [Brand] token app-wide and persists the choice
- *  via [ThemePrefs]. */
-@Composable
-private fun ThemeCard() {
-    val context = LocalContext.current
-    Card {
-        Text("Theme", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-        Text(
-            "Choose your appearance preference. Dark mode is the default.",
-            color = Brand.TextSecondary, fontSize = 13.sp,
-            modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ThemeOption(
-                icon = Icons.Filled.DarkMode, label = "Dark", selected = Brand.isDark,
-                modifier = Modifier.weight(1f),
-            ) { Brand.applyTheme(true); ThemePrefs.setDark(context, true) }
-            ThemeOption(
-                icon = Icons.Filled.LightMode, label = "Light", selected = !Brand.isDark,
-                modifier = Modifier.weight(1f),
-            ) { Brand.applyTheme(false); ThemePrefs.setDark(context, false) }
-        }
-    }
-}
-
-@Composable
-private fun ThemeOption(icon: ImageVector, label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(Brand.Corner.dp))
-            .let {
-                if (selected) it.background(Brand.AccentGradient)
-                else it.border(1.dp, Brand.BorderLight, RoundedCornerShape(Brand.Corner.dp))
-            }
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = if (selected) Color.White else Brand.TextSecondary, modifier = Modifier.size(18.dp))
-        Text(
-            label, color = if (selected) Color.White else Brand.TextSecondary,
-            fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-    }
 }
 
 /** "FULL_TIME" to "Full Time". */

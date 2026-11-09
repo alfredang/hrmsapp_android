@@ -4,10 +4,35 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContactPhone
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import com.tertiaryinfotech.hrportal.data.Accreditation
+import com.tertiaryinfotech.hrportal.data.TagCount
+import com.tertiaryinfotech.hrportal.data.TrainerSearch
+import com.tertiaryinfotech.hrportal.ui.components.CollapsibleSection
+import com.tertiaryinfotech.hrportal.ui.components.TintButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +44,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +59,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,7 +67,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -71,112 +93,332 @@ import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
-import kotlinx.coroutines.delay
 
 /**
  * Trainer directory (Trainer Admins only — `summary.canManageTrainers`; the server answers 403 for
- * everyone else). Search, an iOS segmented control for Trainers / Applicants / All, and accreditation
- * filter pills. The server does the matching; this screen only sends the query.
+ * everyone else), rebuilt to the web's Trainer Management (464200b) so a trainer is easy to find by
+ * skill and certification and easy to reach:
+ *
+ *  - one search box with a suggestion list of skills / certifications and their trainer counts;
+ *    picking one adds it as a removable filter chip (only the chosen ones are shown);
+ *  - an Accreditation menu (ACLP / ACTA / DACE / DDDLP / Finance background / IBF Fit);
+ *  - Trainers / Applicants / All;
+ *  - compact rows (name, accreditation badges, the matching expertise first) with a contact button
+ *    for call, WhatsApp, email and copy.
+ *
+ * The directory is fetched once (`status=all`, no NRIC in the list) and filtered on the device with
+ * [TrainerSearch], the port of the web's filter.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrainersScreen(nav: NavController) {
     var search by rememberSaveable { mutableStateOf("") }
-    var debounced by rememberSaveable { mutableStateOf("") }
-    LaunchedEffect(search) {
-        delay(350)
-        debounced = search
-    }
     var status by rememberSaveable { mutableStateOf(TrainerStatusFilter.TRAINERS.name) }
-    var certs by rememberSaveable { mutableStateOf(listOf<String>()) }
-    var finance by rememberSaveable { mutableStateOf(false) }
-    var ibfFit by rememberSaveable { mutableStateOf(false) }
+    var tags by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var accreditation by rememberSaveable { mutableStateOf(Accreditation.ANY.name) }
+    var contact by remember { mutableStateOf<TrainerListItem?>(null) }
 
-    val query = TrainerQuery(
-        q = debounced, certs = certs.toSet(), finance = finance, ibfFit = ibfFit,
-        status = TrainerStatusFilter.valueOf(status),
-    )
+    AsyncListScreen(
+        fetch = { HrmsApi.trainers(TrainerQuery(status = TrainerStatusFilter.ALL)).trainers },
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
+    ) { all ->
+        val acc = Accreditation.valueOf(accreditation)
+        val query = acc.applyTo(TrainerQuery(q = search, tags = tags.toSet(), status = TrainerStatusFilter.valueOf(status)))
+        val pool = all.filterNot(TrainerSearch::isApplicant)
+        val vocab = TrainerSearch.vocabulary(pool)
+        val results = TrainerSearch.filter(all, query)
+        val needles = tags + search.split(' ')
 
-    Column {
-        Column(
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("Trainers", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 30.sp)
-            SearchBar(search, { search = it }, "Name, skill, cert or course")
-            SegmentedPicker(
-                options = TrainerStatusFilter.entries.map { it.name to it.label },
-                selected = status,
-                onSelect = { status = it },
-            )
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                TrainerFormat.TRAINING_CERTS.forEach { c ->
-                    FilterPill(c, c in certs) { certs = if (c in certs) certs - c else certs + c }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("Trainers", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 28.sp,
+                        modifier = Modifier.weight(1f))
+                    Text("${pool.size} trainers · ${all.size - pool.size} applicants", color = Brand.TextMuted, fontSize = 12.sp,
+                        modifier = Modifier.padding(bottom = 6.dp))
                 }
-                FilterPill("Finance", finance) { finance = !finance }
-                FilterPill("IBF Fit", ibfFit) { ibfFit = !ibfFit }
-            }
-        }
-
-        AsyncListScreen(
-            fetch = { HrmsApi.trainers(query) },
-            key = query,
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
-        ) { data ->
-            item {
+                SkillSearch(
+                    value = search, onChange = { search = it }, vocab = vocab, selected = tags,
+                    onPick = { tag -> tags = tags + tag; search = "" },
+                )
+                SegmentedPicker(
+                    options = TrainerStatusFilter.entries.map { it.name to it.label },
+                    selected = status,
+                    onSelect = { status = it },
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AccreditationMenu(acc, pool) { accreditation = it.name }
+                    val anyFilter = search.isNotBlank() || tags.isNotEmpty() || acc != Accreditation.ANY ||
+                        status != TrainerStatusFilter.TRAINERS.name
+                    Box(Modifier.weight(1f))
+                    if (anyFilter) {
+                        Text(
+                            "Clear all", color = Brand.Accent, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
+                                search = ""; tags = emptyList(); accreditation = Accreditation.ANY.name
+                                status = TrainerStatusFilter.TRAINERS.name
+                            }.padding(horizontal = 10.dp, vertical = 10.dp),
+                        )
+                    }
+                }
+                if (tags.isNotEmpty() || acc != Accreditation.ANY) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (acc != Accreditation.ANY) RemovableChip(acc.short, gold = true) { accreditation = Accreditation.ANY.name }
+                        tags.forEach { t -> RemovableChip(t) { tags = tags - t } }
+                    }
+                }
                 Text(
-                    "${data.count} ${if (data.count == 1) "trainer" else "trainers"}",
-                    color = Brand.TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp),
+                    "${results.size} ${if (results.size == 1) "match" else "matches"}",
+                    color = Brand.TextSecondary, fontSize = 13.sp,
                 )
             }
-            if (data.trainers.isEmpty()) {
-                item { EmptyHint(Icons.Filled.School, "No trainers match these filters.") }
-            } else {
-                items(data.trainers, key = { it.id }) { t ->
-                    TrainerRow(t) { nav.navigate("trainer_profile/${t.id}") }
-                    Spacer12()
+        }
+        item { Spacer12() }
+        if (results.isEmpty()) {
+            item { EmptyHint(Icons.Filled.School, "No trainers match. Remove a filter or try another skill.") }
+        } else {
+            // Lazy rows drawn as one grouped card: round the first and last, hairlines between.
+            itemsIndexed(results, key = { _, t -> t.id }) { i, t ->
+                val r = Brand.CardCorner.dp
+                val shape = RoundedCornerShape(
+                    topStart = if (i == 0) r else 0.dp, topEnd = if (i == 0) r else 0.dp,
+                    bottomStart = if (i == results.lastIndex) r else 0.dp, bottomEnd = if (i == results.lastIndex) r else 0.dp,
+                )
+                Column(modifier = Modifier.fillMaxWidth().clip(shape).background(Brand.Surface)) {
+                    if (i > 0) RowDivider()
+                    TrainerRow(t, needles, onContact = { contact = t }) { nav.navigate("trainer_profile/${t.id}") }
                 }
+            }
+        }
+    }
+
+    contact?.let { t ->
+        ContactSheet(
+            name = t.name, phone = t.phone, email = t.email,
+            onProfile = { contact = null; nav.navigate("trainer_profile/${t.id}") },
+            onDismiss = { contact = null },
+        )
+    }
+}
+
+/** Search field with a suggestion list of skills and certifications (with trainer counts). */
+@Composable
+private fun SkillSearch(
+    value: String,
+    onChange: (String) -> Unit,
+    vocab: List<TagCount>,
+    selected: List<String>,
+    onPick: (String) -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    var dismissed by remember { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
+    val items = TrainerSearch.suggestions(vocab, value, selected, limit = if (value.isBlank()) 6 else 8)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SearchBar(
+            value = value,
+            onChange = { onChange(it); dismissed = false },
+            placeholder = "Name, skill, certification or course",
+            onFocus = { focused = it; if (it) dismissed = false },
+            onSearch = { dismissed = true; focus.clearFocus() },
+        )
+        AnimatedVisibility(visible = focused && !dismissed && items.isNotEmpty()) {
+            Card(padding = 0, containerColor = Brand.Dialog) {
+                Text(
+                    (if (value.isBlank()) "Popular skills and certifications" else "Filter by skill or certification").uppercase(),
+                    color = Brand.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 4.dp),
+                )
+                items.forEach { v ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(v.tag); dismissed = true }
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(18.dp))
+                        Text(v.tag, color = Brand.TextPrimary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f))
+                        Text(v.kind.label, color = Brand.TextMuted, fontSize = 11.sp)
+                        Text("${v.count}", color = Brand.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                Text(
+                    if (value.isBlank()) "Or type a name, course or anything on the profile."
+                    else "Tap one to add it as a filter, or keep typing to search all text.",
+                    color = Brand.TextMuted, fontSize = 11.sp,
+                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 10.dp),
+                )
             }
         }
     }
 }
 
+/** "Accreditation ▾" button with a menu of the six accreditation filters and their counts. */
+@Composable
+private fun AccreditationMenu(current: Accreditation, pool: List<TrainerListItem>, onSelect: (Accreditation) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        val on = current != Accreditation.ANY
+        Row(
+            modifier = Modifier
+                .height(40.dp)
+                .clip(CircleShape)
+                .background(if (on) Brand.SurfaceStrong else Brand.Surface)
+                .border(1.dp, if (on) Brand.Accent else Brand.Border, CircleShape)
+                .clickable { open = true }
+                .padding(start = 14.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(18.dp))
+            Text(
+                if (on) current.short else "Accreditation", color = Brand.TextPrimary, fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 6.dp),
+            )
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextSecondary)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = Brand.Dialog) {
+            Accreditation.entries.forEach { a ->
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(a.label, color = Brand.TextPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            Text("${a.count(pool)}", color = Brand.TextMuted, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp))
+                        }
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (a == current) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
+                            contentDescription = null, tint = if (a == current) Brand.Accent else Brand.TextMuted,
+                        )
+                    },
+                    onClick = { onSelect(a); open = false },
+                )
+            }
+        }
+    }
+}
+
+/** A chosen filter with an × to remove it. Gold for the accreditation filter. */
+@Composable
+private fun RemovableChip(label: String, gold: Boolean = false, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .height(34.dp)
+            .clip(CircleShape)
+            .background(if (gold) Brand.Gold else Brand.SurfaceStrong)
+            .border(1.dp, if (gold) Brand.Gold600 else Brand.BorderLight, CircleShape)
+            .clickable(onClickLabel = "Remove $label", onClick = onRemove)
+            .padding(start = 12.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = Brand.Navy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Icon(Icons.Filled.Close, contentDescription = "Remove $label", tint = Brand.Navy, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+    }
+}
+
+/** Compact directory row: name, accreditation badges, then the matching expertise first. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TrainerRow(t: TrainerListItem, onClick: () -> Unit) {
-    Card(onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(initialsOf(t.name), 44)
-            Column(
-                modifier = Modifier.weight(1f).padding(start = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
+private fun TrainerRow(t: TrainerListItem, needles: List<String>, onContact: () -> Unit, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        InitialsAvatar(initialsOf(t.name), 38)
+        Column(modifier = Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 // Names are stored uppercase by design; shown as-is.
-                Text(t.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (!t.nickname.isNullOrBlank()) {
-                    Text("“${t.nickname}”", color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1)
-                }
-                val hasBadges = t.trainingCerts.isNotEmpty() || t.financeBackground || t.ibfFitDeclaration
-                if (hasBadges) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        t.trainingCerts.forEach { AccreditationBadge(it) }
-                        if (t.financeBackground) FlagBadge("Finance")
-                        if (t.ibfFitDeclaration) FlagBadge("IBF Fit")
-                    }
-                }
-                val tags = t.topTags()
-                if (tags.isNotEmpty()) {
-                    Text(tags.joinToString(" · "), color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Text(lastClassLine(t.lastClassDate, t.classesCount), color = Brand.TextMuted, fontSize = 11.sp)
+                Text(
+                    t.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                )
+                t.trainingCerts.take(3).forEach { AccreditationBadge(it) }
+                if (TrainerSearch.isApplicant(t)) FlagBadge("Applicant")
             }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-                tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp),
+            val expertise = TrainerSearch.orderByMatch((t.certifications + t.skills).distinct(), needles)
+            val flags = listOfNotNull(if (t.financeBackground) "Finance" else null, if (t.ibfFitDeclaration) "IBF Fit" else null)
+            // Matching expertise leads, so the reason a trainer matched is the first thing you read.
+            val line = (expertise + flags).joinToString(" · ")
+            Text(
+                line.ifEmpty { lastClassLine(t.lastClassDate, t.classesCount) },
+                color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
+        IconButton(onClick = onContact, enabled = !t.phone.isNullOrBlank() || !t.email.isNullOrBlank()) {
+            Icon(
+                Icons.Filled.ContactPhone, contentDescription = "Contact ${t.name}",
+                tint = if (t.phone.isNullOrBlank() && t.email.isNullOrBlank()) Brand.TextFaint else Brand.Accent,
+            )
+        }
+    }
+}
+
+/** Call / WhatsApp / email / copy for one trainer. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ContactSheet(name: String, phone: String?, email: String?, onProfile: (() -> Unit)?, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Brand.Dialog) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(name, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
+            ContactActions(phone, email, context)
+            if (onProfile != null) {
+                SheetAction(Icons.Filled.Person, "View full profile", null, onProfile)
+            }
+        }
+    }
+}
+
+/** The contact action rows shared by the directory sheet and the profile. */
+@Composable
+private fun ContactActions(phone: String?, email: String?, context: Context) {
+    if (!phone.isNullOrBlank()) {
+        SheetAction(Icons.Filled.Phone, "Call", phone) { open(context, TrainerFormat.telUri(phone), Intent.ACTION_DIAL) }
+        TrainerSearch.whatsAppUrl(phone)?.let { url ->
+            SheetAction(Icons.AutoMirrored.Filled.Chat, "WhatsApp", url.removePrefix("https://")) { open(context, url) }
+        }
+        SheetAction(Icons.Filled.ContentCopy, "Copy phone number", null) { copy(context, "Phone", phone) }
+    }
+    if (!email.isNullOrBlank()) {
+        SheetAction(Icons.Filled.Email, "Email", email) { open(context, "mailto:$email", Intent.ACTION_SENDTO) }
+        SheetAction(Icons.Filled.ContentCopy, "Copy email", null) { copy(context, "Email", email) }
+    }
+    if (phone.isNullOrBlank() && email.isNullOrBlank()) {
+        Text("No phone or email on file.", color = Brand.TextMuted, fontSize = 14.sp, modifier = Modifier.padding(8.dp))
+    }
+}
+
+@Composable
+private fun SheetAction(icon: ImageVector, title: String, subtitle: String?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Brand.SmallCorner.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(38.dp).clip(CircleShape).background(Brand.SurfaceStrong),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(20.dp)) }
+        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
+            Text(title, color = Brand.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            if (subtitle != null) Text(subtitle, color = Brand.TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+private fun copy(context: Context, label: String, value: String) {
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
+    cm.setPrimaryClip(android.content.ClipData.newPlainText(label, value))
+    // Android 13+ shows its own clipboard confirmation.
+    if (android.os.Build.VERSION.SDK_INT < 33) {
+        android.widget.Toast.makeText(context, "$label copied", android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -187,6 +429,10 @@ fun TrainerProfileScreen(id: String) {
     val context = LocalContext.current
     AsyncListScreen(fetch = { HrmsApi.trainer(id) }) { t ->
         item { ProfileHero(t) }
+        if (!t.phone.isNullOrBlank() || !t.email.isNullOrBlank()) {
+            item { Spacer12() }
+            item { QuickContact(t, context) }
+        }
 
         item { GroupHeader("Identity & contact") }
         item { IdentityCard(t, context) }
@@ -206,30 +452,34 @@ fun TrainerProfileScreen(id: String) {
             item { GroupHeader("Skills") }
             item { Card { TagFlow(t.skills) } }
         }
+        // Long lists fold away so the profile stays short; tap a heading to open it.
         if (t.experience.isNotEmpty()) {
-            item { GroupHeader("Work experience") }
             item {
-                Card {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        t.experience.forEach { Bullet(it) }
+                FoldSection("Work experience", t.experience.size) {
+                    Card {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            t.experience.forEach { Bullet(it) }
+                        }
                     }
                 }
             }
         }
         val courses = t.courses.orEmpty().filter { it.title.isNotBlank() }
-        item { GroupHeader("Courses taught") }
         item {
-            if (courses.isEmpty()) EmptyCard("No courses on record.")
-            else GroupedCard(courses) { CourseRow(it) }
+            FoldSection("Courses taught", courses.size) {
+                if (courses.isEmpty()) EmptyCard("No courses on record.")
+                else GroupedCard(courses) { CourseRow(it) }
+            }
         }
         val recent = t.recentClasses.orEmpty().filter { it.title.isNotBlank() }
         val calendar = t.calendarClasses.orEmpty().filter { it.title.isNotBlank() }
-        item { GroupHeader("Recent classes") }
         item {
-            when {
-                recent.isNotEmpty() -> GroupedCard(recent) { ClassRow(it) }
-                calendar.isNotEmpty() -> GroupedCard(calendar) { CalendarClassRow(it) }
-                else -> EmptyCard("No recent classes.")
+            FoldSection("Recent classes", recent.size.takeIf { it > 0 } ?: calendar.size) {
+                when {
+                    recent.isNotEmpty() -> GroupedCard(recent) { ClassRow(it) }
+                    calendar.isNotEmpty() -> GroupedCard(calendar) { CalendarClassRow(it) }
+                    else -> EmptyCard("No recent classes.")
+                }
             }
         }
         if (!t.adminNotes.isNullOrBlank()) {
@@ -279,10 +529,14 @@ private fun IdentityCard(t: TrainerProfile, context: Context) {
             }
         }
         if (!t.phone.isNullOrBlank()) add {
-            InfoRow("Phone", t.phone, icon = Icons.Filled.Phone, onClick = { open(context, TrainerFormat.telUri(t.phone), Intent.ACTION_DIAL) })
+            InfoRow("Phone", t.phone, onClick = { open(context, TrainerFormat.telUri(t.phone), Intent.ACTION_DIAL) }) {
+                CopyIcon { copy(context, "Phone", t.phone) }
+            }
         }
         if (!t.email.isNullOrBlank()) add {
-            InfoRow("Email", t.email, icon = Icons.Filled.Email, onClick = { open(context, "mailto:${t.email}", Intent.ACTION_SENDTO) })
+            InfoRow("Email", t.email, onClick = { open(context, "mailto:${t.email}", Intent.ACTION_SENDTO) }) {
+                CopyIcon { copy(context, "Email", t.email) }
+            }
         }
         if (!t.secondaryEmail.isNullOrBlank()) add {
             InfoRow("Other email", t.secondaryEmail, icon = Icons.Filled.Email, onClick = { open(context, "mailto:${t.secondaryEmail}", Intent.ACTION_SENDTO) })
@@ -373,6 +627,36 @@ private fun CalendarClassRow(c: TrainerCalendarClass) {
     }
 }
 
+/** Call / WhatsApp / Email buttons right under the profile hero. */
+@Composable
+private fun QuickContact(t: TrainerProfile, context: Context) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        val phone = t.phone
+        val email = t.email
+        if (!phone.isNullOrBlank()) {
+            TintButton("Call", Icons.Filled.Phone, Brand.Accent, modifier = Modifier.weight(1f)) {
+                open(context, TrainerFormat.telUri(phone), Intent.ACTION_DIAL)
+            }
+            TrainerSearch.whatsAppUrl(phone)?.let { url ->
+                TintButton("WhatsApp", Icons.AutoMirrored.Filled.Chat, Brand.Green, modifier = Modifier.weight(1f)) { open(context, url) }
+            }
+        }
+        if (!email.isNullOrBlank()) {
+            TintButton("Email", Icons.Filled.Email, Brand.Accent, modifier = Modifier.weight(1f)) {
+                open(context, "mailto:$email", Intent.ACTION_SENDTO)
+            }
+        }
+    }
+}
+
+/** Grouped-section header that folds its card; opens by default when the list is short. */
+@Composable
+private fun FoldSection(title: String, count: Int, content: @Composable () -> Unit) {
+    Box(Modifier.padding(top = 14.dp)) {
+        CollapsibleSection(title, count = count, initiallyExpanded = count <= 3) { content() }
+    }
+}
+
 // MARK: - Building blocks (iOS grouped list look)
 
 /** iOS inset-grouped section header: small uppercase caption above the card. */
@@ -430,13 +714,27 @@ private fun InfoRow(
 }
 
 @Composable
-private fun SearchBar(value: String, onChange: (String) -> Unit, placeholder: String) {
+private fun CopyIcon(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = Brand.TextSecondary, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun SearchBar(
+    value: String,
+    onChange: (String) -> Unit,
+    placeholder: String,
+    onFocus: (Boolean) -> Unit = {},
+    onSearch: () -> Unit = {},
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Brand.Field)
+            .background(Brand.Surface)
+            .border(1.dp, Brand.Border, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -450,7 +748,8 @@ private fun SearchBar(value: String, onChange: (String) -> Unit, placeholder: St
                 textStyle = TextStyle(color = Brand.TextPrimary, fontSize = 16.sp),
                 cursorBrush = SolidColor(Brand.Accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                modifier = Modifier.fillMaxWidth(),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { onFocus(it.isFocused) },
             )
         }
         if (value.isNotEmpty()) {
@@ -459,26 +758,6 @@ private fun SearchBar(value: String, onChange: (String) -> Unit, placeholder: St
                 modifier = Modifier.size(20.dp).clip(CircleShape).clickable { onChange("") },
             )
         }
-    }
-}
-
-/** Capsule toggle (iOS-style filter token), not a Material chip. */
-@Composable
-private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .height(36.dp)
-            .clip(CircleShape)
-            .background(if (selected) Brand.Primary else Brand.Surface)
-            .border(1.dp, if (selected) Brand.Primary else Brand.Border, CircleShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label, color = if (selected) Color.White else Brand.TextPrimary, fontSize = 14.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        )
     }
 }
 

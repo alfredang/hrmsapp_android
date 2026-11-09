@@ -646,3 +646,46 @@ data class TimesheetDay(
     val adminComment: String? = null,
     val isSubmittable: Boolean = false,
 )
+
+// MARK: - Missing-punch corrections (existing /api/attendance/corrections)
+
+/** A missing clock-in / clock-out request. Admins list everyone's with `scope=all&status=PENDING`
+ *  and approve / reject via `POST /api/attendance/corrections/{id}`. Times are ISO instants. */
+@Serializable
+data class AttendanceCorrection(
+    val id: String,
+    val employeeId: String = "",
+    val employeeName: String = "",
+    val employeeCode: String = "",
+    /** `yyyy-MM-dd` */
+    val date: String = "",
+    /** CLOCK_IN, CLOCK_OUT or BOTH. */
+    val kind: String = "",
+    val requestedClockIn: String? = null,
+    val requestedClockOut: String? = null,
+    val currentClockIn: String? = null,
+    val currentClockOut: String? = null,
+    val reason: String = "",
+    val status: String = "",
+    val rejectionReason: String? = null,
+    val createdAt: String? = null,
+)
+
+// MARK: - Off In Lieu approvals, admin (existing /api/timesheet/admin)
+
+/** Weekend / public-holiday hours logged on the weekly timesheet, last 30 days. */
+@Serializable
+data class OilEntry(
+    val id: String,
+    val employeeId: String = "",
+    val employeeCode: String = "",
+    val employeeName: String = "",
+    /** `yyyy-MM-dd` */
+    val date: String = "",
+    val dayName: String = "",
+    val isPublicHoliday: Boolean = false,
+    @Serializable(with = FlexNumberSerializer::class) val hours: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val otCredited: Double = 0.0,
+    val status: String = "",
+    val adminComment: String? = null,
+)

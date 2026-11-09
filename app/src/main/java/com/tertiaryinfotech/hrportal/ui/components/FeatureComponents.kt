@@ -5,6 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -76,7 +80,7 @@ fun StatTile(
     }
 }
 
-/** Status pill: translucent tint with a matching stroke and label (iOS `StatusPill`). */
+/** Light status pill: pale tint with a matching stroke and label (web light pills, iOS `StatusPill`). */
 @Composable
 fun StatusPill(status: String) {
     val color = when (status.uppercase()) {
@@ -88,8 +92,8 @@ fun StatusPill(status: String) {
     Box(
         modifier = Modifier
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.25f))
-            .border(1.dp, color.copy(alpha = 0.5f), CircleShape)
+            .background(color.copy(alpha = 0.10f))
+            .border(1.dp, color.copy(alpha = 0.35f), CircleShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
         Text(statusLabel(status), color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -160,5 +164,28 @@ fun <T> AsyncContent(
             }
         }
         is LoadState.Loaded -> content(state.value)
+    }
+}
+
+/** One figure in a [KpiStrip]. */
+data class Kpi(val value: String, val label: String, val tint: Color = Brand.Accent)
+
+/** A single compact card of 3–4 headline figures side by side (KPI-first, without four big tiles). */
+@Composable
+fun KpiStrip(items: List<Kpi>, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, padding = 0) {
+        Row(modifier = Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+            items.forEachIndexed { i, k ->
+                if (i > 0) Box(Modifier.padding(vertical = 14.dp).fillMaxHeight().width(1.dp).background(Brand.Border))
+                Column(
+                    modifier = Modifier.weight(1f).padding(vertical = 14.dp, horizontal = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(k.value, color = k.tint, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+                    Text(k.label, color = Brand.TextSecondary, fontSize = 11.sp, maxLines = 1, textAlign = TextAlign.Center)
+                }
+            }
+        }
     }
 }

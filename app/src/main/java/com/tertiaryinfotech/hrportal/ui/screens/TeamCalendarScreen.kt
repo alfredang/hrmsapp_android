@@ -288,7 +288,7 @@ private fun DayCell(
         ) {
             Text(
                 dayOfMonth(day).toString(),
-                color = if (isToday) (if (Brand.isDark) Brand.Navy else Color.White) else Brand.TextSecondary,
+                color = if (isToday) Color.White else Brand.TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.SemiBold,
             )

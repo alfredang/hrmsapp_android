@@ -158,3 +158,136 @@ object TrainerFormat {
     fun webUrl(url: String): String =
         if (url.startsWith("http://") || url.startsWith("https://")) url else "https://${url.trimStart('/')}"
 }
+
+/** The single-choice Accreditation filter (web "Accreditation" dropdown). */
+enum class Accreditation(val label: String) {
+    ANY("Any accreditation"),
+    ACLP("ACLP"),
+    ACTA("ACTA"),
+    DACE("DACE"),
+    DDDLP("DDDLP"),
+    FINANCE("Finance background"),
+    IBF("IBF Fit & Proper"),
+    ;
+
+    /** Short label for the filter button and the removable chip. */
+    val short: String get() = when (this) {
+        FINANCE -> "Finance"
+        IBF -> "IBF Fit"
+        else -> label
+    }
+
+    fun applyTo(q: TrainerQuery): TrainerQuery = when (this) {
+        ANY -> q.copy(certs = emptySet(), finance = false, ibfFit = false)
+        FINANCE -> q.copy(certs = emptySet(), finance = true, ibfFit = false)
+        IBF -> q.copy(certs = emptySet(), finance = false, ibfFit = true)
+        else -> q.copy(certs = setOf(name), finance = false, ibfFit = false)
+    }
+
+    fun count(pool: List<TrainerListItem>): Int = when (this) {
+        ANY -> pool.size
+        FINANCE -> pool.count { it.financeBackground }
+        IBF -> pool.count { it.ibfFitDeclaration }
+        else -> pool.count { name in it.trainingCerts }
+    }
+}
+
+/** A skill or professional certification with the number of trainers who have it. */
+data class TagCount(val tag: String, val count: Int, val kind: Kind) {
+    enum class Kind(val label: String) { CERTIFICATION("Certification"), SKILL("Skill") }
+}
+
+/**
+ * Client-side directory search — a 1:1 port of the web's `src/lib/trainers.ts` (`haystack`,
+ * `matchesQuery`, `filterTrainers`, `topTags`) and the suggestion list in `trainer-directory.tsx`.
+ * The app loads the whole directory once and filters on the device, as the web page does, so the
+ * suggestions can show counts and results update as you type.
+ */
+object TrainerSearch {
+    private val SPACES = Regex("\\s+")
+    private fun norm(s: String) = s.lowercase().replace(SPACES, " ").trim()
+
+    /** Common alternative spellings people search for. */
+    private val ALIASES = mapOf("dddpl" to "dddlp", "alcp" to "aclp", "ccar f" to "ccar-f", "ccarf" to "ccar-f")
+
+    fun isApplicant(t: TrainerListItem): Boolean = t.status == "Applicant" || t.status == "Contacted"
+
+    fun haystack(t: TrainerListItem): String = norm(
+        (
+            listOf(t.name, t.nickname.orEmpty(), t.email.orEmpty(), t.phone.orEmpty(), t.trainerType.orEmpty(),
+                t.education.orEmpty(), t.summary.orEmpty()) +
+                t.trainingCerts + t.certifications + t.skills + t.courseTitles +
+                listOf(if (t.financeBackground) "finance" else "", if (t.ibfFitDeclaration) "ibf fit" else "")
+            ).joinToString(" | "),
+    )
+
+    /** Every whitespace-separated term must appear somewhere in the trainer's profile. */
+    fun matchesQuery(hay: String, q: String?): Boolean {
+        if (q.isNullOrBlank()) return true
+        return norm(q).split(" ").filter { it.isNotEmpty() }.all { term -> hay.contains(ALIASES[term] ?: term) }
+    }
+
+    private fun hasTag(t: TrainerListItem, tag: String): Boolean {
+        val n = norm(tag)
+        return (t.skills + t.certifications + t.trainingCerts).any { norm(it) == n }
+    }
+
+    fun filter(list: List<TrainerListItem>, f: TrainerQuery): List<TrainerListItem> = list.filter { t ->
+        when {
+            f.status == TrainerStatusFilter.TRAINERS && isApplicant(t) -> false
+            f.status == TrainerStatusFilter.APPLICANTS && !isApplicant(t) -> false
+            f.finance && !t.financeBackground -> false
+            f.ibfFit && !t.ibfFitDeclaration -> false
+            f.certs.isNotEmpty() && !f.certs.all { it in t.trainingCerts } -> false
+            f.tags.isNotEmpty() && !f.tags.all { hasTag(t, it) } -> false
+            else -> matchesQuery(haystack(t), f.q)
+        }
+    }
+
+    /** Certifications first, then skills, each by trainer count; case-insensitive duplicates dropped. */
+    fun vocabulary(pool: List<TrainerListItem>): List<TagCount> {
+        fun count(field: (TrainerListItem) -> List<String>, kind: TagCount.Kind): List<TagCount> {
+            val counts = LinkedHashMap<String, Pair<String, Int>>()
+            for (t in pool) {
+                val seen = HashSet<String>()
+                for (raw in field(t)) {
+                    val key = norm(raw)
+                    if (key.isEmpty() || !seen.add(key)) continue
+                    val cur = counts[key]
+                    counts[key] = if (cur == null) raw.trim() to 1 else cur.first to cur.second + 1
+                }
+            }
+            return counts.values.map { (tag, n) -> TagCount(tag, n, kind) }
+                .sortedWith(compareByDescending<TagCount> { it.count }.thenBy { it.tag.lowercase() })
+        }
+        val seen = HashSet<String>()
+        return (count({ it.certifications }, TagCount.Kind.CERTIFICATION) + count({ it.skills }, TagCount.Kind.SKILL))
+            .filter { seen.add(it.tag.lowercase()) }
+    }
+
+    /** Up to [limit] suggestions for the typed text: starts-with first, then contains; popular picks when empty. */
+    fun suggestions(vocab: List<TagCount>, typed: String, selected: Collection<String>, limit: Int = 8): List<TagCount> {
+        val taken = selected.map { it.lowercase() }.toSet()
+        val pool = vocab.filter { it.tag.lowercase() !in taken }
+        val needle = typed.trim().lowercase()
+        if (needle.isEmpty()) return pool.take(limit)
+        val starts = pool.filter { it.tag.lowercase().startsWith(needle) }
+        val contains = pool.filter { !it.tag.lowercase().startsWith(needle) && it.tag.lowercase().contains(needle) }
+        return (starts + contains).take(limit)
+    }
+
+    /** Expertise with the items matching the active search / tags first, so the reason a trainer matched shows. */
+    fun orderByMatch(items: List<String>, needles: List<String>): List<String> {
+        val ns = needles.map { it.trim().lowercase() }.filter { it.length > 1 }
+        if (ns.isEmpty()) return items
+        val (hit, rest) = items.partition { s -> ns.any { s.lowercase().contains(it) } }
+        return hit + rest
+    }
+
+    /** `https://wa.me/<digits>`; an 8-digit number is a Singapore number stored without +65. */
+    fun whatsAppUrl(phone: String?): String? {
+        val digits = phone.orEmpty().filter { it.isDigit() }
+        if (digits.isEmpty()) return null
+        return "https://wa.me/" + if (digits.length == 8) "65$digits" else digits
+    }
+}

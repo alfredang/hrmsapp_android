@@ -129,7 +129,11 @@ private fun routeFor(link: String?): String? = when {
     link.startsWith("/leave") -> "leave"
     link.startsWith("/expenses") -> "expenses"
     link.startsWith("/calendar") -> "calendar"
-    link.startsWith("/timesheet") -> "timesheet"
+    // Missing-punch submissions point admins at the merged Timesheet page.
+    link.startsWith("/timesheet/overview") || link.startsWith("/attendance/overview") -> "timesheet_admin"
+    link.startsWith("/timesheet") -> "timesheet_week"
+    link.startsWith("/attendance") -> "timesheet"
+    link.startsWith("/time-off") -> "time_off"
     else -> null
 }
 

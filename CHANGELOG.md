@@ -4,6 +4,37 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased] — branch `feat/neat-ui-light-theme`
+
+Neat, well-structured, interactive screens and one light theme, matching the web app (464200b).
+No version bump yet.
+
+### Changed
+- **One light premium-blue theme.** Navy bars, near-white → mist-blue backdrop, white cards, navy
+  text, royal-blue accents, gold only for badges. The dark theme and the Dark / Light card on
+  Profile are removed (`ThemePrefs` deleted); status pills are lighter.
+- **Approvals**: Leave / MC / Claims tabs with counts; one line per request (name, status, type,
+  dates, days, applied, reason). Tap a line for the full reason and Approve / Reject.
+- **Leave tab** and **Team › MC / Leave history**: one-line records; the reason opens a sheet.
+  Balances fold away.
+- **Time Off**: approvers see everyone's requests (Pending / All) and approve or reject in-app;
+  requesters cancel their own pending request from the sheet.
+- **Timesheet**: only interns have timesheets. Interns see *Timesheet*, everyone else *Off In Lieu*
+  (same weekly page). Admins get one **Timesheet** screen — Needs approval (missing punches and
+  Off In Lieu, approve / reject) and each intern's days and hours by month — replacing the separate
+  Intern Attendance entry.
+- **Trainers**: search with skill / certification suggestions and counts that become removable
+  chips, an Accreditation menu, compact rows with the matching skill first, and a contact sheet
+  (call, WhatsApp, email, copy). Profile: Call / WhatsApp / Email buttons, copy icons, folding
+  sections. The directory loads once and filters on the device (port of the web filter).
+- Notification links: `/timesheet/overview` opens the admin Timesheet, `/timesheet` the weekly
+  page, `/attendance` Clock In / Out, `/time-off` Time Off.
+
+### Added
+- `RecordTable` / `RecordDetailSheet`, `CollapsibleSection`, `FilterTabs`, `KpiStrip`,
+  `TintButton`, `NoteDialog` components.
+- Unit tests for the trainer search port, WhatsApp links and the correction / Off In Lieu payloads.
+
 ## [1.10] — 2026-11-09 · versionCode 22
 
 The app is now **TIA HRMS**, with the new leave rules and a trainer directory.

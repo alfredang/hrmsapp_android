@@ -11,20 +11,25 @@ WebView, no cross-platform runtime**. It is the Android sibling of the native iO
 source of truth for both *functionality* and *visual design*. Min SDK **24 (Android 7)**, target
 SDK **36**, phone-first.
 
-**Theme — TIA HRMS premium blue (BRAND.md, `~/projects/tertiary/tia-hrms-brand/`) on the iOS
-layout.** The iOS app is the source of truth for structure and components; colours follow BRAND.md.
-The signature backdrop is the navy-950 → navy-800 → royal-600 diagonal gradient (`#0D1638` →
-`#1A2F86` → `#2F5BE6`); cards are translucent frosted panels on top of it, text is white with mist
-`#C9D8FF` secondary text, royal-300 `#8FB0FF` is the accent on dark and royal-600 on light, the top
-and tab bars are navy in **both** themes (`Brand.Bar` / `OnBar` / `BarAccent`), and gold-400
-`#F5B83D` is the single sparing warm accent (unread badge, accreditation badges; always a fill with
-navy text). All tokens live in `ui/theme/Theme.kt` (`Brand.*`) + `Type.kt`. The launcher icon is the
-iOS AppIcon (`tia-hrms-brand/icon-1024.png`); the adaptive foreground is rendered glyph-only from
-`make_app_icon.swift`. Never bring back the old purple/indigo "HR" icon. **Unlike iOS (dark-only today), Android keeps a
-light / dark toggle** — both themed in Premier Blue (dark = the iOS gradient; light = a Premier-Blue
-light remap: near-white / very-light-blue surfaces, blue accents, navy ink text), switched at
-runtime via `Brand.applyTheme` and persisted in `ThemePrefs` from the Profile screen. iOS will gain
-the same toggle later. When the iOS app's design changes, mirror it here too.
+**Theme — one light TIA HRMS premium-blue theme (Alfred, 10 Nov 2026; BRAND.md,
+`~/projects/tertiary/tia-hrms-brand/`).** Same as the web app (tertiary-hrms 464200b): the top and
+tab bars are navy-950 (`Brand.Bar` / `OnBar` / `BarAccent` = royal-300), content sits on a
+near-white → mist-blue backdrop (`GradientScreen`), cards are white with a light-blue hairline, text
+is navy ink, royal-600 `#2F5BE6` is the accent (`Brand.Accent` for text/icons, `Brand.Primary` as a
+fill), and gold-400 `#F5B83D` is the single sparing warm accent (unread badge, accreditation
+badges; always a fill with navy text). **There is no dark theme, no dynamic colour and no theme
+switch** — don't bring them back. All tokens are plain `val`s in `ui/theme/Theme.kt` (`Brand.*`) +
+`Type.kt`. The iOS app is still the source of truth for structure; its colours should follow this
+light theme. The launcher icon is the iOS AppIcon (`tia-hrms-brand/icon-1024.png`); the adaptive
+foreground is rendered glyph-only from `make_app_icon.swift`. Never bring back the old
+purple/indigo "HR" icon.
+
+**Neat, interactive lists (Nov 2026).** Admin lists of leave, MC, time off and claims use
+`ui/components/RecordTable.kt`: one line per record in a fixed column order (name, status, type,
+dates, days/hours, applied, reason), the table scrolls sideways as one block, and tapping a line (or
+its truncated reason) opens `RecordDetailSheet` with the full reason and the actions. Long pages
+fold with `CollapsibleSection`; filters are `FilterTabs` with counts; headline numbers use
+`KpiStrip`.
 
 ## Relationship to the web app (hrms.tertiaryinfotech.com) and Coolify
 
@@ -81,13 +86,18 @@ Mirrors the iOS app 1:1:
   `data/LeaveErrors.kt` (`LeaveRejectedException`). The NPL balance row carries `proRated` = cap and
   `available` = remaining.
 - **Trainers** (Trainer Admins only — `summary.canManageTrainers`; server 403 otherwise) — a sixth
-  tab: search, Trainers / Applicants / All segmented control, ACLP / ACTA / DACE / DDDLP / Finance /
-  IBF Fit filter pills, and a profile (`trainer_profile/{id}`) with tap-to-call/email, NRIC masked
-  with Show, accreditation, certifications, education, skills, experience, courses taught and recent
-  classes (`/api/mobile/trainers`, `/api/mobile/trainers/{id}`). Names are uppercase by design.
-- **Approvals** (admins only — role ∈ {ADMIN, HR, MANAGER}) — approve / reject pending **leave &
-  expense** requests in-app (`GET /api/mobile/approvals`; `POST /api/{leave|expenses}/{id}/{approve
-  |reject}`). **Enforced server-side** (403 for staff/interns); the client only shows the UI when
+  tab. The directory loads once (`/api/mobile/trainers?status=all`, no NRIC) and is filtered on the
+  device by `data/Trainers.kt` `TrainerSearch` (a 1:1 port of the web's `src/lib/trainers.ts`,
+  unit-tested): a search box with skill / certification suggestions and counts that become
+  removable chips, an Accreditation menu (`Accreditation` enum: ACLP / ACTA / DACE / DDDLP /
+  Finance / IBF Fit), Trainers / Applicants / All, compact rows with the matching expertise first,
+  and a contact sheet (call, WhatsApp `https://wa.me/65XXXXXXXX` for 8-digit SG numbers, email,
+  copy). The profile (`trainer_profile/{id}`) has Call / WhatsApp / Email buttons, copy icons, NRIC
+  masked with Show, and long sections (experience, courses, classes) that fold. Names are uppercase
+  by design.
+- **Approvals** (admins only — role ∈ {ADMIN, HR, MANAGER}) — Leave / MC / Claims tabs of
+  one-line records; a tap opens the full reason with approve / reject (`GET /api/mobile/approvals`;
+  `POST /api/{leave|expenses}/{id}/{approve|reject}`). **Enforced server-side** (403 for staff/interns); the client only shows the UI when
   `summary.isAdmin`. The two account admins (**Tan Soik Ching**, **Alfred Ang Chew Hoe**) hold role
   ADMIN and can action this queue.
 - **Team** — company directory (richer contact fields for supervisory roles). Approvers tap a person
@@ -97,13 +107,24 @@ Mirrors the iOS app 1:1:
 - **Payslips** — list + native **PdfRenderer** viewer for the authenticated payslip PDF.
 - **Expenses** — personal expense/medical claims with status, plus **submit an Expense or Medical
   claim** with a receipt (`POST /api/mobile/claims`, which files it in the employee's Drive folder).
-- **Timesheet** — a simple **clock in / out** with a live elapsed timer and a monthly daily
-  check-in/out history with total hours (`AttendanceHistorySection`, ported from iOS; punches via
-  `/api/mobile/attendance` + `attendance/clock-{in,out}`, history via
-  `/api/mobile/attendance/history?month=`). The separate weekly weekend/holiday grid is
-  `WeeklyTimesheetScreen`.
-- **Intern Attendance** (approvers only; More menu) — `InternAttendanceScreen` over
-  `/api/mobile/attendance/summary?month=`, drilling into `intern_attendance_detail/{id}`.
+- **Clock In / Out** (route `timesheet`) — a simple **clock in / out** with a live elapsed timer and
+  a monthly daily check-in/out history with total hours (`AttendanceHistorySection`, ported from
+  iOS; punches via `/api/mobile/attendance` + `attendance/clock-{in,out}`, history via
+  `/api/mobile/attendance/history?month=`).
+- **Timesheet — only interns have timesheets** (web 464200b). More shows **Timesheet** to interns
+  and **Off In Lieu** to everyone else; both open the weekly weekend / public-holiday grid
+  (`WeeklyTimesheetScreen`, `timesheet_week`). Approvers also get the admin **Timesheet**
+  (`AdminTimesheetScreen`, route `timesheet_admin`; `intern_attendance` is kept as an alias): a
+  collapsible **Needs approval** section with pending missing-punch requests
+  (`GET /api/attendance/corrections?scope=all&status=PENDING`, `POST /api/attendance/corrections/{id}`
+  `{action: approve|reject, comment}`) and pending Off In Lieu entries (`GET/POST /api/timesheet/admin`
+  `{entryId, action: APPROVE|REJECT, comment}`), then each intern's days worked and hours for the
+  month (`/api/mobile/attendance/summary?month=`, Interns / Everyone tabs) drilling into
+  `intern_attendance_detail/{id}`. The separate Intern Attendance menu entry is gone.
+- **Time Off** — hourly time off. `GET /api/time-off` returns everyone's requests to approvers, so
+  they get Pending / All tabs of one-line records and approve / reject in the sheet
+  (`POST /api/time-off/{id}/approve` `{approvalComment}` / `reject` `{reason}`); requesters can
+  cancel their own pending request.
 - **Leave & MC Summary** (approvers only; More menu) — `LeaveSummaryScreen` over
   `/api/mobile/leave-summary?month=`, drilling into `mc_leave_summary_detail/{employeeId}`. The route
   is prefixed `mc_` on purpose: tab/title resolution is `startsWith`-based, so `leave_summary` would
@@ -114,8 +135,7 @@ Mirrors the iOS app 1:1:
   The older agenda-style list (public holidays + the user's own events) remains at the
   `calendar_list` route, reachable from **More**.
 - **Notifications** — top-bar **bell with unread badge** + list (`/api/notifications`).
-- **Profile** — full employee record + self-service edit + change password, and the **light / dark
-  theme toggle** (Android-only for now).
+- **Profile** — full employee record + self-service edit + change password.
 
 **Excluded / removed** (same product scope as iOS): **Accounting** and heavy **admin-authoring**
 flows (web-only). **Woods Square building access** is **not** part of this app (removed — it isn't in
@@ -180,7 +200,7 @@ design**: when a feature or screen changes on one platform, mirror it on the oth
 for text, icons and selected states, and `Brand.Primary` only as a fill, because premier-blue text is
 unreadable on the gradient.
 
-Deliberate Android-only extras: the Dark / Light theme card on Profile, the expense filter panel,
+Deliberate Android-only extras: the expense filter panel,
 receipt viewing, "Payment Received", PDF receipts, the annual-leave advance / Off In Lieu panel, and
 Add Event on the calendar list.
 

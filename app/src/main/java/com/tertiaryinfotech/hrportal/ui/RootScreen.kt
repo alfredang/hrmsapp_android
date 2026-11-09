@@ -28,10 +28,10 @@ import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 fun RootScreen(auth: AuthViewModel) {
     LaunchedEffect(Unit) { auth.bootstrap() }
 
-    // Signed in, the top and tab bars are navy in both themes, so the system-bar icons are light.
-    // On the launch and login screens they follow the backdrop (dark icons on the light theme).
+    // Signed in, the top and tab bars are navy, so the system-bar icons are light. On the launch
+    // and login screens the backdrop is light, so they are dark.
     val view = LocalView.current
-    val lightIcons = auth.phase == AuthViewModel.Phase.SIGNED_IN || Brand.isDark
+    val lightIcons = auth.phase == AuthViewModel.Phase.SIGNED_IN
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
