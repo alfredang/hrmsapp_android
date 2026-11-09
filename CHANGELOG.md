@@ -4,10 +4,16 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased] — branch `feat/neat-ui-light-theme`
+## [1.11] — 2026-11-10 · versionCode 23
 
 Neat, well-structured, interactive screens and one light theme, matching the web app (464200b).
-No version bump yet.
+
+### Release notes (Play, en-US)
+- New light look: one clean, bright theme across the app.
+- Cleaner lists: leave, MC, claims and time off show one line each. Tap a line to read the full reason.
+- Trainer search with suggestions, and call, WhatsApp or email a trainer in one tap.
+- One Timesheet for interns.
+- Managers can approve or reject time-off requests in the app.
 
 ### Changed
 - **One light premium-blue theme.** Navy bars, near-white → mist-blue backdrop, white cards, navy
