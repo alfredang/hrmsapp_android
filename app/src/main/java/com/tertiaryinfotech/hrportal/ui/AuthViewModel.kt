@@ -63,6 +63,19 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         }
     }
 
+    /** From `/api/mobile/summary`: TRAINER_ADMIN holders get the Trainers tab. Enforced server-side
+     *  too (403), so this only decides whether the tab is shown. */
+    var canManageTrainers by mutableStateOf(false)
+        private set
+
+    fun refreshCapabilities() {
+        viewModelScope.launch {
+            try {
+                canManageTrainers = HrmsApi.summary().canManageTrainers
+            } catch (_: Exception) { /* keep last-known value on failure */ }
+        }
+    }
+
     var rememberEmail by mutableStateOf(false)
 
     init {
@@ -247,6 +260,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         viewModelScope.launch {
             AuthService.signOut()
             user = null
+            canManageTrainers = false
             password = ""; otp = ""
             step = Step.EMAIL
             phase = Phase.SIGNED_OUT

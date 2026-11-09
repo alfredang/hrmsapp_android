@@ -26,6 +26,9 @@ data class SessionUser(
 
     val primaryRole: String get() = role ?: roles?.firstOrNull() ?: "STAFF"
 
+    /** Roles exactly ["INTERN"] — interns have no paid MC (their sick leave is No Pay Leave). */
+    val isIntern: Boolean get() = LeaveRules.isIntern(roles, role)
+
     val initials: String
         get() {
             val source = if (!name.isNullOrEmpty()) name else (email ?: "?")
@@ -49,6 +52,8 @@ data class DashboardSummary(
     val name: String? = null,
     val role: String? = null,
     val isAdmin: Boolean = false,
+    /** Holds TRAINER_ADMIN: show the Trainers tab (backed by /api/mobile/trainers). */
+    val canManageTrainers: Boolean = false,
     val alAvailable: Double? = null,
     val mcAvailable: Double? = null,
     val otRemaining: Double? = null,

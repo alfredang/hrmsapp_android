@@ -94,7 +94,7 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
         SignOutButton(auth)
 
         Text(
-            "Tertiary HRMS · v${BuildConfig.VERSION_NAME}",
+            "TIA HRMS · v${BuildConfig.VERSION_NAME}",
             color = Brand.TextPrimary.copy(alpha = 0.5f), fontSize = 11.sp,
             modifier = Modifier.padding(top = 6.dp),
         )

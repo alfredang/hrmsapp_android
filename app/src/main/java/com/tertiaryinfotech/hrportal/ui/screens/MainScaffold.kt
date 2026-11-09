@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +48,8 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
     LEAVE("leave", "Leave", Icons.AutoMirrored.Filled.EventNote),
     CALENDAR("calendar", "Calendar", Icons.Filled.CalendarMonth),
     TEAM("team", "Team", Icons.Filled.Groups),
+    /** Trainer Admins only (`summary.canManageTrainers`). */
+    TRAINERS("trainers", "Trainers", Icons.Filled.School),
     MORE("more", "More", Icons.Filled.Pending),
 }
 
@@ -78,7 +81,11 @@ fun MainScaffold(auth: AuthViewModel) {
     LaunchedEffect(rootTab) { rootTab?.let { activeTabName = it.name } }
     val activeTab = rootTab ?: Tab.valueOf(activeTabName)
 
-    LaunchedEffect(Unit) { auth.refreshUnreadCount() }
+    LaunchedEffect(Unit) {
+        auth.refreshUnreadCount()
+        auth.refreshCapabilities()
+    }
+    val tabs = Tab.entries.filter { it != Tab.TRAINERS || auth.canManageTrainers }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -87,7 +94,7 @@ fun MainScaffold(auth: AuthViewModel) {
                 title = {
                     val formTitle = FORM_TITLES.entries.firstOrNull { route?.startsWith(it.key) == true }?.value
                     if (formTitle != null) {
-                        Text(formTitle, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        Text(formTitle, color = Brand.OnBar, fontWeight = FontWeight.SemiBold)
                     } else {
                         BrandBarTitle()
                     }
@@ -95,7 +102,7 @@ fun MainScaffold(auth: AuthViewModel) {
                 navigationIcon = {
                     if (rootTab == null) {
                         IconButton(onClick = { nav.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = Brand.Accent)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = Brand.BarAccent)
                         }
                     }
                 },
@@ -106,12 +113,12 @@ fun MainScaffold(auth: AuthViewModel) {
                         "expenses" -> AddAction("New claim") { nav.navigate("expense_new") }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Brand.Background),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Brand.Bar),
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Brand.Background) {
-                Tab.entries.forEach { tab ->
+            NavigationBar(containerColor = Brand.Bar) {
+                tabs.forEach { tab ->
                     NavigationBarItem(
                         selected = activeTab == tab,
                         onClick = {
@@ -119,13 +126,13 @@ fun MainScaffold(auth: AuthViewModel) {
                             if (tab == activeTab) popToRoot(nav, tab.route) else switchTab(nav, tab.route)
                         },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        label = { Text(tab.label, maxLines = 1, softWrap = false) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Brand.Accent,
-                            selectedTextColor = Brand.Accent,
+                            selectedIconColor = Brand.BarAccent,
+                            selectedTextColor = Brand.BarAccent,
                             indicatorColor = Color.Transparent,
-                            unselectedIconColor = Brand.TextPrimary.copy(alpha = 0.6f),
-                            unselectedTextColor = Brand.TextPrimary.copy(alpha = 0.6f),
+                            unselectedIconColor = Brand.OnBar.copy(alpha = 0.6f),
+                            unselectedTextColor = Brand.OnBar.copy(alpha = 0.6f),
                         ),
                     )
                 }
@@ -143,6 +150,10 @@ fun MainScaffold(auth: AuthViewModel) {
             composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
             composable(Tab.TEAM.route) { TeamScreen(nav) }
             composable(Tab.MORE.route) { MoreScreen(auth, nav) }
+            composable(Tab.TRAINERS.route) { TrainersScreen(nav) }
+            composable("trainer_profile/{id}") { e ->
+                TrainerProfileScreen(e.arguments?.getString("id").orEmpty())
+            }
 
             composable("team_records/{id}") { e ->
                 EmployeeRecordsScreen(e.arguments?.getString("id").orEmpty(), nav)
@@ -159,7 +170,7 @@ fun MainScaffold(auth: AuthViewModel) {
             composable("payslips") { PayslipsScreen(nav) }
             composable("profile") { ProfileScreen(nav) }
             composable("leave_request/{type}") { e ->
-                ApplyLeaveScreen(nav, e.arguments?.getString("type"))
+                ApplyLeaveScreen(nav, e.arguments?.getString("type"), isIntern = auth.user?.isIntern == true)
             }
             composable("calendar_list") { CalendarScreen(nav) }
             composable("calendar_day/{date}") { e ->
@@ -200,7 +211,7 @@ fun MainScaffold(auth: AuthViewModel) {
 @Composable
 private fun AddAction(description: String, onClick: () -> Unit) {
     IconButton(onClick = onClick) {
-        Icon(Icons.Filled.AddCircle, contentDescription = description, tint = Brand.Accent)
+        Icon(Icons.Filled.AddCircle, contentDescription = description, tint = Brand.BarAccent)
     }
 }
 

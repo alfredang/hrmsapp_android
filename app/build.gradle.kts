@@ -26,8 +26,8 @@ android {
         targetSdk = 36
         // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
         // review, so each new release must increment from there.
-        versionCode = 21
-        versionName = "1.9"
+        versionCode = 22
+        versionName = "1.10"
         vectorDrawables { useSupportLibrary = true }
 
         // Google Sign-In (native, Custom Tabs + PKCE) — mirrors the iOS app's GIDClientID.
@@ -78,6 +78,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        // android.util.Log etc. return defaults in JVM unit tests instead of throwing.
+        unitTests.isReturnDefaultValues = true
+    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -122,4 +126,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // JVM unit tests (JSON parsing, coded leave errors, trainer formatting)
+    testImplementation("junit:junit:4.13.2")
 }

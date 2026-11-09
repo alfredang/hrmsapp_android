@@ -18,6 +18,9 @@ import java.io.File
  *   adb shell run-as com.tertiaryinfotech.hrportal sh -c 'echo admin > files/ui_preview'
  *
  * Content is admin, staff, intern or signedout. Writes are logged under the tag "MockApi", not sent.
+ * Admin also holds TRAINER_ADMIN (Trainers tab). `POST /api/leave` answers like the real server's
+ * coded refusals so the No Pay Leave flows can be previewed: AL → AL_EXCEEDS_BALANCE, MC from an
+ * intern → INTERN_MC_NOT_PAID, NPL over 4 days → NPL_CAP_EXCEEDED; anything else succeeds.
  */
 object MockApi {
     fun install(builder: OkHttpClient.Builder, context: Context) {
@@ -27,19 +30,26 @@ object MockApi {
         builder.addInterceptor(Interceptor { chain ->
             val request = chain.request()
             val path = request.url.encodedPath
+            var body: String? = null
             if (request.method != "GET") {
-                val body = request.body?.let { b ->
+                body = request.body?.let { b ->
                     if (b.contentType()?.subtype == "form-data") "[multipart ${b.contentLength()} bytes]"
                     else Buffer().also { b.writeTo(it) }.readUtf8()
                 }
                 Log.i("MockApi", "${request.method} $path $body")
             }
-            val json = respond(path, request.method, role)
+            val leaveError = if (request.method == "POST" && path == "/api/leave") leaveRefusal(body.orEmpty(), role) else null
+            val json = leaveError ?: respond(path, request.method, role)
+            val code = when {
+                leaveError != null -> 400
+                json == null -> 404
+                else -> 200
+            }
             Response.Builder()
                 .request(request)
                 .protocol(Protocol.HTTP_1_1)
-                .code(if (json == null) 404 else 200)
-                .message("OK")
+                .code(code)
+                .message(if (code == 200) "OK" else "Error")
                 .body((json ?: "{\"error\":\"Not mocked\"}").toResponseBody("application/json".toMediaType()))
                 .build()
         })
@@ -67,6 +77,24 @@ object MockApi {
         path == "/api/notifications" -> NOTIFICATIONS
         path == "/api/time-off" -> TIME_OFF
         path == "/api/timesheet" -> TIMESHEET
+        path == "/api/mobile/trainers" -> TRAINERS
+        path.startsWith("/api/mobile/trainers/") -> TRAINER
+        else -> null
+    }
+
+    private const val NPL_STATUS = "{\"cap\":7,\"used\":1,\"pending\":2,\"remaining\":4}"
+
+    /** The real server's coded refusals, keyed off the mock leave type ids. */
+    private fun leaveRefusal(body: String, role: String): String? = when {
+        "\"lt-al\"" in body ->
+            """{"error":"You have 6 day(s) of annual leave available, so 2 day(s) of this request exceed your balance. Apply for the extra days as No Pay Leave (4 day(s) left this year).","code":"AL_EXCEEDS_BALANCE","alAvailable":6,"excessDays":2,"npl":$NPL_STATUS,"suggestedLeaveTypeCode":"NPL"}"""
+        "\"lt-mc\"" in body && role == "intern" ->
+            """{"error":"Interns do not have paid medical leave. Please apply for sick leave as No Pay Leave and attach your medical certificate.","code":"INTERN_MC_NOT_PAID","suggestedLeaveTypeCode":"NPL"}"""
+        "\"lt-npl\"" in body && Regex("\"startDate\":\"(\\d{4}-\\d{2}-\\d{2})\".*\"endDate\":\"(\\d{4}-\\d{2}-\\d{2})\"").find(body)?.let { m ->
+            val (s, e) = m.destructured
+            java.time.LocalDate.parse(e).toEpochDay() - java.time.LocalDate.parse(s).toEpochDay() >= 4
+        } == true ->
+            """{"error":"This request (5 day(s)) is more than your remaining No Pay Leave (4 of 7 day(s)).","code":"NPL_CAP_EXCEEDED","npl":$NPL_STATUS,"requested":5}"""
         else -> null
     }
 
@@ -75,7 +103,7 @@ object MockApi {
         return """{"user":{"id":"u1","email":"sarah.lim@example.com","name":"Sarah Lim","role":"$r","roles":["$r"],"employeeId":"e1"}}"""
     }
 
-    private fun summary(role: String) = """{"name":"Sarah Lim","role":"${role.uppercase()}","isAdmin":${role == "admin"},
+    private fun summary(role: String) = """{"name":"Sarah Lim","role":"${role.uppercase()}","isAdmin":${role == "admin"},"canManageTrainers":${role == "admin"},
         "alAvailable":6,"mcAvailable":12,"otRemaining":1.5,"expenseYtd":428.5,"pendingLeaves":3,"pendingClaims":2}"""
 
     private fun profile(role: String) = """{"employee":{"id":"e1","employeeId":"E0007","name":"Sarah Lim","email":"sarah.lim@example.com",
@@ -87,7 +115,7 @@ object MockApi {
       "balances":[
         {"code":"AL","name":"Annual Leave","paid":true,"entitlement":14,"carriedOver":1,"used":3,"pending":1,"earned":0,"proRated":9,"available":6},
         {"code":"MC","name":"Medical Leave","paid":true,"entitlement":14,"used":2,"pending":0,"available":12},
-        {"code":"NPL","name":"No Pay Leave","paid":false,"entitlement":7,"used":1,"pending":2,"available":4},
+        {"code":"NPL","name":"No Pay Leave","paid":false,"entitlement":0,"used":1,"pending":2,"proRated":7,"available":4},
         {"code":"CL","name":"Compassionate Leave","paid":true,"entitlement":3,"available":3},
         {"code":"AL_OT","name":"Off In Lieu","paid":true,"earned":2,"used":0.5,"available":1.5}
       ],
@@ -171,4 +199,30 @@ object MockApi {
         {"date":"2026-11-02","dayName":"Mon","hours":0,"isNonWorkDay":false,"isSubmittable":false},
         {"date":"2026-11-07","dayName":"Sat","hours":8,"status":"PENDING","isNonWorkDay":true,"isSubmittable":true},
         {"date":"2026-11-08","dayName":"Sun","hours":0,"isNonWorkDay":true,"isSubmittable":true,"isPublicHoliday":true,"phName":"Deepavali"}]}"""
+
+    private const val TRAINERS = """{"count":3,"trainers":[
+        {"id":"tr1","name":"TAN WEI MING","nickname":"Wei Ming","phone":"+65 9123 4567","email":"weiming.tan@example.com","trainerType":"ACLP","status":"Active","inTms":true,
+         "trainingCerts":["ACLP","ACTA"],"certifications":["PMP","CCAR-F"],"skills":["Power BI","Python","Agile"],"education":"MSc Business Analytics, NUS",
+         "financeBackground":true,"ibfFitDeclaration":true,"classesCount":34,"lastClassDate":"2026-10-28","courseTitles":["Data Analytics with Power BI"]},
+        {"id":"tr2","name":"NUR AISYAH BINTE RAHMAN","phone":"+65 8234 5678","email":"aisyah@example.com","trainerType":"non-ACLP","status":"Active","inTms":true,
+         "trainingCerts":["ACTA"],"certifications":["AWS Solutions Architect"],"skills":["Cloud","Docker"],"financeBackground":false,"ibfFitDeclaration":false,
+         "classesCount":12,"lastClassDate":"2026-09-15","courseTitles":["AWS Cloud Practitioner"]},
+        {"id":"tr3","name":"LIM KAH HENG (DR)","email":"kh.lim@example.com","trainerType":"Applicant","status":"Applicant","inTms":false,
+         "trainingCerts":["DACE"],"certifications":["CFA"],"skills":["Corporate Finance","Excel"],"financeBackground":true,"ibfFitDeclaration":false,
+         "classesCount":0,"lastClassDate":null,"courseTitles":[]}
+      ]}"""
+
+    private const val TRAINER = """{"trainer":{"id":"tr1","name":"TAN WEI MING","nickname":"Wei Ming","nric":"S8123456D","phone":"+65 9123 4567",
+        "email":"weiming.tan@example.com","secondaryEmail":"wm.tan@example.org","nationality":"Singaporean","linkedinUrl":"linkedin.com/in/example",
+        "trainerType":"ACLP","status":"Active","inTms":true,"trainingCerts":["ACLP","ACTA"],"certifications":["PMP","CCAR-F","Tableau Desktop Specialist"],
+        "skills":["Power BI","Python","Agile","Data Storytelling"],"education":"MSc Business Analytics, National University of Singapore",
+        "experience":["Senior Data Analyst, DBS Bank (2016 - 2022)","Freelance trainer, analytics and BI (2022 - present)"],
+        "summary":"Analytics trainer with ten years in banking data teams.","financeBackground":true,"financeEvidence":["DBS employment letter.pdf"],
+        "ibfFitDeclaration":true,"ibfFitFiles":["IBF Fit and Proper - Tan Wei Ming.pdf"],"actaFolder":"TAN WEI MING","evidenceFiles":["ACLP cert.pdf","ACTA cert.pdf"],
+        "courses":[{"title":"Data Analytics with Power BI","code":"TGS-2023012345","classes":21,"first":"2023-02-06","last":"2026-10-28"},
+                   {"title":"Python for Finance","code":"TGS-2024056789","classes":13,"first":"2024-04-15","last":"2026-08-19"}],
+        "recentClasses":[{"start":"2026-10-28","title":"Data Analytics with Power BI","run":42,"status":"Completed"},
+                         {"start":"2026-08-19","title":"Python for Finance","run":"17","status":"Completed"}],
+        "calendarClasses":[],"classesCount":34,"lastClassDate":"2026-10-28","adminNotes":null}}"""
 }
+

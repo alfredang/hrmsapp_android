@@ -4,19 +4,23 @@ Guidance for Claude Code when working in this repository.
 
 ## Project
 
-**Tertiary HRMS — native Android app** (Kotlin + Jetpack Compose, Material 3, MVVM). The Google
+**TIA HRMS (formerly Tertiary HRMS) — native Android app** (Kotlin + Jetpack Compose, Material 3, MVVM). The Google
 Play build of Tertiary Infotech Academy's HR Management System, **rebuilt fully native — no
 WebView, no cross-platform runtime**. It is the Android sibling of the native iOS app
 (`../iOS/hrmsapp`) and **mirrors its features, UI/UX, and API layer 1:1** — the iOS app is the
 source of truth for both *functionality* and *visual design*. Min SDK **24 (Android 7)**, target
 SDK **36**, phone-first.
 
-**Theme — Premier Blue (pixel-matched to iOS).** The app uses the iOS app's **Premier Blue** design
-system, not the web app's flat gray skin. The signature backdrop is the navy → premier → azure
-diagonal gradient (`navy #0A1F44` → `premier #1D4ED8` → `azure #3B82F6`, exact hex ported from the
-iOS `Theme/Theme.swift`); cards are translucent frosted panels on top of it, text is white, the
-accent/button/tab colour is premier blue, and `sky #94C5FD` is the secondary accent. All tokens live
-in `ui/theme/Theme.kt` (`Brand.*`) + `Type.kt`. **Unlike iOS (dark-only today), Android keeps a
+**Theme — TIA HRMS premium blue (BRAND.md, `~/projects/tertiary/tia-hrms-brand/`) on the iOS
+layout.** The iOS app is the source of truth for structure and components; colours follow BRAND.md.
+The signature backdrop is the navy-950 → navy-800 → royal-600 diagonal gradient (`#0D1638` →
+`#1A2F86` → `#2F5BE6`); cards are translucent frosted panels on top of it, text is white with mist
+`#C9D8FF` secondary text, royal-300 `#8FB0FF` is the accent on dark and royal-600 on light, the top
+and tab bars are navy in **both** themes (`Brand.Bar` / `OnBar` / `BarAccent`), and gold-400
+`#F5B83D` is the single sparing warm accent (unread badge, accreditation badges; always a fill with
+navy text). All tokens live in `ui/theme/Theme.kt` (`Brand.*`) + `Type.kt`. The launcher icon is the
+iOS AppIcon (`tia-hrms-brand/icon-1024.png`); the adaptive foreground is rendered glyph-only from
+`make_app_icon.swift`. Never bring back the old purple/indigo "HR" icon. **Unlike iOS (dark-only today), Android keeps a
 light / dark toggle** — both themed in Premier Blue (dark = the iOS gradient; light = a Premier-Blue
 light remap: near-white / very-light-blue surfaces, blue accents, navy ink text), switched at
 runtime via `Brand.applyTheme` and persisted in `ThemePrefs` from the Profile screen. iOS will gain
@@ -52,7 +56,7 @@ no database of its own.
      (Google)*** so the backend accepts tokens minted for the Android client.
 - **Data endpoints**: the same additive, read-only `/api/mobile/*` namespace feeds this app
   (`summary`, `profile`, `leave`, `employees`, `expenses`, `payslips`, `calendar`,
-  `team-calendar`), plus the
+  `team-calendar`, `trainers`), plus the
   pre-existing `/api/timesheet`, `/api/leave` POST, and `/api/payroll/payslip/{id}/pdf`.
 - Changing the deployed URL means updating `Net.BASE_URL` in `data/Net.kt`.
 
@@ -69,6 +73,18 @@ Mirrors the iOS app 1:1:
 - **Leave** — balances + full request history + **apply for leave** with a live working-days
   preview. **Medical leave (MC)** is applied here as a leave type, attaching an **MC photo**
   (native camera / gallery via `ActivityResultContracts` → `/api/upload` → attached to the request).
+  **Leave rules (server-enforced, Nov 2026):** `POST /api/leave` answers 400 with a `code` —
+  `AL_EXCEEDS_BALANCE` (dialog offers *Apply as No Pay Leave instead*, resubmitting the same dates
+  and day type with the NPL type id from the loaded types), `INTERN_MC_NOT_PAID` (interns, roles
+  exactly `["INTERN"]`, have no paid MC; the form already switches MC to No Pay Leave up front with
+  reason "Sick leave (MC)" and keeps the certificate) and `NPL_CAP_EXCEEDED`. Parsing lives in
+  `data/LeaveErrors.kt` (`LeaveRejectedException`). The NPL balance row carries `proRated` = cap and
+  `available` = remaining.
+- **Trainers** (Trainer Admins only — `summary.canManageTrainers`; server 403 otherwise) — a sixth
+  tab: search, Trainers / Applicants / All segmented control, ACLP / ACTA / DACE / DDDLP / Finance /
+  IBF Fit filter pills, and a profile (`trainer_profile/{id}`) with tap-to-call/email, NRIC masked
+  with Show, accreditation, certifications, education, skills, experience, courses taught and recent
+  classes (`/api/mobile/trainers`, `/api/mobile/trainers/{id}`). Names are uppercase by design.
 - **Approvals** (admins only — role ∈ {ADMIN, HR, MANAGER}) — approve / reject pending **leave &
   expense** requests in-app (`GET /api/mobile/approvals`; `POST /api/{leave|expenses}/{id}/{approve
   |reject}`). **Enforced server-side** (403 for staff/interns); the client only shows the UI when
@@ -126,6 +142,9 @@ $ANDROID_HOME/platform-tools/adb install -r app/build/outputs/apk/debug/app-debu
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)
 ./gradlew :app:bundleRelease      # → app/build/outputs/bundle/release/app-release.aab  (Google Play)
 ./gradlew :app:assembleRelease    # → app/build/outputs/apk/release/app-release.apk     (sideload)
+
+# JVM unit tests (payload parsing, coded leave errors, trainer formatting)
+./gradlew :app:testDebugUnitTest
 ```
 
 `compileSdk`/`targetSdk` 36 requires AGP 8.9+. Only system frameworks + a tiny dependency set
@@ -137,12 +156,12 @@ Single-activity (`MainActivity`) Compose app. `AuthViewModel` (`AndroidViewModel
 source of truth, driving `data/AuthService` (NextAuth sign-in) and `data/HrmsApi` (typed reads +
 apply-leave + PDF download), both riding one shared OkHttp client + `PersistentCookieJar`.
 `RootScreen` routes loading → `LoginScreen` → `MainScaffold` via a `NavHost`. The bottom nav is
-**five tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView` 1:1, shown on
-every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
+**five tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView` 1:1, plus
+**Trainers** before More for Trainer Admins, shown on every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
 nested destinations reached from More or Home, with a back chevron. All destinations render **bare**:
 `MainScaffold` supplies the top bar and tab bar, so wrapping one in `BrandScaffold` would stack a
 second app bar.
-Reusable Premier Blue controls live in `ui/components/`.
+Reusable brand controls live in `ui/components/`.
 
 ## Signing & Google Play
 

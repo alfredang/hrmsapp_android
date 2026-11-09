@@ -4,6 +4,43 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.10] — 2026-11-09 · versionCode 22
+
+The app is now **TIA HRMS**, with the new leave rules and a trainer directory.
+
+### Added
+- **No Pay Leave option when annual leave exceeds your balance.** If the server says a request is
+  more AL than you have (`AL_EXCEEDS_BALANCE`), the app shows its message and the No Pay Leave left
+  this year, and offers **Apply as No Pay Leave instead**, which resubmits the same dates and day
+  type as No Pay Leave (reusing any uploaded document).
+- **Intern sick leave goes in as No Pay Leave.** Interns (roles exactly `INTERN`) have no paid MC:
+  picking Medical Leave switches the form to No Pay Leave up front, prefills the reason
+  "Sick leave (MC)" and keeps the medical-certificate attachment, as the web form does. A server
+  `INTERN_MC_NOT_PAID` refusal offers the same switch.
+- **No Pay Leave balance.** The Leave tab shows the No Pay Leave cap to date and the days left
+  (21 days a year, prorated by full months served), and the form shows cap / taken / pending /
+  remaining and blocks requests over the cap (`NPL_CAP_EXCEEDED` is shown as a message).
+- **Trainer directory for Trainer Admins** — a Trainers tab, shown only when
+  `summary.canManageTrainers` is true: search, Trainers / Applicants / All, filters for ACLP, ACTA,
+  DACE, DDDLP, Finance background and IBF Fit declaration, and a profile with identity and contact
+  (tap to call or email, NRIC masked with Show), accreditation, certifications, education, skills,
+  work experience, courses taught and recent classes (`/api/mobile/trainers`).
+- JVM unit tests for the JSON payloads, the coded leave errors and the trainer formatting.
+
+### Changed
+- **Renamed to TIA HRMS** (launcher label, sign-in header, More footer, Play listing).
+- **New premium-blue branding** (BRAND.md): navy-950 → navy-800 → royal-600 backdrop, navy top and
+  tab bars in both themes, royal-300 / royal-600 accents, mist secondary text and gold-400 as the
+  single warm accent (unread badge, accreditation badges).
+- Launcher icon matches the iOS app icon exactly: adaptive foreground rendered from
+  `make_app_icon.swift`, gradient background vector, themed monochrome layer, new legacy/round
+  mipmaps, 512 Play icon and feature graphic.
+- AL beyond the balance is no longer described as a deficit: the form says it needs No Pay Leave.
+
+### Play submission
+- Production track, full rollout, corporate account `sales@tertiarycourses.com.sg`; listing title
+  changed to TIA HRMS with the new icon, feature graphic and phone screenshots.
+
 ## [1.9] — 2026-11-06 · versionCode 21
 
 Full parity with the iOS app, in both features and look.

@@ -3,13 +3,13 @@
 Paste these into Play Console → **Grow → Store presence → Main store listing**.
 
 ## App details
-- **App name** (max 30): `Tertiary HRMS`
+- **App name** (max 30): `TIA HRMS` (renamed from Tertiary HRMS, v1.10)
 - **Short description** (max 80):
   `Your HR on the go — leave, payslips, expenses, team and timesheet for employees.`
 
 ## Full description (max 4000)
 ```
-Tertiary HRMS is the official employee app for Tertiary Infotech Academy's Human Resource
+TIA HRMS is the official employee app for Tertiary Infotech Academy's Human Resource
 Management System. Sign in with your work account to manage your HR essentials from anywhere.
 
 FEATURES

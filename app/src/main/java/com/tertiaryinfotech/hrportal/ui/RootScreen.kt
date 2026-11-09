@@ -1,5 +1,6 @@
 package com.tertiaryinfotech.hrportal.ui
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.tertiaryinfotech.hrportal.ui.components.BrandHeader
@@ -23,6 +27,20 @@ import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 @Composable
 fun RootScreen(auth: AuthViewModel) {
     LaunchedEffect(Unit) { auth.bootstrap() }
+
+    // Signed in, the top and tab bars are navy in both themes, so the system-bar icons are light.
+    // On the launch and login screens they follow the backdrop (dark icons on the light theme).
+    val view = LocalView.current
+    val lightIcons = auth.phase == AuthViewModel.Phase.SIGNED_IN || Brand.isDark
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !lightIcons
+                isAppearanceLightNavigationBars = !lightIcons
+            }
+        }
+    }
 
     GradientScreen {
         AnimatedContent(

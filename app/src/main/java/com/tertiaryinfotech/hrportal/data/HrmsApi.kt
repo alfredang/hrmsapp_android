@@ -17,7 +17,14 @@ import retrofit2.Response
  * (`ApiException`) unchanged — only the transport underneath moved to Retrofit. Mirrors
  * Services/HRMSAPI.swift.
  */
-class ApiException(val kind: Kind, message: String) : Exception(message) {
+class ApiException(
+    val kind: Kind,
+    message: String,
+    /** HTTP status for [Kind.HTTP] / [Kind.UNAUTHORIZED]; 0 otherwise. */
+    val status: Int = 0,
+    /** The raw error body, so callers can read coded errors (see [LeaveErrors]). */
+    val body: String? = null,
+) : Exception(message) {
     enum class Kind { UNAUTHORIZED, HTTP, NETWORK, DECODING }
 }
 
@@ -99,13 +106,51 @@ object HrmsApi {
         leaveTypeId: String, startDate: String, endDate: String, dayType: String,
         halfDayPosition: String? = null, reason: String, documentUrl: String? = null,
         documentFileName: String? = null, otDaysUsed: Double? = null, useAdvance: Boolean = false,
-    ): Unit = unwrapUnit("Could not submit your leave request.") {
-        service.applyLeave(
-            ApplyLeaveBody(
-                leaveTypeId, startDate, endDate, dayType, halfDayPosition, reason,
-                documentUrl, documentFileName, otDaysUsed, useAdvance,
-            ),
+    ) {
+        try {
+            unwrapUnit("Could not submit your leave request.") {
+                service.applyLeave(
+                    ApplyLeaveBody(
+                        leaveTypeId, startDate, endDate, dayType, halfDayPosition, reason,
+                        documentUrl, documentFileName, otDaysUsed, useAdvance,
+                    ),
+                )
+            }
+        } catch (e: ApiException) {
+            throw leaveFailure(e)
+        }
+    }
+
+    /** Coded refusals (AL over balance, intern MC, NPL cap) become [LeaveRejectedException], which
+     *  carries what the form needs to offer No Pay Leave instead; anything else stays as it was. */
+    internal fun leaveFailure(e: ApiException): Exception {
+        val rejection = if (e.kind == ApiException.Kind.HTTP && e.status == 400) LeaveErrors.parse(e.body) else null
+        return if (rejection != null) LeaveRejectedException(rejection) else e
+    }
+
+    // MARK: - Trainer directory (TRAINER_ADMIN only; 401 signed out, 403 otherwise)
+
+    suspend fun trainers(query: TrainerQuery): TrainersResponse = trainerCall {
+        service.trainers(
+            q = query.q.trim().takeIf { it.isNotEmpty() },
+            certs = query.certs.toList(),
+            tags = query.tags.toList(),
+            finance = if (query.finance) "1" else null,
+            ibfFit = if (query.ibfFit) "1" else null,
+            status = query.status.param,
         )
+    }
+
+    suspend fun trainer(id: String): TrainerProfile = trainerCall { service.trainer(id) }.trainer
+
+    private suspend fun <T> trainerCall(call: suspend () -> Response<T>): T = try {
+        unwrap(defaultError = "Could not load the trainer directory.", call = call)
+    } catch (e: ApiException) {
+        throw when (e.status) {
+            403 -> ApiException(ApiException.Kind.HTTP, "The trainer directory is for Trainer Admins only.", 403, e.body)
+            404 -> ApiException(ApiException.Kind.HTTP, "Trainer not found.", 404, e.body)
+            else -> e
+        }
     }
 
     // MARK: - Submit a claim with its receipt (POST /api/mobile/claims, multipart)
@@ -196,16 +241,18 @@ object HrmsApi {
         // Only a 401 means the session is gone. A 403 is a real refusal with its own message, for
         // example "Cannot edit a past week", so it falls through to the server's error below.
         if (resp.code() == 401)
-            throw ApiException(ApiException.Kind.UNAUTHORIZED, "Your session expired. Please sign in again.")
+            throw ApiException(ApiException.Kind.UNAUTHORIZED, "Your session expired. Please sign in again.", 401)
         if (!resp.isSuccessful) {
             val errText = resp.errorBody()?.string().orEmpty()
             android.util.Log.e("HrmsApi", "HTTP ${resp.code()} ${resp.raw().request.url}: $errText")
-            val msg = try {
-                (json.parseToJsonElement(errText) as? JsonObject)?.get("error")?.jsonPrimitive?.content
-            } catch (_: Exception) { null }
-            throw ApiException(ApiException.Kind.HTTP, msg ?: defaultError)
+            throw ApiException(ApiException.Kind.HTTP, errorMessage(errText) ?: defaultError, resp.code(), errText)
         }
     }
+
+    /** The server's `{"error": "..."}` message, or null when the body isn't that shape. */
+    internal fun errorMessage(errText: String): String? = try {
+        (json.parseToJsonElement(errText) as? JsonObject)?.get("error")?.jsonPrimitive?.content
+    } catch (_: Exception) { null }
 
     private suspend fun <T> unwrap(defaultError: String = "Request failed.", call: suspend () -> Response<T>): T {
         val resp = safeCall(call)

@@ -33,18 +33,18 @@ fun BrandScaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(title, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold) },
+                title = { Text(title, color = Brand.OnBar, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Brand.TextPrimary)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Brand.BarAccent)
                         }
                     }
                 },
                 actions = { actions() },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Brand.Background,
-                    titleContentColor = Brand.TextPrimary,
+                    containerColor = Brand.Bar,
+                    titleContentColor = Brand.OnBar,
                 ),
             )
         },

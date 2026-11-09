@@ -196,6 +196,20 @@ interface HrmsApiService {
     @PATCH("api/profile/password")
     suspend fun changePassword(@Body body: ChangePasswordBody): Response<ResponseBody>
 
+    /** Trainer directory — TRAINER_ADMIN only. `cert`/`tag` repeat; `finance`/`ibfFit` = "1". */
+    @GET("api/mobile/trainers")
+    suspend fun trainers(
+        @Query("q") q: String?,
+        @Query("cert") certs: List<String>,
+        @Query("tag") tags: List<String>,
+        @Query("finance") finance: String?,
+        @Query("ibfFit") ibfFit: String?,
+        @Query("status") status: String?,
+    ): Response<TrainersResponse>
+
+    @GET("api/mobile/trainers/{id}")
+    suspend fun trainer(@Path("id") id: String): Response<TrainerDetailResponse>
+
     @Streaming
     @GET
     suspend fun downloadPdf(@Url url: String): Response<ResponseBody>

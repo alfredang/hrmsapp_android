@@ -46,7 +46,12 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.ApiException
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.LeaveBalance
+import com.tertiaryinfotech.hrportal.data.LeaveErrors
+import com.tertiaryinfotech.hrportal.data.LeaveRejectedException
+import com.tertiaryinfotech.hrportal.data.LeaveRejection
+import com.tertiaryinfotech.hrportal.data.LeaveRules
 import com.tertiaryinfotech.hrportal.data.LeaveType
+import com.tertiaryinfotech.hrportal.data.NplStatus
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.AttachmentSection
 import com.tertiaryinfotech.hrportal.ui.components.PickedAttachment
@@ -66,13 +71,14 @@ import kotlin.math.min
 
 /** Apply-for-leave form (iOS `ApplyLeaveView`), a normal destination inside the app shell. */
 @Composable
-fun ApplyLeaveScreen(nav: NavController, initialTypeCode: String?) {
+fun ApplyLeaveScreen(nav: NavController, initialTypeCode: String?, isIntern: Boolean = false) {
     AsyncListScreen(fetch = { HrmsApi.leave() }) { data ->
         item {
             ApplyLeaveForm(
                 types = data.types,
                 balances = data.balances,
                 initialTypeCode = initialTypeCode,
+                isIntern = isIntern,
                 onApplied = {
                     nav.previousBackStackEntry?.savedStateHandle?.set("leave_applied", true)
                     nav.popBackStack()
@@ -94,22 +100,33 @@ private fun ApplyLeaveForm(
     types: List<LeaveType>,
     balances: List<LeaveBalance>,
     initialTypeCode: String? = null,
+    isIntern: Boolean = false,
     onApplied: () -> Unit,
 ) {
+    val nplTypeId = remember(types) { LeaveRules.typeIdFor(types, LeaveErrors.NPL_CODE) }
+    // Interns have no paid MC: picking MC switches the form to No Pay Leave up front, keeping the
+    // certificate attachment and a "Sick leave (MC)" reason, as the web form does.
+    val startsAsInternSick = isIntern && LeaveRules.isMedical(initialTypeCode) && nplTypeId != null
     var typeId by remember {
         mutableStateOf(
-            types.firstOrNull { it.code == initialTypeCode }?.id
+            (if (startsAsInternSick) nplTypeId else null)
+                ?: types.firstOrNull { it.code == initialTypeCode }?.id
                 ?: types.firstOrNull { it.code == "AL" }?.id
                 ?: types.firstOrNull()?.id
                 ?: "",
         )
     }
+    var sickAsNpl by remember { mutableStateOf(startsAsInternSick) }
     var startMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var endMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var dayType by remember { mutableStateOf("FULL_DAY") }
     var halfDayPosition by remember { mutableStateOf<String?>(null) }
-    var reason by remember { mutableStateOf("") }
+    var reason by remember { mutableStateOf(if (startsAsInternSick) LeaveRules.INTERN_SICK_REASON else "") }
     var attachment by remember { mutableStateOf<PickedAttachment?>(null) }
+    // The uploaded certificate, kept so a resubmission as No Pay Leave doesn't upload it twice.
+    var uploadedDoc by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var rejection by remember { mutableStateOf<LeaveRejection?>(null) }
+    var nplOverride by remember { mutableStateOf<NplStatus?>(null) }
     var useAdvance by remember { mutableStateOf(false) }
     var useOt by remember { mutableStateOf(false) }
     var otDaysToUse by remember { mutableStateOf(0.0) }
@@ -127,6 +144,23 @@ private fun ApplyLeaveForm(
     val isMC = selectedType?.code == "MC" || selectedType?.code == "SL"
     val isAL = selectedType?.code == "AL"
     val isOT = selectedType?.code == "AL_OT"
+    val isNPL = selectedType?.code == LeaveErrors.NPL_CODE
+    val showAttachment = isMC || (sickAsNpl && isNPL)
+    val nplStatus = nplOverride ?: LeaveRules.nplFromBalances(balances)
+
+    fun selectType(t: LeaveType) {
+        if (isIntern && LeaveRules.isMedical(t.code) && nplTypeId != null) {
+            typeId = nplTypeId
+            sickAsNpl = true
+            if (reason.isBlank()) reason = LeaveRules.INTERN_SICK_REASON
+        } else {
+            typeId = t.id
+            if (sickAsNpl) {
+                sickAsNpl = false
+                if (reason == LeaveRules.INTERN_SICK_REASON) reason = ""
+            }
+        }
+    }
 
     // AL/OT context — derived from the same balances the rest of the Leave screen already fetched.
     val otBalance = balances.firstOrNull { it.code == "AL_OT" }?.available ?: 0.0
@@ -191,7 +225,57 @@ private fun ApplyLeaveForm(
         otDaysToUse = min(target, otBalance)
     }
 
-    val canSubmit = typeId.isNotEmpty() && daysNum >= 0.5 && !(isOT && daysNum > otBalance)
+    val nplExceeded = isNPL && nplStatus != null && daysNum > nplStatus.remaining
+    val canSubmit = typeId.isNotEmpty() && daysNum >= 0.5 && !(isOT && daysNum > otBalance) && !nplExceeded
+
+    /**
+     * Uploads the certificate once, then posts the request. [asTypeId] resubmits the same dates and
+     * day type as another leave type (No Pay Leave after a coded refusal).
+     */
+    fun submit(asTypeId: String = typeId, internSick: Boolean = sickAsNpl) {
+        error = null; submitting = true
+        val s = df.format(Date(startMillis))
+        val e = df.format(Date(endMillis))
+        val asOtherType = asTypeId != typeId || types.firstOrNull { it.id == asTypeId }?.code != "AL"
+        val dt = if (isSingleDay && isAL) dayType else "FULL_DAY"
+        val hp = if (isMultiDay && isAL) halfDayPosition else null
+        val sendReason = if (internSick) LeaveRules.internSickReason(reason) else reason
+        val picked = if (showAttachment || internSick) attachment else null
+        val otDays = if (asOtherType) 0.0 else effectiveOtUsed
+        val advance = !asOtherType && isAL && useAdvance
+        scope.launch {
+            try {
+                var doc = uploadedDoc
+                if (picked != null && doc == null) {
+                    val encoded = encodeAttachment(context, picked, onTooLarge = { error = "That file is over the 5 MB limit." })
+                        ?: throw ApiException(ApiException.Kind.NETWORK, error ?: "Could not read the file.")
+                    val uploaded = HrmsApi.uploadFile(encoded.bytes, encoded.fileName, encoded.mimeType)
+                    doc = uploaded.url to uploaded.fileName
+                    uploadedDoc = doc
+                }
+                HrmsApi.applyLeave(
+                    asTypeId, s, e, dt, hp, sendReason, doc?.first, doc?.second, otDays, advance,
+                )
+                submitting = false; done = true
+            } catch (ex: LeaveRejectedException) {
+                submitting = false
+                when (val r = ex.rejection) {
+                    is LeaveRejection.NplCapExceeded -> {
+                        r.npl?.let { nplOverride = it }
+                        error = r.message
+                    }
+                    is LeaveRejection.AlExceedsBalance -> {
+                        r.npl?.let { nplOverride = it }
+                        rejection = r
+                    }
+                    is LeaveRejection.InternMcNotPaid -> rejection = r
+                }
+            } catch (ex: Exception) {
+                submitting = false
+                error = (ex as? ApiException)?.message ?: "Could not submit your leave request."
+            }
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         error?.let { StatusBanner(isError = true, text = it) }
@@ -203,7 +287,7 @@ private fun ApplyLeaveForm(
                 FieldBox(modifier = Modifier.menuAnchor()) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            selectedType?.let { leaveTypeLabel(it, otBalance, availableNow) } ?: "Select\u2026",
+                            selectedType?.let { leaveTypeLabel(it, otBalance, availableNow, nplStatus, isIntern) } ?: "Select\u2026",
                             color = Brand.TextPrimary, fontSize = 16.sp, modifier = Modifier.weight(1f),
                         )
                         Icon(Icons.Filled.UnfoldMore, contentDescription = null, tint = Brand.TextMuted, modifier = Modifier.size(18.dp))
@@ -212,13 +296,13 @@ private fun ApplyLeaveForm(
                 ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     types.forEach { t ->
                         DropdownMenuItem(
-                            text = { Text(leaveTypeLabel(t, otBalance, availableNow)) },
-                            onClick = { typeId = t.id; expanded = false },
+                            text = { Text(leaveTypeLabel(t, otBalance, availableNow, nplStatus, isIntern)) },
+                            onClick = { selectType(t); expanded = false },
                         )
                     }
                 }
             }
-            if (selectedType?.paid == false) {
+            if (selectedType?.paid == false && !isNPL) {
                 Text("This leave type is unpaid.", color = Brand.Amber, fontSize = 12.sp)
             }
             if (isOT) {
@@ -229,13 +313,17 @@ private fun ApplyLeaveForm(
             }
         }
 
-        if (isMC) {
+        if (isNPL) {
+            NplPanel(npl = nplStatus, daysNum = daysNum, internSick = sickAsNpl, exceeded = nplExceeded)
+        }
+
+        if (showAttachment) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FieldLabel("Medical certificate")
                 FieldBox {
                     AttachmentSection(
                         attachment = attachment,
-                        onChange = { attachment = it },
+                        onChange = { attachment = it; uploadedDoc = null },
                         onError = { error = it },
                         takeLabel = "Take photo of MC",
                         baseName = "medical-certificate",
@@ -346,6 +434,8 @@ private fun ApplyLeaveForm(
                 nonEarnedDays = nonEarnedDays, daysNum = daysNum, advanceDays = advanceDays,
                 deficitDays = deficitDays, effectiveOtUsed = effectiveOtUsed,
                 fullyWithinEntitlement = fullyWithinEntitlement,
+                nplRemaining = nplStatus?.remaining,
+                onApplyAsNpl = nplTypeId?.let { id -> { typeId = id; sickAsNpl = false } },
             )
         }
 
@@ -355,38 +445,49 @@ private fun ApplyLeaveForm(
         }
 
         PremierButton(
-            title = if (deficitDays > 0) "Submit with ${Fmt.num(deficitDays)}d deficit" else "Submit request",
+            title = if (sickAsNpl && isNPL) "Submit as No Pay Leave" else "Submit request",
             icon = Icons.AutoMirrored.Filled.Send,
             loading = submitting, enabled = canSubmit,
-        ) {
-            error = null; submitting = true
-            val s = df.format(Date(startMillis))
-            val e = df.format(Date(endMillis))
-            val dt = if (isSingleDay && isAL) dayType else "FULL_DAY"
-            val hp = if (isMultiDay && isAL) halfDayPosition else null
-            val picked = if (isMC) attachment else null
-            scope.launch {
-                try {
-                    var documentUrl: String? = null
-                    var documentFileName: String? = null
-                    if (picked != null) {
-                        val encoded = encodeAttachment(context, picked, onTooLarge = { error = "That file is over the 5 MB limit." })
-                            ?: throw ApiException(ApiException.Kind.NETWORK, error ?: "Could not read the file.")
-                        val uploaded = HrmsApi.uploadFile(encoded.bytes, encoded.fileName, encoded.mimeType)
-                        documentUrl = uploaded.url
-                        documentFileName = uploaded.fileName
+        ) { submit() }
+    }
+
+    rejection?.let { r ->
+        val npl = (r as? LeaveRejection.AlExceedsBalance)?.npl ?: nplStatus
+        AlertDialog(
+            onDismissRequest = { rejection = null },
+            title = {
+                Text(
+                    if (r is LeaveRejection.InternMcNotPaid) "Sick leave is No Pay Leave for interns"
+                    else "Not enough annual leave",
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(r.message)
+                    if (npl != null) {
+                        Text(
+                            "No Pay Leave left this year: ${Fmt.num(npl.remaining)} of ${Fmt.num(npl.cap)} day(s).",
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
-                    HrmsApi.applyLeave(
-                        typeId, s, e, dt, hp, reason, documentUrl, documentFileName,
-                        effectiveOtUsed, isAL && useAdvance,
-                    )
-                    submitting = false; done = true
-                } catch (ex: Exception) {
-                    submitting = false
-                    error = (ex as? ApiException)?.message ?: "Could not submit your leave request."
                 }
-            }
-        }
+            },
+            confirmButton = {
+                if (nplTypeId != null) {
+                    TextButton(onClick = {
+                        val internSick = r is LeaveRejection.InternMcNotPaid
+                        rejection = null
+                        typeId = nplTypeId
+                        sickAsNpl = internSick
+                        if (internSick) reason = LeaveRules.internSickReason(reason)
+                        submit(asTypeId = nplTypeId, internSick = internSick)
+                    }) {
+                        Text(if (r is LeaveRejection.InternMcNotPaid) "Submit as No Pay Leave" else "Apply as No Pay Leave instead")
+                    }
+                }
+            },
+            dismissButton = { TextButton(onClick = { rejection = null }) { Text("Cancel") } },
+        )
     }
 
     if (done) {
@@ -399,9 +500,13 @@ private fun ApplyLeaveForm(
     }
 }
 
-private fun leaveTypeLabel(type: LeaveType, otBalance: Double, alAvailable: Double): String = when {
+private fun leaveTypeLabel(
+    type: LeaveType, otBalance: Double, alAvailable: Double, npl: NplStatus?, isIntern: Boolean,
+): String = when {
     type.code == "AL_OT" -> "${type.name} (${Fmt.num(otBalance)} days available)"
     type.code == "AL" -> "${type.name} (${Fmt.num(alAvailable)} days available)"
+    type.code == LeaveErrors.NPL_CODE && npl != null -> "${type.name} (${Fmt.num(npl.remaining)} of ${Fmt.num(npl.cap)} days left)"
+    isIntern && LeaveRules.isMedical(type.code) -> "${type.name} (unpaid for interns \u2014 goes in as No Pay Leave)"
     type.defaultDays > 0 -> "${type.name} (${type.defaultDays} days/year)"
     else -> type.name
 }
@@ -426,6 +531,8 @@ private fun AlBalancePanel(
     deficitDays: Double,
     effectiveOtUsed: Double,
     fullyWithinEntitlement: Boolean,
+    nplRemaining: Double?,
+    onApplyAsNpl: (() -> Unit)?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         // Balance summary
@@ -460,7 +567,7 @@ private fun AlBalancePanel(
                     Text("Use advance annual leave", color = Brand.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text(
                         "Borrow up to ${Fmt.num(advanceAvailable)} day(s) you'll earn by the end of this year." +
-                            if (useAdvance) "" else " If off, days beyond your balance count as deficit.",
+                            if (useAdvance) "" else " If off, days beyond your balance must be taken as No Pay Leave.",
                         color = Brand.TextMuted, fontSize = 11.sp,
                     )
                 }
@@ -534,7 +641,7 @@ private fun AlBalancePanel(
                     BreakdownRow("Off In Lieu days used:", "${Fmt.num(effectiveOtUsed)} day(s)", Brand.TextSecondary, Brand.Green)
                 }
                 if (deficitDays > 0) {
-                    BreakdownRow("Deficit (beyond entitlement):", "${Fmt.num(deficitDays)} day(s)", Brand.Red, Brand.Red)
+                    BreakdownRow("Not covered by AL (needs No Pay Leave):", "${Fmt.num(deficitDays)} day(s)", Brand.Red, Brand.Red)
                 }
                 if (advanceDays > 0 && deficitDays == 0.0) {
                     BreakdownNote(
@@ -545,10 +652,18 @@ private fun AlBalancePanel(
                 }
                 if (deficitDays > 0) {
                     BreakdownNote(
-                        "${Fmt.num(deficitDays)} day(s) exceed your full entitlement. These will be recorded as a deficit, offset by " +
-                            "future Off In Lieu days earned from weekend/holiday work.",
+                        "${Fmt.num(deficitDays)} day(s) exceed the annual leave you have available. Leave beyond your entitlement " +
+                            "must be taken as No Pay Leave: shorten this request to ${Fmt.num(max(0.0, daysNum - deficitDays))} day(s) " +
+                            "and apply for the rest as No Pay Leave" +
+                            (nplRemaining?.let { " (${Fmt.num(it)} day(s) left this year)" } ?: "") +
+                            ", or apply for the whole period as No Pay Leave.",
                         Brand.Red, Icons.Filled.Warning,
                     )
+                    if (onApplyAsNpl != null) {
+                        TextButton(onClick = onApplyAsNpl) {
+                            Text("Apply as No Pay Leave instead", color = Brand.Accent, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                    }
                 }
                 if (fullyWithinEntitlement && advanceDays == 0.0 && deficitDays == 0.0) {
                     BreakdownNote(
@@ -583,5 +698,49 @@ private fun BreakdownNote(text: String, color: Color, icon: androidx.compose.ui.
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(12.dp))
         Text(text, color = color, fontSize = 10.sp)
+    }
+}
+
+/** No Pay Leave cap status (also intern sick leave), as the web form's NPL panel. */
+@Composable
+private fun NplPanel(npl: NplStatus?, daysNum: Double, internSick: Boolean, exceeded: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(if (exceeded) Brand.Red.copy(alpha = 0.12f) else Brand.Surface)
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        if (internSick) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Filled.Info, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(16.dp))
+                Text(
+                    "Interns do not have paid medical leave. This sick leave will be submitted as No Pay Leave " +
+                        "with your medical certificate attached.",
+                    color = Brand.TextPrimary, fontSize = 12.sp,
+                )
+            }
+        }
+        if (npl != null) {
+            Text("NO PAY LEAVE", color = Brand.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SummaryStat("Cap to date", Fmt.num(npl.cap), Brand.TextPrimary)
+                SummaryStat("Taken", Fmt.num(npl.used), Brand.Amber)
+                SummaryStat("Pending", Fmt.num(npl.pending), Brand.Accent)
+                SummaryStat("Remaining", Fmt.num(npl.remaining), if (exceeded) Brand.Red else Brand.Green)
+            }
+        }
+        Text(
+            "No Pay Leave is capped at 21 days a year, prorated by the full months you have served this year.",
+            color = Brand.TextMuted, fontSize = 11.sp,
+        )
+        if (exceeded && npl != null) {
+            BreakdownNote(
+                "This request (${Fmt.num(daysNum)} day(s)) is more than your remaining No Pay Leave " +
+                    "(${Fmt.num(npl.remaining)} day(s)). Please shorten it or speak to HR.",
+                Brand.Red, Icons.Filled.Warning,
+            )
+        }
     }
 }

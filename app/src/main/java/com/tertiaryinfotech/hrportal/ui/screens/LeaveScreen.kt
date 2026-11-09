@@ -1,6 +1,11 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,6 +95,11 @@ private fun Spacer(height: Int) = androidx.compose.foundation.layout.Spacer(Modi
 
 @Composable
 private fun BalanceCard(b: LeaveBalance) {
+    // No Pay Leave: the server sends the prorated cap as proRated and what's left as available.
+    if (b.code == "NPL" && b.proRated != null) {
+        NplBalanceCard(b, cap = b.proRated)
+        return
+    }
     Card {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -110,6 +120,55 @@ private fun BalanceCard(b: LeaveBalance) {
             MiniStat("Pending", b.pending)
             if (b.carriedOver > 0) MiniStat("Carried", b.carriedOver)
         }
+    }
+}
+
+/** No Pay Leave: days left against the cap (21 a year, prorated by full months served). */
+@Composable
+private fun NplBalanceCard(b: LeaveBalance, cap: Double) {
+    val remaining = b.available
+    val usedShare = if (cap > 0) ((cap - remaining) / cap).coerceIn(0.0, 1.0).toFloat() else 1f
+    Card {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(b.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("Unpaid \u00b7 capped at ${Fmt.num(cap)} days to date", color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp)
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "${Fmt.num(remaining)} of ${Fmt.num(cap)}",
+                    color = if (remaining <= 0) Brand.Red else Brand.Accent,
+                    fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                )
+                Text("days left", color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp)
+            }
+        }
+        Box(
+            modifier = Modifier
+                .padding(top = 10.dp)
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(CircleShape)
+                .background(Brand.TextPrimary.copy(alpha = 0.12f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(usedShare)
+                    .height(6.dp)
+                    .clip(CircleShape)
+                    .background(if (remaining <= 0) Brand.Red else Brand.Amber),
+            )
+        }
+        Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            MiniStat("Cap", cap)
+            MiniStat("Used", b.used)
+            MiniStat("Pending", b.pending)
+            MiniStat("Left", remaining)
+        }
+        Text(
+            "No Pay Leave is capped at 21 days a year, prorated by the full months you have served.",
+            color = Brand.TextPrimary.copy(alpha = 0.55f), fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
 

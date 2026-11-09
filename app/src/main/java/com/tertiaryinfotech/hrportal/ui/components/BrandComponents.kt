@@ -73,7 +73,7 @@ fun BrandHeader(compact: Boolean = false) {
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "Tertiary HRMS", color = Brand.TextPrimary, fontWeight = FontWeight.Bold,
+                "TIA HRMS", color = Brand.TextPrimary, fontWeight = FontWeight.Bold,
                 fontSize = if (compact) 24.sp else 30.sp,
             )
             Text(
@@ -94,7 +94,7 @@ fun BrandBarTitle() {
             modifier = Modifier.size(30.dp).clip(CircleShape),
         )
         Text(
-            "Tertiary Infotech Academy", color = Brand.TextPrimary, fontWeight = FontWeight.Bold,
+            "Tertiary Infotech Academy", color = Brand.OnBar, fontWeight = FontWeight.Bold,
             fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
     }
@@ -245,7 +245,7 @@ fun InitialsAvatar(initials: String, size: Int, avatarUrl: String? = null) {
 fun NotificationBell(unreadCount: Int, onClick: () -> Unit) {
     Box {
         IconButton(onClick = onClick) {
-            Icon(Icons.Filled.Notifications, contentDescription = "Notifications", tint = Brand.TextPrimary)
+            Icon(Icons.Filled.Notifications, contentDescription = "Notifications", tint = Brand.OnBar)
         }
         if (unreadCount > 0) {
             Box(
@@ -254,12 +254,12 @@ fun NotificationBell(unreadCount: Int, onClick: () -> Unit) {
                     .offset(x = (-6).dp, y = 6.dp)
                     .size(16.dp)
                     .clip(CircleShape)
-                    .background(Brand.Red),
+                    .background(Brand.Gold),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     if (unreadCount > 9) "9+" else "$unreadCount",
-                    color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                    color = Brand.Navy, fontSize = 9.sp, fontWeight = FontWeight.Bold,
                 )
             }
         }

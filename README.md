@@ -1,6 +1,6 @@
 <div align="center">
 
-# Tertiary HRMS — Android
+# TIA HRMS — Android
 
 [![Google Play](https://img.shields.io/badge/Google%20Play-Download-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)
 [![Platform](https://img.shields.io/badge/Platform-Android%207%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
@@ -30,10 +30,10 @@
 
 ## About
 
-**Tertiary HRMS for Android** is the Google Play build of Tertiary Infotech Academy's Human
+**TIA HRMS for Android** (formerly Tertiary HRMS) is the Google Play build of Tertiary Infotech Academy's Human
 Resource Management System — **rebuilt fully native in Kotlin + Jetpack Compose**, with no WebView
 and no cross-platform runtime. It is the Android sibling of the native iOS app and a faithful 1:1
-port of its features, **Premier Blue** theme (navy → azure gradient, frosted cards), and API layer.
+port of its features, the TIA HRMS **premium-blue** brand (navy → royal-blue gradient, frosted cards, gold accent), and API layer.
 
 The app is a **secure client** of the existing HRMS web backend — it has no database of its own.
 All data stays on the company server and is accessed over encrypted HTTPS, reusing the web app's
@@ -45,7 +45,7 @@ existing single sign-on session, exactly as a browser would.
 |--------|-------------|
 | **Login** | Email + password or one-time email code (OTP), via the web app's NextAuth session. **Persistent** — stays signed in across app restarts |
 | **Dashboard** | Annual, medical and OT leave balances plus expenses at a glance; **Approvals queue** cards for admins (Manager / HR / Admin) |
-| **Leave** | View balances and full request history, and apply for leave in a few taps (server computes working days and proration). **Medical leave (MC)** attaches an MC photo |
+| **Leave** | View balances (including the **No Pay Leave cap and days left**) and full request history, and apply for leave in a few taps (server computes working days and proration). **Medical leave (MC)** attaches an MC photo. AL beyond the balance offers **Apply as No Pay Leave instead**; interns' sick leave goes in as No Pay Leave |
 | **Approvals** *(admins only)* | Approve or reject pending leave and expense requests in-app — enforced server-side (role ∈ Manager / HR / Admin) |
 | **Payslips** | Browse personal payslips and open the official PDF, rendered natively in-app via `PdfRenderer` |
 | **Expenses** | Submit and track expense / medical claims with a receipt photo and clear status badges |
@@ -54,6 +54,7 @@ existing single sign-on session, exactly as a browser would.
 | **Timesheet** | Simple **clock in / out** with a live elapsed timer and a monthly daily check-in/out history with total hours — an open punch shows **hours so far** today, or **"No clock-out"** for an earlier day |
 | **Intern Attendance** (admin) | Each intern's days worked + total hours per month, drilling into their daily history |
 | **Leave & MC Summary** (admin) | Every active staff member's and intern's MC and leave for the month, with totals, a Staff / Interns filter and a per-person drill-down |
+| **Trainers** *(Trainer Admins)* | Read-only trainer directory: search, accreditation filters (ACLP / ACTA / DACE / DDDLP, Finance, IBF Fit) and full profiles with contact, accreditation, skills and classes taught |
 | **Notifications** | In-app bell with unread badge and a notifications list |
 | **Profile** | Full employee record, change password, and a **light / dark theme** toggle |
 
@@ -124,8 +125,8 @@ hrmsapp_android/
 │       ├── LoginScreen.kt
 │       ├── RootScreen.kt
 │       ├── screens/                 # Dashboard, Leave, Team, Payslips, …
-│       ├── components/              # Reusable Premier Blue controls
-│       └── theme/Theme.kt           # Premier Blue gradient theme
+│       ├── components/              # Reusable brand controls
+│       └── theme/Theme.kt           # TIA HRMS premium-blue theme (BRAND.md)
 ├── store/                           # Play listing assets + submission guide
 ├── scripts/                         # Asset generation helpers
 └── app/build.gradle.kts
@@ -157,9 +158,9 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 
 ## Deployment (Google Play)
 
-> **Live on Google Play** — [Tertiary HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
-> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.9
-> (versionCode 21) is the current production release.
+> **Live on Google Play** — [TIA HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.10
+> (versionCode 22) is the current production release.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)
@@ -196,7 +197,7 @@ When a feature changes on Android, **mirror it on the iOS app** to keep parity.
   [Material Design 3](https://m3.material.io)
 - Networking by [OkHttp](https://square.github.io/okhttp/) and
   [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization)
-- Native sibling of the Tertiary HRMS iOS app
+- Native sibling of the TIA HRMS iOS app
 
 ---
 

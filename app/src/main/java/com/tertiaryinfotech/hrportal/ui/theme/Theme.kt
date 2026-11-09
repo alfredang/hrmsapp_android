@@ -17,10 +17,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
- * Premier Blue design tokens — pixel-matched to the native **iOS** app (`Theme/Theme.swift`), which
- * is the visual source of truth for this app. A deep royal-blue identity: navy foundations rising
- * to a vivid premier blue then bright azure. The signature backdrop is the navy → premier → azure
- * diagonal gradient ([GradientScreen]); cards are translucent frosted panels on top of it.
+ * TIA HRMS "premium blue" design tokens (BRAND.md, 9 Nov 2026) on the iOS app's layout system,
+ * which stays the source of truth for structure (`Theme/Theme.swift`). Navy-950 → navy-800 →
+ * royal-600 is the signature backdrop ([GradientScreen]); cards are translucent frosted panels on
+ * top of it, bars are navy in both themes, and gold-400 is the single, sparing warm accent.
  *
  * Unlike iOS (dark-only today), this Android build keeps a **light / dark toggle** — both themed in
  * Premier Blue. Dark is the iOS look (navy→azure gradient, frosted-white cards, white text). Light
@@ -32,15 +32,28 @@ import androidx.compose.ui.graphics.Color
  * read live theme state and recompose automatically when the user flips Dark/Light on Profile.
  */
 object Brand {
-    // MARK: Fixed brand blues (exact hex from the iOS Theme.swift) — same in both themes.
-    /** Deep navy — dark gradient base / opaque bars. `#0A1F44`. */
-    val Navy = Color(0xFF0A1F44)
-    /** Premier blue — primary brand / accent. `#1D4ED8`. */
-    val Premier = Color(0xFF1D4ED8)
-    /** Bright azure — gradient top / highlights. `#3B82F6`. */
-    val Azure = Color(0xFF3B82F6)
-    /** Soft sky — subtle accents. `#94C5FD`. */
-    val Sky = Color(0xFF94C5FD)
+    // MARK: Fixed brand colours (BRAND.md palette) — same in both themes.
+    /** navy-950 — darkest background, gradient start, bars. `#0D1638`. */
+    val Navy = Color(0xFF0D1638)
+    /** navy-800 — gradient middle, headers. `#1A2F86`. */
+    val Navy800 = Color(0xFF1A2F86)
+    /** royal-600 — primary buttons, links and the active tab in light mode. `#2F5BE6`. */
+    val Premier = Color(0xFF2F5BE6)
+    /** royal-500 — hover / pressed-light, top of the button gradient. `#3D6BF0`. */
+    val Azure = Color(0xFF3D6BF0)
+    /** royal-300 — primary on dark backgrounds. `#8FB0FF`. */
+    val Sky = Color(0xFF8FB0FF)
+    /** mist-100 — secondary text on blue. `#C9D8FF`. */
+    val Mist = Color(0xFFC9D8FF)
+    /** gold-400 — the single warm accent (badges, highlights, focus dots). Use sparingly, as a fill. */
+    val Gold = Color(0xFFF5B83D)
+    /** gold-600 — gold pressed / gradient end. */
+    val Gold600 = Color(0xFFD9921C)
+
+    /** Top bar + tab bar: navy in both themes, with white content and a royal-300 accent. */
+    val Bar = Navy
+    val OnBar = Color.White
+    val BarAccent = Sky
 
     /** Brand accent (premier blue) — button + tab tint. Identical in both themes. */
     val Primary = Premier
@@ -72,8 +85,7 @@ object Brand {
 
     /** Dark = the iOS Premier Blue look: navy→premier→azure gradient, frosted-white cards, white text. */
     private object DarkPalette : PaletteTokens {
-        // Opaque tab / nav bars — iOS MainTabView's UIColor(0.04, 0.10, 0.22).
-        override val Background = Color(0xFF0A1A38)
+        override val Background = Navy
         override val Surface = Color.White.copy(alpha = 0.07f)     // iOS Card fill
         override val SurfaceStrong = Color.White.copy(alpha = 0.12f)
         override val Border = Color.White.copy(alpha = 0.12f)      // iOS Card stroke
@@ -81,8 +93,8 @@ object Brand {
         override val Field = Color.White.copy(alpha = 0.12f)
         override val FieldBorder = Color.White.copy(alpha = 0.22f)
         override val TextPrimary = Color.White
-        override val TextSecondary = Color.White.copy(alpha = 0.7f)
-        override val TextMuted = Color.White.copy(alpha = 0.55f)
+        override val TextSecondary = Mist.copy(alpha = 0.85f)
+        override val TextMuted = Mist.copy(alpha = 0.62f)
         override val TextFaint = Color.White.copy(alpha = 0.40f)
         // iOS system colours as they resolve in dark mode, which is what the iOS app always runs in.
         override val Green = Color(0xFF30D158)
@@ -94,8 +106,8 @@ object Brand {
         override val Pink = Color(0xFFFF375F)
         override val Teal = Color(0xFF40C8E0)
         override val Accent = Sky
-        override val Dialog = Color(0xFF12264D)
-        override val gradient = listOf(Navy, Premier, Azure)
+        override val Dialog = Color(0xFF16245E)
+        override val gradient = listOf(Navy, Navy800, Premier)
     }
 
     /** Light = Premier-Blue light remap: near-white / very-light-blue surfaces, blue accents, ink text. */
@@ -107,8 +119,8 @@ object Brand {
         override val BorderLight = Color(0xFFC2D3F0)
         override val Field = Color(0xFFF3F6FD)
         override val FieldBorder = Color(0xFFD5E1F7)
-        override val TextPrimary = Color(0xFF0A1F44)               // navy ink
-        override val TextSecondary = Color(0xFF3B5680)
+        override val TextPrimary = Navy                             // navy ink
+        override val TextSecondary = Color(0xFF3A4A7A)
         override val TextMuted = Color(0xFF64748B)
         override val TextFaint = Color(0xFF94A3B8)
         override val Green = Color(0xFF15803D)
@@ -121,7 +133,7 @@ object Brand {
         override val Teal = Color(0xFF0F766E)
         override val Accent = Premier
         override val Dialog = Color.White
-        override val gradient = listOf(Color(0xFFF7FAFF), Color(0xFFEFF4FF), Color(0xFFE7EFFF))
+        override val gradient = listOf(Color(0xFFF7F9FF), Color(0xFFEEF2FF), Color(0xFFE4EBFF))
     }
 
     var isDark: Boolean by mutableStateOf(true)
@@ -266,8 +278,9 @@ fun TertiaryHRMSTheme(content: @Composable () -> Unit) {
         onSecondary = if (Brand.isDark) Brand.Navy else Color.White,
         secondaryContainer = Brand.Border,
         onSecondaryContainer = Brand.TextPrimary,
-        tertiary = Brand.Purple,
-        onTertiary = Color.White,
+        // The brand's single warm accent replaces Material's default purple tertiary.
+        tertiary = Brand.Gold,
+        onTertiary = Brand.Navy,
 
         background = Brand.Background,
         onBackground = Brand.TextPrimary,

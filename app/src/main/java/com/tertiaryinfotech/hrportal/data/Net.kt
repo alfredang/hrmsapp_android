@@ -32,12 +32,7 @@ object Net {
     lateinit var retrofit: Retrofit
         private set
 
-    val json: Json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-        coerceInputValues = true
-        explicitNulls = false
-    }
+    val json: Json = HrmsJson
 
     fun init(context: Context) {
         if (::client.isInitialized) return
