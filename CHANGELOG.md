@@ -38,8 +38,10 @@ The app is now **TIA HRMS**, with the new leave rules and a trainer directory.
 - AL beyond the balance is no longer described as a deficit: the form says it needs No Pay Leave.
 
 ### Play submission
-- Production track, full rollout, corporate account `sales@tertiarycourses.com.sg`; listing title
-  changed to TIA HRMS with the new icon, feature graphic and phone screenshots.
+- Production track, full rollout (`completed`), corporate account `sales@tertiarycourses.com.sg`;
+  uploaded 2026-11-09 through the Android Publisher API (shared service account), release
+  "1.10 (22)". The same edit renamed the en-US listing to TIA HRMS and replaced the icon, feature
+  graphic and the 8 phone screenshots (`store/screenshots/`).
 
 ## [1.9] — 2026-11-06 · versionCode 21
 
