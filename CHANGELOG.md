@@ -9,7 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
 ### Release notes (Play, en-US)
 - Push notifications for approvals, clock-in/out and timesheet reminders.
 - Trainer contact list under More for all staff.
+- Calendar weeks start on Monday, with all public holidays shown.
 - Clearer white initials on avatars.
+- New premium-blue app icon, matching the TC LMS SG app.
 
 ### Added
 - Push alerts via Firebase Cloud Messaging (project `tia-hrms`): channel `hrms_alerts`, Android 13+

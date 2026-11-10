@@ -32,7 +32,7 @@ ctx.translateBy(x: S*(1-GLYPH_SCALE)/2, y: S*(1-GLYPH_SCALE)/2)
 ctx.scaleBy(x: GLYPH_SCALE, y: GLYPH_SCALE)
 
 // (background omitted: glyph-only adaptive foreground)
-let premier = NSColor(srgbRed: 0.114, green: 0.306, blue: 0.847, alpha: 1)  // #1D4ED8
+let premier = NSColor(srgbRed: 0.004, green: 0.220, blue: 0.647, alpha: 1)  // #0138A5 (TC LMS royal blue, 11 Nov 2026)
 // --- Soft "badge" ring behind the mark ---
 ctx.saveGState()
 let ringR = S * 0.30
