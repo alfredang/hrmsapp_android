@@ -4,6 +4,16 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.12.1] — 2026-11-11 · versionCode 25
+
+### Release notes (Play, en-US)
+- Clearer More menu: Applications, Staff and Intern sections.
+
+### Changed
+- More is grouped as Applications (MC, Leave, Time Off, Expense Claims, Off In Lieu for staff),
+  Staff (Calendar, Payslips, My Profile, Trainers), Intern (Time In/Out and Timesheet — interns and
+  admins only), then Manage.
+
 ## [1.12] — 2026-11-11 · versionCode 24
 
 ### Release notes (Play, en-US)

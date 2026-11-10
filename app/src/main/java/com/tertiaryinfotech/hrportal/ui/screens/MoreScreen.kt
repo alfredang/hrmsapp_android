@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTimeFilled
@@ -72,32 +73,49 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             }
         }
 
+        val approver = isApprover(auth)
+        val intern = auth.user?.isIntern == true
+
+        GroupLabel("Applications")
         Card(padding = 6) {
-            MenuLink("Payslips", Icons.Filled.Description, Brand.Green) { nav.navigate("payslips") }
+            MenuLink("MC", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("leave_request/MC") }
             MenuDivider()
-            MenuLink("Expense claims", Icons.Filled.CreditCard, Brand.Orange) { nav.navigate("expenses") }
-            MenuDivider()
-            MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
-            MenuDivider()
-            // Every staff member and intern can look up and contact a trainer.
-            MenuLink("Trainers", Icons.Filled.School, Brand.Gold600) { nav.navigate("trainer_contacts") }
-            MenuDivider()
-            MenuLink("Clock In / Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
-            MenuDivider()
-            // Only interns have timesheets; everyone else logs weekend / PH work for Off In Lieu on
-            // the same weekly page (web sidebar, 464200b).
-            if (auth.user?.isIntern == true) {
-                MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_week") }
-            } else {
-                MenuLink("Off In Lieu", Icons.Filled.EventAvailable, Brand.Mint) { nav.navigate("timesheet_week") }
-            }
+            MenuLink("Leave", Icons.AutoMirrored.Filled.EventNote, Brand.Accent) { nav.navigate("leave_request/AL") }
             MenuDivider()
             MenuLink("Time Off", Icons.Filled.HourglassBottom, Brand.Purple) { nav.navigate("time_off") }
             MenuDivider()
-            MenuLink("My profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
+            MenuLink("Expense Claims", Icons.Filled.CreditCard, Brand.Orange) { nav.navigate("expenses") }
+            // Staff log weekend / PH work for Off In Lieu; interns have a timesheet instead (Intern group).
+            if (!intern) {
+                MenuDivider()
+                MenuLink("Off In Lieu", Icons.Filled.EventAvailable, Brand.Mint) { nav.navigate("timesheet_week") }
+            }
         }
 
-        val approver = isApprover(auth)
+        GroupLabel("Staff")
+        Card(padding = 6) {
+            MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
+            MenuDivider()
+            MenuLink("Payslips", Icons.Filled.Description, Brand.Green) { nav.navigate("payslips") }
+            MenuDivider()
+            MenuLink("My Profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
+            MenuDivider()
+            // Every staff member and intern can look up and contact a trainer.
+            MenuLink("Trainers", Icons.Filled.School, Brand.Gold600) { nav.navigate("trainer_contacts") }
+        }
+
+        // Interns must clock in and out every workday; admins see it too. Hidden for plain staff.
+        if (intern || approver) {
+            GroupLabel("Intern")
+            Card(padding = 6) {
+                MenuLink("Time In/Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
+                if (intern) {
+                    MenuDivider()
+                    MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_week") }
+                }
+            }
+        }
+
         if (approver || auth.canManageTrainers) {
             GroupLabel("Manage")
             Card(padding = 6) {
