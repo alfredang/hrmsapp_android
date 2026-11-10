@@ -4,6 +4,26 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.12] — 2026-11-11 · versionCode 24
+
+### Release notes (Play, en-US)
+- Push notifications for approvals, clock-in/out and timesheet reminders.
+- Trainer contact list under More for all staff.
+- Clearer white initials on avatars.
+
+### Added
+- Push alerts via Firebase Cloud Messaging (project `tia-hrms`): channel `hrms_alerts`, Android 13+
+  permission prompt, token registration with `/api/mobile/push-token`, tap-to-open by link.
+- More → Trainers: searchable trainer contact list for every user (call, WhatsApp, email).
+- More → Manage group (Approvals, Timesheet, Leave & MC Summary, Trainer Management).
+
+### Changed
+- Trainer Management moved from the bottom tab bar into More → Manage (still Trainer Admins only).
+- Notifications list and unread badge now include every alert for the user (missed clock-in/out,
+  timesheet reminders, approval requests for admins).
+- Certificate chips show the short code and stay on one line; the Accreditation section lists only
+  what the trainer holds, with an "IBF" chip for a Fit & Proper declaration.
+
 ## [1.11] — 2026-11-10 · versionCode 23
 
 Neat, well-structured, interactive screens and one light theme, matching the web app (464200b).

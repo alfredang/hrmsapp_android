@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +39,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.AppNotification
 import com.tertiaryinfotech.hrportal.data.HrmsApi
-import com.tertiaryinfotech.hrportal.data.STAFF_NOTIFICATION_TYPES
+import com.tertiaryinfotech.hrportal.data.isVisibleNotification
+import com.tertiaryinfotech.hrportal.push.routeForLink
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
@@ -48,8 +51,8 @@ import kotlinx.coroutines.launch
 import java.util.Date
 
 /**
- * Notifications — staff/intern-relevant types only (mirrors `EMPLOYEE_TYPES` filtering in the
- * web's `notification-bell.tsx`). Tapping an item marks it read and, where a matching in-app
+ * Notifications — every alert addressed to this user (missed clock-in/out, timesheet reminders,
+ * decisions, and for admins new approval requests). Tapping an item marks it read and, where a matching in-app
  * destination exists, navigates there — mirroring the web's `link`-driven click-through.
  */
 @Composable
@@ -60,7 +63,7 @@ fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
     run {
         Column {
             key(reloadKey) {
-                AsyncListScreen(fetch = { HrmsApi.notifications().filter { it.type in STAFF_NOTIFICATION_TYPES } }) { list ->
+                AsyncListScreen(fetch = { HrmsApi.notifications().filter { isVisibleNotification(it.type) } }) { list ->
                     if (list.isEmpty()) {
                         item { EmptyHint(Icons.Filled.NotificationsNone, "No notifications yet.") }
                     } else {
@@ -74,7 +77,7 @@ fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
                                             reloadKey++
                                         } catch (_: Exception) { /* keep showing as unread */ }
                                     }
-                                    routeFor(n.link)?.let { nav.navigate(it) }
+                                    routeForLink(n.link, n.type, isApprover(auth))?.let { nav.navigate(it) }
                                 }
                             }
                             Spacer12()
@@ -120,21 +123,12 @@ private fun iconFor(type: String): Pair<ImageVector, Color> = when (type) {
     "LEAVE_REJECTED" -> Icons.Filled.EventBusy to Brand.Red
     "OT_APPROVED" -> Icons.Filled.Work to Brand.Emerald
     "OT_REJECTED" -> Icons.Filled.Work to Brand.Red
+    "ATTENDANCE_MISSED", "TIMESHEET_REMINDER" -> Icons.Filled.Schedule to Brand.Amber
+    "LEAVE_SUBMITTED", "TIME_OFF_SUBMITTED", "EXPENSE_SUBMITTED", "ATTENDANCE_CORRECTION_SUBMITTED" ->
+        Icons.Filled.PendingActions to Brand.Accent
+    "TIME_OFF_APPROVED", "EXPENSE_APPROVED", "ATTENDANCE_CORRECTION_APPROVED" -> Icons.Filled.EventAvailable to Brand.Green
+    "TIME_OFF_REJECTED", "EXPENSE_REJECTED", "ATTENDANCE_CORRECTION_REJECTED" -> Icons.Filled.EventBusy to Brand.Red
     else -> Icons.Filled.Info to Brand.TextSecondary
-}
-
-/** Best-effort mapping from the web's notification `link` (a web route path) to an in-app route. */
-private fun routeFor(link: String?): String? = when {
-    link == null -> null
-    link.startsWith("/leave") -> "leave"
-    link.startsWith("/expenses") -> "expenses"
-    link.startsWith("/calendar") -> "calendar"
-    // Missing-punch submissions point admins at the merged Timesheet page.
-    link.startsWith("/timesheet/overview") || link.startsWith("/attendance/overview") -> "timesheet_admin"
-    link.startsWith("/timesheet") -> "timesheet_week"
-    link.startsWith("/attendance") -> "timesheet"
-    link.startsWith("/time-off") -> "time_off"
-    else -> null
 }
 
 private fun timeAgo(iso: String?): String {

@@ -325,13 +325,12 @@ data class AppNotification(
     val createdAt: String? = null,
 )
 
-/** Notification types relevant to a staff/intern view — mirrors `EMPLOYEE_TYPES`
- *  in the web's `notification-bell.tsx`. */
-val STAFF_NOTIFICATION_TYPES = setOf(
-    "LEAVE_APPROVED", "LEAVE_REJECTED",
-    "OT_APPROVED", "OT_REJECTED",
-    "INFO",
-)
+/** UI-only toast events the web bell also skips; everything else is a real alert for this user. */
+private val HIDDEN_NOTIFICATION_TYPES = setOf("ADD_TOAST", "UPDATE_TOAST", "REMOVE_TOAST", "DISMISS_TOAST")
+
+/** The server returns only this user's own notifications, so every alert type is shown — interns
+ *  see missed clock-in/out and timesheet reminders, admins see new approval requests. */
+fun isVisibleNotification(type: String): Boolean = type !in HIDDEN_NOTIFICATION_TYPES
 
 // MARK: - Upload (/api/upload)
 

@@ -171,6 +171,18 @@ object HrmsApi {
 
     suspend fun trainer(id: String): TrainerProfile = trainerCall { service.trainer(id) }.trainer
 
+    /** Trainer contact list for every signed-in user (name, email, phone, certs, courses). */
+    suspend fun trainerContacts(q: String? = null): TrainerContactsResponse =
+        unwrap(defaultError = "Could not load the trainer contacts.") { service.trainerContacts(q?.trim()?.takeIf { it.isNotEmpty() }) }
+
+    // MARK: - Push notifications (FCM token for this device)
+
+    suspend fun registerPushToken(token: String): Unit =
+        unwrapUnit("Could not register for notifications.") { service.registerPushToken(PushTokenBody(token)) }
+
+    suspend fun unregisterPushToken(token: String): Unit =
+        unwrapUnit("Could not unregister notifications.") { service.unregisterPushToken(PushTokenBody(token)) }
+
     private suspend fun <T> trainerCall(call: suspend () -> Response<T>): T = try {
         unwrap(defaultError = "Could not load the trainer directory.", call = call)
     } catch (e: ApiException) {

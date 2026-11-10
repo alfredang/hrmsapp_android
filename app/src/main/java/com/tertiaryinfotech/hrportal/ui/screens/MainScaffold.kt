@@ -11,7 +11,6 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -22,7 +21,12 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +34,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
@@ -37,6 +45,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.tertiaryinfotech.hrportal.push.Push
+import com.tertiaryinfotech.hrportal.push.routeForLink
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.BrandBarTitle
 import com.tertiaryinfotech.hrportal.ui.components.NotificationBell
@@ -48,8 +58,6 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
     LEAVE("leave", "Leave", Icons.AutoMirrored.Filled.EventNote),
     CALENDAR("calendar", "Calendar", Icons.Filled.CalendarMonth),
     TEAM("team", "Team", Icons.Filled.Groups),
-    /** Trainer Admins only (`summary.canManageTrainers`). */
-    TRAINERS("trainers", "Trainers", Icons.Filled.School),
     MORE("more", "More", Icons.Filled.Pending),
 }
 
@@ -85,7 +93,36 @@ fun MainScaffold(auth: AuthViewModel) {
         auth.refreshUnreadCount()
         auth.refreshCapabilities()
     }
-    val tabs = Tab.entries.filter { it != Tab.TRAINERS || auth.canManageTrainers }
+    val tabs = Tab.entries
+
+    // Push alerts: ask once for the Android 13+ notification permission after sign-in.
+    val context = LocalContext.current
+    val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= 33 && !Push.canNotify(context)) {
+            notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // Back in the foreground (often from a push alert): refresh the bell's unread count.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) auth.refreshUnreadCount()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // A tapped push alert opens its screen (approvals for admins, Clock for interns, …).
+    val pendingLink = Push.pendingLink
+    LaunchedEffect(pendingLink) {
+        val link = pendingLink ?: return@LaunchedEffect
+        Push.pendingLink = null
+        val target = routeForLink(link, isApprover = isApprover(auth)) ?: "notifications"
+        val tab = Tab.entries.firstOrNull { it.route == target }
+        if (tab != null) { activeTabName = tab.name; switchTab(nav, target) } else nav.navigate(target)
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -150,7 +187,13 @@ fun MainScaffold(auth: AuthViewModel) {
             composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
             composable(Tab.TEAM.route) { TeamScreen(nav) }
             composable(Tab.MORE.route) { MoreScreen(auth, nav) }
-            composable(Tab.TRAINERS.route) { TrainersScreen(nav) }
+            // Trainer Management (TRAINER_ADMIN only) — opened from More → Manage.
+            composable("trainers") { TrainersScreen(nav) }
+            // Trainer contact list — every signed-in user, opened from More.
+            composable("trainer_contacts") { TrainerContactsScreen(nav) }
+            composable("trainer_contact/{id}") { e ->
+                TrainerContactScreen(e.arguments?.getString("id").orEmpty())
+            }
             composable("trainer_profile/{id}") { e ->
                 TrainerProfileScreen(e.arguments?.getString("id").orEmpty())
             }

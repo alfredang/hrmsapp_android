@@ -85,8 +85,11 @@ Mirrors the iOS app 1:1:
   reason "Sick leave (MC)" and keeps the certificate) and `NPL_CAP_EXCEEDED`. Parsing lives in
   `data/LeaveErrors.kt` (`LeaveRejectedException`). The NPL balance row carries `proRated` = cap and
   `available` = remaining.
-- **Trainers** (Trainer Admins only — `summary.canManageTrainers`; server 403 otherwise) — a sixth
-  tab. The directory loads once (`/api/mobile/trainers?status=all`, no NRIC) and is filtered on the
+- **Trainers (contacts)** — More → **Trainers**, every signed-in user (11 Nov 2026): read-only
+  `GET /api/mobile/trainers/contacts` (name, email, phone, certs, skills, courses; demo accounts get
+  an empty list), searchable on the device; detail `trainer_contact/{id}` has Call / WhatsApp / Email.
+- **Trainer Management** (Trainer Admins only — `summary.canManageTrainers`; server 403 otherwise) —
+  More → Manage → Trainer Management (route `trainers`; no longer a bottom tab). The directory loads once (`/api/mobile/trainers?status=all`, no NRIC) and is filtered on the
   device by `data/Trainers.kt` `TrainerSearch` (a 1:1 port of the web's `src/lib/trainers.ts`,
   unit-tested): a search box with skill / certification suggestions and counts that become
   removable chips, an Accreditation menu (`Accreditation` enum: ACLP / ACTA / DACE / DDDLP /
@@ -134,7 +137,19 @@ Mirrors the iOS app 1:1:
   A colleague's leave *type* is masked server-side unless the viewer is that person or an approver.
   The older agenda-style list (public holidays + the user's own events) remains at the
   `calendar_list` route, reachable from **More**.
-- **Notifications** — top-bar **bell with unread badge** + list (`/api/notifications`).
+- **Notifications** — top-bar **bell with unread badge** + list (`/api/notifications`), every type
+  addressed to the user except UI toasts (`isVisibleNotification`).
+- **Push alerts (FCM, v1.12)** — Firebase project `tia-hrms`, `app/google-services.json` (git-ignored, the
+  repo is public; fetch it with `firebase apps:sdkconfig ANDROID 1:1066509799584:android:7db099d0fe076f34cd79c5
+  --project tia-hrms --out app/google-services.json` before building).
+  `push/Push.kt`: channel `hrms_alerts`, `HrmsMessagingService`, token → `POST /api/mobile/push-token`
+  after sign-in / restored session, `DELETE` before sign-out; Android 13+ permission asked once in
+  `MainScaffold`; a tapped alert's `link` routes via `push/LinkRoutes.kt` `routeForLink` (admins:
+  approval requests → Approvals). The server sends with the `tia-hrms` adminsdk service account
+  (kept server-side, never in this repo).
+- **Certificate chips** — `CertLabel.short()` shows ACLP / ACTA / DACE / DDDLP (DDDPL / ALCP typos
+  fixed) else ≤14 chars; chip rows stay one line. The profile's Accreditation lists only what is
+  held (plus an "IBF" chip for a Fit & Proper declaration) — never missing items.
 - **Profile** — full employee record + self-service edit + change password.
 
 **Excluded / removed** (same product scope as iOS): **Accounting** and heavy **admin-authoring**
@@ -176,8 +191,8 @@ Single-activity (`MainActivity`) Compose app. `AuthViewModel` (`AndroidViewModel
 source of truth, driving `data/AuthService` (NextAuth sign-in) and `data/HrmsApi` (typed reads +
 apply-leave + PDF download), both riding one shared OkHttp client + `PersistentCookieJar`.
 `RootScreen` routes loading → `LoginScreen` → `MainScaffold` via a `NavHost`. The bottom nav is
-**five tabs — Home / Leave / Calendar / Team / More** — matching the iOS `MainTabView` 1:1, plus
-**Trainers** before More for Trainer Admins, shown on every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
+**five tabs — Home / Leave / Calendar / Team / More** for everyone — matching the iOS `MainTabView`
+1:1 (Trainers moved into More in v1.12), shown on every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
 nested destinations reached from More or Home, with a back chevron. All destinations render **bare**:
 `MainScaffold` supplies the top bar and tab bar, so wrapping one in `BrandScaffold` would stack a
 second app bar.

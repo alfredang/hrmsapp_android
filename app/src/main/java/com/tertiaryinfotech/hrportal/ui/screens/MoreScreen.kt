@@ -22,6 +22,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContactPage
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CreditCard
@@ -76,13 +79,9 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             MenuDivider()
             MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
             MenuDivider()
-            if (isApprover(auth)) {
-                // Admin: one Timesheet for interns (days, hours, missing punches, Off In Lieu).
-                MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
-                MenuDivider()
-                MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
-                MenuDivider()
-            }
+            // Every staff member and intern can look up and contact a trainer.
+            MenuLink("Trainers", Icons.Filled.School, Brand.Gold600) { nav.navigate("trainer_contacts") }
+            MenuDivider()
             MenuLink("Clock In / Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
             MenuDivider()
             // Only interns have timesheets; everyone else logs weekend / PH work for Off In Lieu on
@@ -96,6 +95,26 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             MenuLink("Time Off", Icons.Filled.HourglassBottom, Brand.Purple) { nav.navigate("time_off") }
             MenuDivider()
             MenuLink("My profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
+        }
+
+        val approver = isApprover(auth)
+        if (approver || auth.canManageTrainers) {
+            GroupLabel("Manage")
+            Card(padding = 6) {
+                if (approver) {
+                    MenuLink("Approvals", Icons.Filled.CheckCircle, Brand.Green) { nav.navigate("approvals") }
+                    MenuDivider()
+                    // Admin: one Timesheet for interns (days, hours, missing punches, Off In Lieu).
+                    MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
+                    MenuDivider()
+                    MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
+                }
+                if (approver && auth.canManageTrainers) MenuDivider()
+                // Full directory with NRIC and admin notes — TRAINER_ADMIN only (server enforces 403).
+                if (auth.canManageTrainers) {
+                    MenuLink("Trainer Management", Icons.Filled.ContactPage, Brand.Gold600) { nav.navigate("trainers") }
+                }
+            }
         }
 
         SignOutButton(auth)
@@ -151,6 +170,15 @@ private fun MenuLink(title: String, icon: ImageVector, tint: Color, onClick: () 
             tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp),
         )
     }
+}
+
+/** Small uppercase caption above a menu group (iOS grouped-list header). */
+@Composable
+private fun GroupLabel(text: String) {
+    Text(
+        text.uppercase(), color = Brand.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.fillMaxWidth().padding(start = 6.dp, top = 6.dp),
+    )
 }
 
 @Composable

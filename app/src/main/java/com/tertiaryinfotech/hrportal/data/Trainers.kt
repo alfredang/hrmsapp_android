@@ -291,3 +291,48 @@ object TrainerSearch {
         return "https://wa.me/" + if (digits.length == 8) "65$digits" else digits
     }
 }
+
+
+// MARK: - Trainer contact list (GET /api/mobile/trainers/contacts — every signed-in user)
+
+@Serializable
+data class TrainerContactsResponse(
+    val count: Int = 0,
+    val trainers: List<TrainerContact> = emptyList(),
+)
+
+@Serializable
+data class TrainerContact(
+    val id: String,
+    val name: String = "",
+    val email: String? = null,
+    val phone: String? = null,
+    val trainingCerts: List<String> = emptyList(),
+    val skills: List<String> = emptyList(),
+    val courseTitles: List<String> = emptyList(),
+    val lastClassDate: String? = null,
+) {
+    /** One line under the name: courses first, then skills. */
+    val expertiseLine: String get() = (courseTitles + skills).filter { it.isNotBlank() }.distinct().joinToString(" · ")
+}
+
+/** Last list loaded, so the detail screen opens instantly without a second request. */
+object TrainerContactsCache {
+    @Volatile var byId: Map<String, TrainerContact> = emptyMap()
+}
+
+/**
+ * Short chip label for a training certificate. Trainer records sometimes hold the full title
+ * ("Advanced Certificate in Learning and Performance (ACLP, 2023)"); chips show only the code
+ * (ACLP / ACTA / DACE / DDDLP, with the common DDDPL / ALCP typos fixed), else ~14 characters.
+ */
+object CertLabel {
+    private val codes = listOf("DDDLP" to "DDDLP", "DDDPL" to "DDDLP", "ACLP" to "ACLP", "ALCP" to "ACLP", "ACTA" to "ACTA", "DACE" to "DACE")
+    fun short(cert: String): String {
+        val up = cert.uppercase()
+        codes.firstOrNull { (k, _) -> Regex("\\b$k\\b").containsMatchIn(up) }?.let { return it.second }
+        val t = cert.trim()
+        return if (t.length <= 14) t else t.take(13).trimEnd() + "…"
+    }
+    fun shortAll(certs: List<String>): List<String> = certs.map(::short).filter { it.isNotBlank() }.distinct()
+}

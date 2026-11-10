@@ -7,6 +7,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -26,8 +27,8 @@ android {
         targetSdk = 36
         // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
         // review, so each new release must increment from there.
-        versionCode = 23
-        versionName = "1.11"
+        versionCode = 24
+        versionName = "1.12"
         vectorDrawables { useSupportLibrary = true }
 
         // Google Sign-In (native, Custom Tabs + PKCE) — mirrors the iOS app's GIDClientID.
@@ -124,6 +125,12 @@ dependencies {
     // Session-adjacent app preferences (remembered email) — cookie persistence stays in the
     // existing PersistentCookieJar, which DataStore's key-value model doesn't fit.
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Push notifications (approvals, clock-in/out and timesheet reminders) via FCM.
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    // LocalLifecycleOwner for the on-resume unread-count refresh.
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

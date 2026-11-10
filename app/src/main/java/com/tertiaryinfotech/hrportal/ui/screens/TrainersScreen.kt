@@ -1,5 +1,11 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.widthIn
+import com.tertiaryinfotech.hrportal.data.ApiException
+import com.tertiaryinfotech.hrportal.data.CertLabel
+import com.tertiaryinfotech.hrportal.data.TrainerContact
+import com.tertiaryinfotech.hrportal.data.TrainerContactsCache
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -329,17 +335,21 @@ private fun TrainerRow(t: TrainerListItem, needles: List<String>, onContact: () 
     ) {
         InitialsAvatar(initialsOf(t.name), 38)
         Column(modifier = Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            // One line, never wider than the row: long certificate titles collapse to their code.
+            Row(
+                modifier = Modifier.fillMaxWidth().clipToBounds(),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
                 // Names are stored uppercase by design; shown as-is.
                 Text(
                     t.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                 )
-                t.trainingCerts.take(3).forEach { AccreditationBadge(it) }
+                heldBadges(t.trainingCerts, t.ibfFitDeclaration).take(4).forEach { AccreditationBadge(it) }
                 if (TrainerSearch.isApplicant(t)) FlagBadge("Applicant")
             }
             val expertise = TrainerSearch.orderByMatch((t.certifications + t.skills).distinct(), needles)
-            val flags = listOfNotNull(if (t.financeBackground) "Finance" else null, if (t.ibfFitDeclaration) "IBF Fit" else null)
+            val flags = listOfNotNull(if (t.financeBackground) "Finance" else null)
             // Matching expertise leads, so the reason a trainer matched is the first thing you read.
             val line = (expertise + flags).joinToString(" · ")
             Text(
@@ -437,8 +447,11 @@ fun TrainerProfileScreen(id: String) {
         item { GroupHeader("Identity & contact") }
         item { IdentityCard(t, context) }
 
-        item { GroupHeader("Accreditation") }
-        item { AccreditationCard(t) }
+        // Only what the trainer holds — missing accreditations are never listed.
+        if (hasAccreditation(t)) {
+            item { GroupHeader("Accreditation") }
+            item { AccreditationCard(t) }
+        }
 
         if (t.certifications.isNotEmpty()) {
             item { GroupHeader("Certifications") }
@@ -549,32 +562,37 @@ private fun IdentityCard(t: TrainerProfile, context: Context) {
     if (rows.isEmpty()) EmptyCard("No contact details on file.") else GroupedCard(rows) { it() }
 }
 
+/** Held badges: training-cert codes (ACLP, ACTA, DACE, DDDLP) plus "IBF" for a Fit & Proper declaration. */
+private fun heldBadges(certs: List<String>, ibfFit: Boolean): List<String> =
+    CertLabel.shortAll(certs) + if (ibfFit) listOf("IBF") else emptyList()
+
+private fun hasAccreditation(t: TrainerProfile): Boolean =
+    heldBadges(t.trainingCerts, t.ibfFitDeclaration).isNotEmpty() || t.financeBackground ||
+        !t.actaFolder.isNullOrBlank() || t.evidenceFiles.isNotEmpty()
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AccreditationCard(t: TrainerProfile) {
-    Card(padding = 4) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Training certificates", color = Brand.TextSecondary, fontSize = 12.sp)
-            if (t.trainingCerts.isEmpty()) {
-                Text("None on file", color = Brand.TextMuted, fontSize = 14.sp)
-            } else {
+    val rows = buildList<@Composable () -> Unit> {
+        val held = heldBadges(t.trainingCerts, t.ibfFitDeclaration)
+        if (held.isNotEmpty()) add {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Held", color = Brand.TextSecondary, fontSize = 12.sp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    t.trainingCerts.forEach { AccreditationBadge(it) }
+                    held.forEach { AccreditationBadge(it) }
                 }
             }
         }
-        RowDivider()
-        FlagRow("Finance background", t.financeBackground, t.financeEvidence)
-        RowDivider()
-        FlagRow("IBF Fit & Proper declaration", t.ibfFitDeclaration, t.ibfFitFiles)
-        if (!t.actaFolder.isNullOrBlank() || t.evidenceFiles.isNotEmpty()) {
-            RowDivider()
+        if (t.financeBackground) add { FlagRow("Finance background", true, t.financeEvidence) }
+        if (t.ibfFitDeclaration && t.ibfFitFiles.isNotEmpty()) add { FlagRow("IBF Fit & Proper declaration", true, t.ibfFitFiles) }
+        if (!t.actaFolder.isNullOrBlank() || t.evidenceFiles.isNotEmpty()) add {
             InfoRow(
                 "ACTA folder",
                 (t.actaFolder ?: "—") + if (t.evidenceFiles.isNotEmpty()) " · ${t.evidenceFiles.size} file(s)" else "",
             )
         }
     }
+    GroupedCard(rows) { it() }
 }
 
 @Composable
@@ -765,9 +783,9 @@ private fun SearchBar(
 @Composable
 private fun AccreditationBadge(text: String) {
     Box(
-        modifier = Modifier.clip(CircleShape).background(Brand.Gold).padding(horizontal = 8.dp, vertical = 3.dp),
+        modifier = Modifier.widthIn(max = 110.dp).clip(CircleShape).background(Brand.Gold).padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
-        Text(text, color = Brand.Navy, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(CertLabel.short(text), color = Brand.Navy, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -830,4 +848,164 @@ private fun open(context: Context, uri: String, action: String = Intent.ACTION_V
     try {
         context.startActivity(Intent(action, Uri.parse(uri)))
     } catch (_: ActivityNotFoundException) { /* no app for this link */ }
+}
+
+
+// MARK: - Trainer contacts (every signed-in user; read-only)
+
+/** Searchable trainer contact list under More → Trainers: name, courses/skills, tap for contact. */
+@Composable
+fun TrainerContactsScreen(nav: NavController) {
+    var search by rememberSaveable { mutableStateOf("") }
+    AsyncListScreen(
+        fetch = { HrmsApi.trainerContacts().trainers.also { list -> TrainerContactsCache.byId = list.associateBy { it.id } } },
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
+    ) { all ->
+        val needles = search.lowercase().split(' ').filter { it.isNotBlank() }
+        val results = if (needles.isEmpty()) all else all.filter { t ->
+            val hay = (listOf(t.name) + t.courseTitles + t.skills + t.trainingCerts).joinToString(" ").lowercase()
+            needles.all { hay.contains(it) }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Trainers", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+                SearchBar(value = search, onChange = { search = it }, placeholder = "Search name, course or skill")
+                Text(
+                    "${results.size} ${if (results.size == 1) "trainer" else "trainers"}",
+                    color = Brand.TextSecondary, fontSize = 13.sp,
+                )
+            }
+        }
+        item { Spacer12() }
+        if (results.isEmpty()) {
+            item { EmptyHint(Icons.Filled.School, if (all.isEmpty()) "No trainers to show." else "No trainers match your search.") }
+        } else {
+            itemsIndexed(results, key = { _, t -> t.id }) { i, t ->
+                val r = Brand.CardCorner.dp
+                val shape = RoundedCornerShape(
+                    topStart = if (i == 0) r else 0.dp, topEnd = if (i == 0) r else 0.dp,
+                    bottomStart = if (i == results.lastIndex) r else 0.dp, bottomEnd = if (i == results.lastIndex) r else 0.dp,
+                )
+                Column(modifier = Modifier.fillMaxWidth().clip(shape).background(Brand.Surface)) {
+                    if (i > 0) RowDivider()
+                    ContactRow(t) { nav.navigate("trainer_contact/${t.id}") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactRow(t: TrainerContact, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        InitialsAvatar(initialsOf(t.name), 38)
+        Column(modifier = Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clipToBounds(),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(
+                    t.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                )
+                CertLabel.shortAll(t.trainingCerts).take(3).forEach { AccreditationBadge(it) }
+            }
+            val line = t.expertiseLine
+            if (line.isNotEmpty()) {
+                Text(line, color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+            tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/** One trainer's contact card: tap to email, call or WhatsApp. Read-only, no NRIC or notes. */
+@Composable
+fun TrainerContactScreen(id: String) {
+    val context = LocalContext.current
+    AsyncListScreen(
+        fetch = {
+            TrainerContactsCache.byId[id] ?: HrmsApi.trainerContacts().trainers.also { list ->
+                TrainerContactsCache.byId = list.associateBy { it.id }
+            }.firstOrNull { it.id == id } ?: throw ApiException(ApiException.Kind.HTTP, "Trainer not found.", 404)
+        },
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
+    ) { t ->
+        item {
+            Card(containerColor = Brand.SurfaceStrong) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    InitialsAvatar(initialsOf(t.name), 60)
+                    Column(modifier = Modifier.weight(1f).padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(t.name, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        val certs = CertLabel.shortAll(t.trainingCerts)
+                        if (certs.isNotEmpty()) {
+                            Row(modifier = Modifier.fillMaxWidth().clipToBounds(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                certs.forEach { AccreditationBadge(it) }
+                            }
+                        }
+                        if (!t.lastClassDate.isNullOrBlank()) {
+                            Text("Last class ${Fmt.date(t.lastClassDate)}", color = Brand.TextSecondary, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if (!t.phone.isNullOrBlank() || !t.email.isNullOrBlank()) {
+            item { Spacer12() }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val phone = t.phone
+                    val email = t.email
+                    if (!phone.isNullOrBlank()) {
+                        TintButton("Call", Icons.Filled.Phone, Brand.Accent, modifier = Modifier.weight(1f)) {
+                            open(context, TrainerFormat.telUri(phone), Intent.ACTION_DIAL)
+                        }
+                        TrainerSearch.whatsAppUrl(phone)?.let { url ->
+                            TintButton("WhatsApp", Icons.AutoMirrored.Filled.Chat, Brand.Green, modifier = Modifier.weight(1f)) { open(context, url) }
+                        }
+                    }
+                    if (!email.isNullOrBlank()) {
+                        TintButton("Email", Icons.Filled.Email, Brand.Accent, modifier = Modifier.weight(1f)) {
+                            open(context, "mailto:$email", Intent.ACTION_SENDTO)
+                        }
+                    }
+                }
+            }
+        }
+        item { GroupHeader("Contact") }
+        item {
+            val rows = buildList<@Composable () -> Unit> {
+                t.phone?.takeIf { it.isNotBlank() }?.let { phone ->
+                    add {
+                        InfoRow("Phone", phone, onClick = { open(context, TrainerFormat.telUri(phone), Intent.ACTION_DIAL) }) {
+                            CopyIcon { copy(context, "Phone", phone) }
+                        }
+                    }
+                }
+                t.email?.takeIf { it.isNotBlank() }?.let { email ->
+                    add {
+                        InfoRow("Email", email, onClick = { open(context, "mailto:$email", Intent.ACTION_SENDTO) }) {
+                            CopyIcon { copy(context, "Email", email) }
+                        }
+                    }
+                }
+            }
+            if (rows.isEmpty()) EmptyCard("No phone or email on file.") else GroupedCard(rows) { it() }
+        }
+        if (t.courseTitles.isNotEmpty()) {
+            item { GroupHeader("Courses") }
+            item { Card { TagFlow(t.courseTitles) } }
+        }
+        if (t.skills.isNotEmpty()) {
+            item { GroupHeader("Skills") }
+            item { Card { TagFlow(t.skills) } }
+        }
+        item { Spacer18() }
+    }
 }

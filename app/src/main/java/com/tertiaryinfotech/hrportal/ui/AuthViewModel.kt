@@ -13,7 +13,8 @@ import com.tertiaryinfotech.hrportal.data.GoogleSignInService
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.SessionPrefs
 import com.tertiaryinfotech.hrportal.data.SessionUser
-import com.tertiaryinfotech.hrportal.data.STAFF_NOTIFICATION_TYPES
+import com.tertiaryinfotech.hrportal.data.isVisibleNotification
+import com.tertiaryinfotech.hrportal.push.Push
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -49,8 +50,8 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
     var user by mutableStateOf<SessionUser?>(null)
         private set
 
-    /** Unread count for the notification bell — staff/intern-relevant types only,
-     *  mirrors `EMPLOYEE_TYPES` filtering in the web's `notification-bell.tsx`. */
+    /** Unread count for the notification bell — every alert addressed to this user (the server
+     *  only returns the user's own), so it matches what push delivered. */
     var unreadNotifications by mutableStateOf(0)
         private set
 
@@ -58,7 +59,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         viewModelScope.launch {
             try {
                 val all = HrmsApi.notifications()
-                unreadNotifications = all.count { !it.read && it.type in STAFF_NOTIFICATION_TYPES }
+                unreadNotifications = all.count { !it.read && isVisibleNotification(it.type) }
             } catch (_: Exception) { /* leave last-known count on failure */ }
         }
     }
@@ -98,6 +99,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
             if (existing != null) {
                 user = existing
                 phase = Phase.SIGNED_IN
+                Push.registerAfterSignIn()
             } else {
                 phase = Phase.SIGNED_OUT
             }
@@ -258,6 +260,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
 
     fun signOut() {
         viewModelScope.launch {
+            Push.unregisterBeforeSignOut()
             AuthService.signOut()
             user = null
             canManageTrainers = false
@@ -274,6 +277,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         password = ""; otp = ""
         infoMessage = null; errorMessage = null
         phase = Phase.SIGNED_IN
+        Push.registerAfterSignIn()
     }
 
     private fun normalizedEmail(): String = email.lowercase().trim()

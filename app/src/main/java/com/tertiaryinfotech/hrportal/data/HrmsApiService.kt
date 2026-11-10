@@ -7,6 +7,7 @@ import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -40,6 +41,10 @@ data class UpdateProfileBody(val personalInfo: Map<String, String>)
 
 @Serializable
 data class ChangePasswordBody(val currentPassword: String, val newPassword: String)
+
+/** POST/DELETE /api/mobile/push-token — this device's FCM registration token. */
+@Serializable
+data class PushTokenBody(val token: String, val platform: String = "android")
 
 /** Optional rejection reason for leave/expense reject (matches the web routes' `{reason}` body). */
 @Serializable
@@ -245,6 +250,16 @@ interface HrmsApiService {
 
     @GET("api/mobile/trainers/{id}")
     suspend fun trainer(@Path("id") id: String): Response<TrainerDetailResponse>
+
+    /** Read-only trainer contact list — any signed-in user (demo accounts get an empty list). */
+    @GET("api/mobile/trainers/contacts")
+    suspend fun trainerContacts(@Query("q") q: String?): Response<TrainerContactsResponse>
+
+    @POST("api/mobile/push-token")
+    suspend fun registerPushToken(@Body body: PushTokenBody): Response<ResponseBody>
+
+    @HTTP(method = "DELETE", path = "api/mobile/push-token", hasBody = true)
+    suspend fun unregisterPushToken(@Body body: PushTokenBody): Response<ResponseBody>
 
     @Streaming
     @GET

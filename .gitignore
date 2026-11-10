@@ -36,3 +36,6 @@ play/service-account.json
 # Secrets, local config, build output, archives and source material — never pushed
 .env
 .env.*
+
+# Firebase client config (public repo — fetch locally, see CLAUDE.md "Push alerts")
+app/google-services.json
