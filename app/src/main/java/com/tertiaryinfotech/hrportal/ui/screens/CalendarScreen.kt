@@ -228,7 +228,7 @@ private fun MonthGrid(
         }
         Spacer18()
         Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
+            listOf("M", "T", "W", "T", "F", "S", "S").forEach { d ->
                 Text(d, color = Brand.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
             }
@@ -238,7 +238,8 @@ private fun MonthGrid(
         val today = Calendar.getInstance()
         val isCurrentMonth = today.get(Calendar.YEAR) == month.get(Calendar.YEAR) && today.get(Calendar.MONTH) == month.get(Calendar.MONTH)
         val firstOfMonth = (month.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
-        val leadingBlanks = firstOfMonth.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
+        // Weeks start on Monday: Mon = 0 … Sun = 6.
+        val leadingBlanks = (firstOfMonth.get(Calendar.DAY_OF_WEEK) + 5) % 7
         val daysInMonth = month.getActualMaximum(Calendar.DAY_OF_MONTH)
         val rows = (leadingBlanks + daysInMonth + 6) / 7
 
@@ -255,10 +256,14 @@ private fun MonthGrid(
                             val isToday = isCurrentMonth && d == today.get(Calendar.DAY_OF_MONTH)
                             val dayEvents = eventsByDay[dateKey].orEmpty()
 
+                            val isHoliday = dayEvents.any { it.type == "HOLIDAY" }
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                                modifier = Modifier.fillMaxWidth().clickable { onDayClick(dateKey) },
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .let { if (isHoliday && !isToday) it.background(Color(0xFFE9ECF2)) else it }
+                                    .clickable { onDayClick(dateKey) },
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -271,7 +276,7 @@ private fun MonthGrid(
                                         fontSize = 14.sp, fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                                     )
                                 }
-                                dayEvents.firstOrNull()?.let { e ->
+                                (dayEvents.firstOrNull { it.type == "HOLIDAY" } ?: dayEvents.firstOrNull())?.let { e ->
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(4.dp))
@@ -279,7 +284,8 @@ private fun MonthGrid(
                                             .padding(horizontal = 4.dp, vertical = 1.dp),
                                     ) {
                                         Text(
-                                            e.title, color = Color.White, fontSize = 9.sp, maxLines = 1,
+                                            e.title, color = Color.White, fontSize = 9.sp, lineHeight = 11.sp,
+                                            maxLines = if (e.type == "HOLIDAY") 2 else 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                     }

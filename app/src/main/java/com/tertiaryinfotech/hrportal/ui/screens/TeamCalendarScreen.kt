@@ -65,6 +65,8 @@ import java.util.Locale
 
 /** Chip tints — fixed across both themes so the legend always matches the grid (iOS parity). */
 private val HolidayTint = Color(0xFFE04059)
+/** Light grey fill for a public-holiday cell (today's highlight still wins). */
+private val HolidayCell = Color(0xFFE9ECF2)
 private val ColleagueTint = Color(0xFFF2A633)
 
 @Composable
@@ -198,7 +200,7 @@ private fun SegmentButton(label: String, selected: Boolean, modifier: Modifier =
 @Composable
 private fun WeekdayRow() {
     Row(modifier = Modifier.fillMaxWidth()) {
-        listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { d ->
+        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { d ->
             Text(
                 d,
                 color = Brand.TextMuted,
@@ -264,7 +266,13 @@ private fun DayCell(
         modifier = modifier
             .height(84.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isToday) Brand.SurfaceStrong else Brand.Surface)
+            .background(
+                when {
+                    isToday -> Brand.SurfaceStrong
+                    holiday != null -> HolidayCell
+                    else -> Brand.Surface
+                },
+            )
             .border(1.dp, Brand.Border, RoundedCornerShape(8.dp))
             .then(
                 if (tappable) {
@@ -294,7 +302,8 @@ private fun DayCell(
             )
         }
 
-        if (holiday != null) DayChip("Holiday", HolidayTint)
+        // The holiday's own name, wrapping to two lines before it is cut.
+        if (holiday != null) DayChip(holiday, HolidayTint, maxLines = 2)
 
         entries.take(shown).forEach { e ->
             DayChip(
@@ -314,13 +323,14 @@ private fun DayCell(
 }
 
 @Composable
-private fun DayChip(text: String, tint: Color) {
+private fun DayChip(text: String, tint: Color, maxLines: Int = 1) {
     Text(
         text,
         color = Color.Black.copy(alpha = 0.85f),
         fontSize = 9.sp,
         fontWeight = FontWeight.SemiBold,
-        maxLines = 1,
+        maxLines = maxLines,
+        lineHeight = 11.sp,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .fillMaxWidth()
@@ -469,7 +479,8 @@ private fun dayKey(d: Date): String {
  */
 private fun monthDays(anchor: Date): List<Date?> {
     val c = cal().apply { time = anchor }
-    val leading = c.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
+    // Weeks start on Monday (Alfred, 11 Nov 2026): Mon = 0 … Sun = 6.
+    val leading = (c.get(Calendar.DAY_OF_WEEK) + 5) % 7
     val count = c.getActualMaximum(Calendar.DAY_OF_MONTH)
 
     val out = mutableListOf<Date?>()

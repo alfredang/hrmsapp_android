@@ -21,6 +21,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
 - Trainer Management moved from the bottom tab bar into More → Manage (still Trainer Admins only).
 - Notifications list and unread badge now include every alert for the user (missed clock-in/out,
   timesheet reminders, approval requests for admins).
+- Calendars start the week on Monday; public-holiday days have a light grey cell and show the
+  holiday's name.
 - Certificate chips show the short code and stay on one line; the Accreditation section lists only
   what the trainer holds, with an "IBF" chip for a Fit & Proper declaration.
 
