@@ -58,7 +58,8 @@ existing single sign-on session, exactly as a browser would.
 | **Trainers** *(everyone, More)* | Trainer contact list for every staff member and intern: search, then call / WhatsApp / email (`/api/mobile/trainers/contacts`, no NRIC) |
 | **Trainer Management** *(Trainer Admins, More → Manage)* | Trainer directory: search with skill / certification suggestions (with counts) that become removable filter chips, an Accreditation menu (ACLP / ACTA / DACE / DDDLP / Finance / IBF Fit), compact rows with the matching skill first, and call / WhatsApp / email / copy contacts; full profiles with NRIC masked behind Show |
 | **Notifications** | In-app bell with unread badge and a notifications list, plus **push alerts** (Firebase Cloud Messaging, channel `hrms_alerts`): interns get missed clock-in/out and timesheet reminders, admins get every new leave / MC / NPL, time-off and expense request; tapping opens the right screen |
-| **Calendar** | Month grid starting Monday; every Singapore public holiday on a light grey cell with its name |
+| **Calendar** | Planner-app layout: Month / List, Monday-first grid with adjacent-month days greyed, chips + "+N", today circled, every Singapore public holiday on a light grey cell with its name, agenda for the selected day below |
+| **More menu** | Applications (MC, Leave, Time Off, Expense Claims, Off In Lieu) · Staff (Calendar, Payslips, My Profile, Trainers) · Intern (Time In/Out) · Manage |
 | **Profile** | Full employee record and change password. One light premium-blue theme app-wide |
 
 > **Secure by design** — for authorized Tertiary Infotech employees only. Sign in with email and
@@ -162,8 +163,8 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 ## Deployment (Google Play)
 
 > **Live on Google Play** — [TIA HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
-> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.12
-> (versionCode 24 — push alerts, trainer contacts for all staff, Monday-first calendar with public holidays, new premium-blue icon) was released to production on 2026-11-11 and is in Google review; v1.11 (23) is live until it is approved.
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.12.2
+> (versionCode 26 — push alerts, trainer contacts for all staff, Planner-style Monday-first calendar with public holidays and agenda, More menu in Applications / Staff / Intern sections, new premium-blue icon) was released to production on 2026-11-11 and is in Google review; v1.11 (23) is live until it is approved.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)
