@@ -55,8 +55,10 @@ existing single sign-on session, exactly as a browser would.
 | **Timesheet** | Interns: the weekly weekend / public-holiday timesheet. Staff see the same page as **Off In Lieu**. Admins: one **Timesheet** screen — missing-punch and Off In Lieu approvals plus each intern's days worked and hours per month, drilling into their daily clock-in / out |
 | **Time Off** | Hourly time off; approvers see everyone's requests (Pending / All, one line each) and approve or reject |
 | **Leave & MC Summary** (admin) | Every active staff member's and intern's MC and leave for the month, with totals, a Staff / Interns filter and a per-person drill-down |
-| **Trainers** *(Trainer Admins)* | Trainer directory: search with skill / certification suggestions (with counts) that become removable filter chips, an Accreditation menu (ACLP / ACTA / DACE / DDDLP / Finance / IBF Fit), compact rows with the matching skill first, and call / WhatsApp / email / copy contacts; full profiles with NRIC masked behind Show |
-| **Notifications** | In-app bell with unread badge and a notifications list |
+| **Trainers** *(everyone, More)* | Trainer contact list for every staff member and intern: search, then call / WhatsApp / email (`/api/mobile/trainers/contacts`, no NRIC) |
+| **Trainer Management** *(Trainer Admins, More → Manage)* | Trainer directory: search with skill / certification suggestions (with counts) that become removable filter chips, an Accreditation menu (ACLP / ACTA / DACE / DDDLP / Finance / IBF Fit), compact rows with the matching skill first, and call / WhatsApp / email / copy contacts; full profiles with NRIC masked behind Show |
+| **Notifications** | In-app bell with unread badge and a notifications list, plus **push alerts** (Firebase Cloud Messaging, channel `hrms_alerts`): interns get missed clock-in/out and timesheet reminders, admins get every new leave / MC / NPL, time-off and expense request; tapping opens the right screen |
+| **Calendar** | Month grid starting Monday; every Singapore public holiday on a light grey cell with its name |
 | **Profile** | Full employee record and change password. One light premium-blue theme app-wide |
 
 > **Secure by design** — for authorized Tertiary Infotech employees only. Sign in with email and
@@ -160,8 +162,8 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 ## Deployment (Google Play)
 
 > **Live on Google Play** — [TIA HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
-> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.11
-> (versionCode 23) is the current production release.
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.12
+> (versionCode 24 — push alerts, trainer contacts for all staff, Monday-first calendar with public holidays, new premium-blue icon) was released to production on 2026-11-11 and is in Google review; v1.11 (23) is live until it is approved.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)
