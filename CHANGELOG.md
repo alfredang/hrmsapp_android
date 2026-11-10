@@ -4,6 +4,18 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.12.2] — 2026-11-11 · versionCode 26
+
+### Release notes (Play, en-US)
+- Calendar redesigned like the Planner app: month grid with agenda below.
+
+### Changed
+- Team calendar follows the Planner app's layout: Month / List toggle, month title with ‹ ›, a
+  Monday-first edge-to-edge grid with thin separators, adjacent-month days greyed, up to two chips
+  per day plus "+N", today as a filled premium-blue circle on a tinted cell, tap to select a day, and
+  the day's agenda (leave and holidays as cards) below. List mode shows upcoming leave and holidays
+  grouped by day. Everyone / Only me and the grey public-holiday cells with the name are kept.
+
 ## [1.12.1] — 2026-11-11 · versionCode 25
 
 ### Release notes (Play, en-US)

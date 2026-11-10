@@ -6,24 +6,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -54,127 +56,96 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Team calendar — a month grid of everyone's approved leave, mirroring the iOS
- * `TeamCalendarView` (month title, ‹ Today ›, a Sun–Sat grid with a chip per person per day)
- * and, through it, the web app's calendar. A segmented control narrows it to just your own leave.
+ * Team calendar in the Planner app's layout (Alfred, 11 Nov 2026): a Month / List toggle, the month
+ * title with ‹ ›, a Monday-first edge-to-edge grid with thin separators (adjacent-month days greyed,
+ * up to two chips per day + "+N", today a filled circle on a tinted cell), and the selected day's
+ * agenda underneath. List mode shows upcoming leave and holidays grouped by day. Everyone / Only me
+ * narrows it to your own leave.
  *
  * A colleague's leave *type* is only present when the server chose to disclose it (your own
- * leave, or an approver viewing). When it is null the chip reads just the name — the masking is
- * the server's decision, never reconstructed here.
+ * leave, or an approver viewing). When it is null the card reads "On leave" — the masking is the
+ * server's decision, never reconstructed here.
  */
 
-/** Chip tints — fixed across both themes so the legend always matches the grid (iOS parity). */
+/** Chip tints — fixed so the legend always matches the grid. */
 private val HolidayTint = Color(0xFFE04059)
 /** Light grey fill for a public-holiday cell (today's highlight still wins). */
 private val HolidayCell = Color(0xFFE9ECF2)
 private val ColleagueTint = Color(0xFFF2A633)
+private val SelfTint = Brand.Premier
+private val GridLine = Color(0xFFD5E1F7)
 
 @Composable
 fun TeamCalendarScreen() {
-    // The displayed month drives the fetch: the API is year-scoped, so paging across a year
-    // boundary must refetch. `monthAnchor` is always the first day of the shown month.
-    var monthAnchor by remember { mutableStateOf(startOfMonth(Date())) }
+    val today = startOfDay(Date())
+    // `monthAnchor` is always the first day of the shown month; the API is year-scoped.
+    var monthAnchor by remember { mutableStateOf(startOfMonth(today)) }
+    var selectedDay by remember { mutableStateOf(today) }
     var mineOnly by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf<DayBucket?>(null) }
+    var listMode by remember { mutableStateOf(false) }
 
-    val year = yearOf(monthAnchor)
+    val year = yearOf(if (listMode) today else monthAnchor)
 
-    // Keyed on the year so paging within a year reuses the loaded data and only a year change
-    // re-runs the request.
-    AsyncListScreen(
-        key = year,
-        fetch = { HrmsApi.teamCalendar(year) },
-    ) { data ->
-        item {
-            MonthHeader(
-                title = monthTitle(monthAnchor),
-                onPrev = { monthAnchor = shiftMonth(monthAnchor, -1) },
-                onNext = { monthAnchor = shiftMonth(monthAnchor, 1) },
-                onToday = { monthAnchor = startOfMonth(Date()) },
-            )
-            Spacer(Modifier.height(14.dp))
-            ScopePicker(mineOnly = mineOnly, onChange = { mineOnly = it })
-            Spacer(Modifier.height(14.dp))
-            WeekdayRow()
-            Spacer(Modifier.height(6.dp))
-            MonthGrid(
-                monthAnchor = monthAnchor,
-                data = data,
-                mineOnly = mineOnly,
-                onDayTap = { selected = it },
-            )
-            Spacer(Modifier.height(16.dp))
-            Legend()
-        }
+    fun goMonth(delta: Int) {
+        monthAnchor = shiftMonth(monthAnchor, delta)
+        // Land on today when it is in the new month, else on the 1st.
+        selectedDay = if (sameMonth(today, monthAnchor)) today else monthAnchor
     }
 
-    selected?.let { bucket ->
-        DayDetailSheet(bucket = bucket, onDismiss = { selected = null })
+    AsyncListScreen(
+        key = year to listMode,
+        // List mode also loads next year so "upcoming" keeps going past 31 December.
+        fetch = { if (listMode) mergeYears(HrmsApi.teamCalendar(year), runCatching { HrmsApi.teamCalendar(year + 1) }.getOrNull()) else HrmsApi.teamCalendar(year) },
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+    ) { data ->
+        val byDay = indexEntries(data, mineOnly)
+        val holidays = holidayMap(data)
+
+        item {
+            Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TwoWay("Month", "List", second = listMode) { listMode = it }
+                TwoWay("Everyone", "Only me", second = mineOnly) { mineOnly = it }
+            }
+        }
+
+        if (!listMode) {
+            item {
+                MonthTitle(
+                    title = monthTitle(monthAnchor),
+                    onPrev = { goMonth(-1) },
+                    onNext = { goMonth(1) },
+                    onToday = { monthAnchor = startOfMonth(today); selectedDay = today },
+                )
+                WeekdayRow()
+                MonthGrid(monthAnchor, selectedDay, byDay, holidays) { day ->
+                    selectedDay = day
+                    if (!sameMonth(day, monthAnchor)) monthAnchor = startOfMonth(day)
+                }
+                Legend()
+            }
+            val k = dayKey(selectedDay)
+            agenda(selectedDay, isToday(selectedDay), byDay[k].orEmpty(), holidays[k])
+        } else {
+            upcoming(today, byDay, holidays)
+        }
     }
 }
 
 // MARK: - Header
 
+/** Two-segment toggle (Month / List, Everyone / Only me). */
 @Composable
-private fun MonthHeader(
-    title: String,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
-    onToday: () -> Unit,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            title,
-            color = Brand.TextPrimary,
-            fontSize = 21.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            NavButton(Icons.Filled.ChevronLeft, "Previous month", onPrev)
-            Text(
-                "Today",
-                color = Brand.TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Brand.Surface)
-                    .clickable(onClick = onToday)
-                    // 48dp min touch target (Material) — the visual pill stays compact.
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            )
-            NavButton(Icons.Filled.ChevronRight, "Next month", onNext)
-        }
-    }
-}
-
-@Composable
-private fun NavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(Brand.Surface)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = label, tint = Brand.TextPrimary, modifier = Modifier.size(22.dp))
-    }
-}
-
-/** Everyone / Only me — a two-segment toggle (Material's equivalent of the iOS segmented picker). */
-@Composable
-private fun ScopePicker(mineOnly: Boolean, onChange: (Boolean) -> Unit) {
+private fun TwoWay(first: String, secondLabel: String, second: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(Brand.Surface)
+            .border(1.dp, Brand.Border, RoundedCornerShape(10.dp))
             .padding(3.dp),
     ) {
-        SegmentButton("Everyone", selected = !mineOnly, modifier = Modifier.weight(1f)) { onChange(false) }
-        SegmentButton("Only me", selected = mineOnly, modifier = Modifier.weight(1f)) { onChange(true) }
+        SegmentButton(first, selected = !second, modifier = Modifier.weight(1f)) { onChange(false) }
+        SegmentButton(secondLabel, selected = second, modifier = Modifier.weight(1f)) { onChange(true) }
     }
 }
 
@@ -185,7 +156,7 @@ private fun SegmentButton(label: String, selected: Boolean, modifier: Modifier =
             .clip(RoundedCornerShape(8.dp))
             .background(if (selected) Brand.Premier else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -198,52 +169,62 @@ private fun SegmentButton(label: String, selected: Boolean, modifier: Modifier =
 }
 
 @Composable
+private fun MonthTitle(title: String, onPrev: () -> Unit, onNext: () -> Unit, onToday: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, color = Brand.TextPrimary, fontSize = 21.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(
+            "Today", color = Brand.Premier, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onToday).padding(horizontal = 12.dp, vertical = 12.dp),
+        )
+        IconButton(onClick = onPrev) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = Brand.Premier)
+        }
+        IconButton(onClick = onNext) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = Brand.Premier)
+        }
+    }
+}
+
+@Composable
 private fun WeekdayRow() {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { d ->
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        listOf("M", "T", "W", "T", "F", "S", "S").forEach { d ->
             Text(
-                d,
-                color = Brand.TextMuted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
+                d, color = Brand.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
             )
         }
     }
 }
 
-// MARK: - Grid
+// MARK: - Grid (edge to edge, thin separators)
 
 @Composable
 private fun MonthGrid(
     monthAnchor: Date,
-    data: TeamCalendarResponse,
-    mineOnly: Boolean,
-    onDayTap: (DayBucket) -> Unit,
+    selectedDay: Date,
+    byDay: Map<String, List<TeamLeaveEntry>>,
+    holidays: Map<String, String>,
+    onSelect: (Date) -> Unit,
 ) {
-    val days = monthDays(monthAnchor)
-    val byDay = indexEntries(data, mineOnly)
-    val holidays = holidayMap(data)
-
-    // A plain Column of Rows rather than LazyVerticalGrid: this grid already sits inside the
-    // parent LazyColumn, and nesting a lazy vertical scroller inside another crashes Compose.
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        days.chunked(7).forEach { week ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    // A plain Column of Rows: this grid sits inside the parent LazyColumn.
+    Column(modifier = Modifier.fillMaxWidth().border(0.5.dp, GridLine)) {
+        gridDays(monthAnchor).chunked(7).forEach { week ->
+            Row(modifier = Modifier.fillMaxWidth()) {
                 week.forEach { day ->
-                    if (day == null) {
-                        Spacer(Modifier.weight(1f).height(84.dp))
-                    } else {
-                        val k = dayKey(day)
-                        DayCell(
-                            day = day,
-                            entries = byDay[k].orEmpty(),
-                            holiday = holidays[k],
-                            modifier = Modifier.weight(1f),
-                            onTap = onDayTap,
-                        )
-                    }
+                    val k = dayKey(day)
+                    DayCell(
+                        day = day,
+                        inMonth = sameMonth(day, monthAnchor),
+                        selected = sameDay(day, selectedDay),
+                        entries = byDay[k].orEmpty(),
+                        holiday = holidays[k],
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSelect(day) },
+                    )
                 }
             }
         }
@@ -253,71 +234,64 @@ private fun MonthGrid(
 @Composable
 private fun DayCell(
     day: Date,
+    inMonth: Boolean,
+    selected: Boolean,
     entries: List<TeamLeaveEntry>,
     holiday: String?,
     modifier: Modifier = Modifier,
-    onTap: (DayBucket) -> Unit,
+    onClick: () -> Unit,
 ) {
-    val isToday = isToday(day)
-    val shown = if (holiday == null) 2 else 1
-    val tappable = entries.isNotEmpty() || holiday != null
-
+    val today = isToday(day)
+    val chips = buildList {
+        holiday?.let { add(it to HolidayTint) }
+        entries.forEach { add((if (it.isSelf) "You" else firstName(it.employeeName)) to if (it.isSelf) SelfTint else ColleagueTint) }
+    }
     Column(
         modifier = modifier
-            .height(84.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .height(78.dp)
             .background(
                 when {
-                    isToday -> Brand.SurfaceStrong
+                    today -> Brand.SurfaceStrong
+                    selected -> Brand.Premier.copy(alpha = 0.08f)
                     holiday != null -> HolidayCell
                     else -> Brand.Surface
                 },
             )
-            .border(1.dp, Brand.Border, RoundedCornerShape(8.dp))
-            .then(
-                if (tappable) {
-                    Modifier.clickable { onTap(DayBucket(day, entries, holiday)) }
-                } else {
-                    Modifier
-                },
-            )
-            .padding(4.dp)
-            // One combined announcement per day — reading each chip separately makes the grid
-            // unusable with TalkBack.
+            .border(0.25.dp, GridLine)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 3.dp)
             .clearAndSetSemantics { contentDescription = dayAccessibilityText(day, entries, holiday) },
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(22.dp)
+                .size(24.dp)
                 .clip(CircleShape)
-                .background(if (isToday) Brand.Accent else Color.Transparent),
+                .background(if (today) Brand.Premier else Color.Transparent)
+                .let { if (selected && !today) it.border(1.5.dp, Brand.Premier, CircleShape) else it },
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 dayOfMonth(day).toString(),
-                color = if (isToday) Color.White else Brand.TextSecondary,
+                color = when {
+                    today -> Color.White
+                    !inMonth -> Brand.TextFaint
+                    selected -> Brand.Premier
+                    else -> Brand.TextPrimary
+                },
                 fontSize = 12.sp,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.SemiBold,
+                fontWeight = if (today || selected) FontWeight.Bold else FontWeight.Medium,
             )
         }
-
-        // The holiday's own name, wrapping to two lines before it is cut.
-        if (holiday != null) DayChip(holiday, HolidayTint, maxLines = 2)
-
-        entries.take(shown).forEach { e ->
-            DayChip(
-                text = if (e.isSelf) "You" else firstName(e.employeeName),
-                tint = if (e.isSelf) Brand.Sky else ColleagueTint,
-            )
-        }
-
-        if (entries.size > shown) {
-            Text(
-                "+${entries.size - shown} more",
-                color = Brand.TextMuted,
-                fontSize = 9.sp,
-            )
+        Column(modifier = Modifier.fillMaxWidth().alpha(if (inMonth) 1f else 0.45f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            chips.take(2).forEach { (text, tint) ->
+                // A holiday's own name may wrap to two lines when it is the only chip.
+                DayChip(text, tint, maxLines = if (tint == HolidayTint && chips.size == 1) 2 else 1)
+            }
+            if (chips.size > 2) {
+                Text("+${chips.size - 2}", color = Brand.TextMuted, fontSize = 9.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            }
         }
     }
 }
@@ -326,24 +300,28 @@ private fun DayCell(
 private fun DayChip(text: String, tint: Color, maxLines: Int = 1) {
     Text(
         text,
-        color = Color.Black.copy(alpha = 0.85f),
+        // Navy on amber; white on blue and red.
+        color = if (tint == ColleagueTint) Brand.Navy else Color.White,
         fontSize = 9.sp,
+        lineHeight = 11.sp,
         fontWeight = FontWeight.SemiBold,
         maxLines = maxLines,
-        lineHeight = 11.sp,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(3.dp))
-            .background(tint.copy(alpha = 0.85f))
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .background(tint)
+            .padding(horizontal = 3.dp, vertical = 1.dp),
     )
 }
 
 @Composable
 private fun Legend() {
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        LegendDot(Brand.Sky, "You")
+    Row(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LegendDot(SelfTint, "You")
         LegendDot(ColleagueTint, "Colleague")
         LegendDot(HolidayTint, "Holiday")
     }
@@ -357,60 +335,71 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
-// MARK: - Day detail sheet
+// MARK: - Agenda (selected day) and List mode
 
-/** One tapped day, for the detail sheet. */
-data class DayBucket(
-    val date: Date,
-    val entries: List<TeamLeaveEntry>,
-    val holiday: String?,
-)
+private fun LazyListScope.agenda(day: Date, isToday: Boolean, entries: List<TeamLeaveEntry>, holiday: String?) {
+    item { AgendaHeader(if (isToday) "Today · ${agendaDate(day)}" else agendaDate(day)) }
+    holiday?.let { h -> item { HolidayCard(h) } }
+    if (entries.isEmpty() && holiday == null) {
+        item { Box(Modifier.padding(horizontal = 16.dp)) { EmptyHint(Icons.Outlined.CalendarMonth, "Nobody is on leave.") } }
+    }
+    entries.forEach { e -> item { LeaveCard(e) } }
+}
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun LazyListScope.upcoming(today: Date, byDay: Map<String, List<TeamLeaveEntry>>, holidays: Map<String, String>) {
+    val days = (0 until 400).map { addDays(today, it) }
+        .filter { d -> val k = dayKey(d); byDay[k].orEmpty().isNotEmpty() || holidays[k] != null }
+        .take(60)
+    if (days.isEmpty()) {
+        item { Box(Modifier.padding(16.dp)) { EmptyHint(Icons.Outlined.CalendarMonth, "No upcoming leave or holidays.") } }
+        return
+    }
+    days.forEach { d ->
+        val k = dayKey(d)
+        item { AgendaHeader(if (isToday(d)) "Today · ${agendaDate(d)}" else agendaDate(d)) }
+        holidays[k]?.let { h -> item { HolidayCard(h) } }
+        byDay[k].orEmpty().forEach { e -> item { LeaveCard(e) } }
+    }
+}
+
 @Composable
-private fun DayDetailSheet(bucket: DayBucket, onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-        containerColor = Brand.Background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                fullDate(bucket.date),
-                color = Brand.TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-            )
+private fun AgendaHeader(text: String) {
+    Text(
+        text, color = Brand.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 8.dp),
+    )
+}
 
-            bucket.holiday?.let { h ->
-                Card {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Flag, contentDescription = null, tint = HolidayTint, modifier = Modifier.size(20.dp))
-                        Text(h, color = Brand.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    }
+@Composable
+private fun HolidayCard(name: String) {
+    Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Card {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Flag, contentDescription = null, tint = HolidayTint, modifier = Modifier.size(20.dp))
+                Column {
+                    Text(name, color = Brand.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Public holiday", color = Brand.TextSecondary, fontSize = 11.sp)
                 }
             }
+        }
+    }
+}
 
-            if (bucket.entries.isEmpty() && bucket.holiday == null) {
-                EmptyHint(Icons.Outlined.CalendarMonth, "Nobody is on leave.")
-            }
-
-            bucket.entries.forEach { e ->
-                Card {
+@Composable
+private fun LeaveCard(e: TeamLeaveEntry) {
+    Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Card {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(4.dp).height(34.dp).clip(RoundedCornerShape(2.dp)).background(if (e.isSelf) SelfTint else ColleagueTint))
+                Column(modifier = Modifier.padding(start = 12.dp)) {
                     Text(
                         if (e.isSelf) "You" else e.employeeName,
-                        color = if (e.isSelf) Brand.Sky else Brand.TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        color = if (e.isSelf) Brand.Premier else Brand.TextPrimary,
+                        fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.height(3.dp))
-                    Text(entryDetail(e), color = Brand.TextSecondary, fontSize = 11.sp)
+                    Spacer(Modifier.height(2.dp))
+                    Text(entryDetail(e), color = Brand.TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -429,6 +418,12 @@ private fun formatDays(days: Double): String {
     val n = if (days % 1.0 == 0.0) days.toInt().toString() else days.toString()
     return if (days == 1.0) "$n day" else "$n days"
 }
+
+private fun mergeYears(a: TeamCalendarResponse, b: TeamCalendarResponse?): TeamCalendarResponse =
+    if (b == null) a else a.copy(
+        entries = (a.entries + b.entries).distinctBy { it.id },
+        holidays = (a.holidays + b.holidays).distinctBy { it.id },
+    )
 
 // MARK: - Date helpers
 
@@ -471,25 +466,6 @@ private fun isToday(d: Date): Boolean {
 private fun dayKey(d: Date): String {
     val c = cal().apply { time = d }
     return "${c.get(Calendar.YEAR)}-${c.get(Calendar.MONTH)}-${c.get(Calendar.DAY_OF_MONTH)}"
-}
-
-/**
- * Every day of the displayed month, padded with nulls so the 1st lands on its real weekday
- * column and the final row is complete.
- */
-private fun monthDays(anchor: Date): List<Date?> {
-    val c = cal().apply { time = anchor }
-    // Weeks start on Monday (Alfred, 11 Nov 2026): Mon = 0 … Sun = 6.
-    val leading = (c.get(Calendar.DAY_OF_WEEK) + 5) % 7
-    val count = c.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-    val out = mutableListOf<Date?>()
-    repeat(leading) { out += null }
-    for (d in 0 until count) {
-        out += cal().apply { time = anchor; add(Calendar.DAY_OF_MONTH, d) }.time
-    }
-    while (out.size % 7 != 0) out += null
-    return out
 }
 
 /**
@@ -536,3 +512,29 @@ private fun dayAccessibilityText(day: Date, entries: List<TeamLeaveEntry>, holid
     }
     return sb.toString()
 }
+
+// MARK: - Grid / agenda helpers
+
+/** The visible weeks: Monday before the 1st through the Sunday after the last day. */
+private fun gridDays(anchor: Date): List<Date> {
+    val first = startOfMonth(anchor)
+    val c = cal().apply { time = first }
+    val leading = (c.get(Calendar.DAY_OF_WEEK) + 5) % 7 // Mon = 0 … Sun = 6
+    val count = c.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val cells = ((leading + count + 6) / 7) * 7
+    return (0 until cells).map { addDays(first, it - leading) }
+}
+
+private fun startOfDay(d: Date): Date = cal().apply { time = d; clearTime() }.time
+
+private fun addDays(d: Date, n: Int): Date = cal().apply { time = d; add(Calendar.DAY_OF_MONTH, n) }.time
+
+private fun sameDay(a: Date, b: Date): Boolean = dayKey(a) == dayKey(b)
+
+private fun sameMonth(a: Date, b: Date): Boolean {
+    val x = cal().apply { time = a }
+    val y = cal().apply { time = b }
+    return x.get(Calendar.YEAR) == y.get(Calendar.YEAR) && x.get(Calendar.MONTH) == y.get(Calendar.MONTH)
+}
+
+private fun agendaDate(d: Date): String = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(d)
