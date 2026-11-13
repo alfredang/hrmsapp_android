@@ -573,6 +573,8 @@ data class LeaveSummaryTimeOffRequest(
     val hours: Double = 0.0,
     val reason: String = "",
     val status: String = "",
+    /** Full-day intern Off Day (server ≥ 13 Nov 2026). */
+    val offDay: Boolean = false,
 )
 
 @Serializable
@@ -611,7 +613,12 @@ data class TimeOffRequest(
     val rejectionReason: String? = null,
     val createdAt: String? = null,
     val employee: TimeOffEmployee? = null,
-)
+    /** Full-day intern Off Day. The server sends it as reason OTHERS + this flag, so builds
+     *  that predate OFF_DAY keep working. */
+    val offDay: Boolean = false,
+) {
+    val isOffDay: Boolean get() = offDay || reason.equals("OFF_DAY", ignoreCase = true)
+}
 
 /** Minimal nested employee on a [TimeOffRequest] — only the name is rendered. */
 @Serializable

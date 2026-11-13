@@ -244,12 +244,12 @@ fun LeaveSummaryDetailScreen(employeeId: String, month: String) {
                 Card {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Time off · ${reasonName(t.reason)}", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                            Text("${AttendanceMonth.dayLabel(t.date)} · ${t.startTime}–${t.endTime}",
+                            Text(if (t.offDay) "Off Day" else "Time off · ${reasonName(t.reason)}", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text("${AttendanceMonth.dayLabel(t.date)} · ${if (t.offDay) "Full day" else "${t.startTime}–${t.endTime}"}",
                                 color = Brand.TextSecondary, fontSize = 12.sp)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("${days(t.hours)} h", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(if (t.offDay) "Day" else "${days(t.hours)} h", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             StatusPill(t.status)
                         }
                     }

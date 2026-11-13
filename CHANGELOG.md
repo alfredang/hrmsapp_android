@@ -4,6 +4,18 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.12.3] — 2026-11-13 · versionCode 27
+
+### Release notes (Play, en-US)
+- Interns: request a full-day Off Day in Time Off. Once approved, no clock-in or clock-out is needed that day.
+
+### Added
+- Request Time Off: "Off Day" reason (first segment). Picking it hides the start/end times; the app sends 00:00–23:59 and the server stores a 0-hour full day (`OFF_DAY`).
+- `TimeOffRequest.offDay` / `isOffDay` (server sends an Off Day as reason `OTHERS` + `offDay: true` so older builds keep decoding); `LeaveSummaryTimeOffRequest.offDay`.
+
+### Changed
+- Time Off lists, cancel dialog and Leave Summary show an Off Day as "Full day" / "Day" instead of times and hours.
+
 ## [1.12.2] — 2026-11-11 · versionCode 26
 
 ### Release notes (Play, en-US)

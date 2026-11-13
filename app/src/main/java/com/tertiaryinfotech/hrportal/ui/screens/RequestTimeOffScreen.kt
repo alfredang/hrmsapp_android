@@ -49,7 +49,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val TIME_OFF_REASONS = listOf("EXAMS" to "Exams", "EMERGENCY" to "Emergency", "OTHERS" to "Others")
+private val TIME_OFF_REASONS = listOf("OFF_DAY" to "Off Day", "EXAMS" to "Exams", "EMERGENCY" to "Emergency", "OTHERS" to "Others")
 
 /** All selectable times, in 15-minute increments across the day ("00:00" … "23:45") — matches the
  *  house preference for dropdown pickers (ExposedDropdownMenuBox, like the leave-type selector)
@@ -79,13 +79,15 @@ fun RequestTimeOffScreen(nav: NavController) {
 
     val df = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val isOthers = reason == "OTHERS"
+    // Off Day = a whole day: no times, and no clock-in/out once approved.
+    val isOffDay = reason == "OFF_DAY"
 
     // Client-side mirror of the server's validation (the server still re-checks everything).
     val startMin = timeOffMinutes(startTime)
     val endMin = timeOffMinutes(endTime)
     val timesValid = startMin != null && endMin != null && endMin > startMin
     val hoursPreview = if (timesValid) (endMin!! - startMin!!) / 60.0 else null
-    val canSubmit = timesValid && (!isOthers || reasonDetail.isNotBlank()) && !submitting
+    val canSubmit = (isOffDay || timesValid) && (!isOthers || reasonDetail.isNotBlank()) && !submitting
 
     val onSubmitted = {
         nav.previousBackStackEntry?.savedStateHandle?.set("time_off_submitted", true)
@@ -98,7 +100,7 @@ fun RequestTimeOffScreen(nav: NavController) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Request Time Off", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-            Text("Take a few hours off for exams or emergencies", color = Brand.TextSecondary, fontSize = 14.sp)
+            Text("A few hours off, or a full Off Day", color = Brand.TextSecondary, fontSize = 14.sp)
         }
 
         error?.let { StatusBanner(isError = true, text = it) }
@@ -113,24 +115,6 @@ fun RequestTimeOffScreen(nav: NavController) {
             DateField(initial = dateMillis, onPick = { dateMillis = it; showDate = false }, onCancel = { showDate = false })
         }
 
-        // Start / end time — dropdowns of 15-minute increments, rendered 12-hour.
-        FieldLabel("Start time *")
-        TimeDropdown(selected = startTime, onSelect = { startTime = it })
-        FieldLabel("End time *")
-        TimeDropdown(selected = endTime, onSelect = { endTime = it })
-
-        if (!timesValid) {
-            Text(
-                "End time must be later than start time.",
-                color = Brand.Amber, fontSize = 11.sp,
-            )
-        } else if (hoursPreview != null) {
-            Text(
-                "${Fmt.num(hoursPreview)} hour${if (hoursPreview == 1.0) "" else "s"} of time off",
-                color = Brand.Blue, fontSize = 11.sp,
-            )
-        }
-
         // Reason
         FieldLabel("Reason *")
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -139,7 +123,33 @@ fun RequestTimeOffScreen(nav: NavController) {
                     selected = reason == value,
                     onClick = { reason = value },
                     shape = SegmentedButtonDefaults.itemShape(i, TIME_OFF_REASONS.size),
-                ) { Text(label) }
+                ) { Text(label, maxLines = 1) }
+            }
+        }
+
+        if (isOffDay) {
+            Text(
+                "Full day. Once approved, you don't need to clock in or out that day. " +
+                    "Your regular weekly off days are already excluded.",
+                color = Brand.Blue, fontSize = 11.sp,
+            )
+        } else {
+            // Start / end time — dropdowns of 15-minute increments, rendered 12-hour.
+            FieldLabel("Start time *")
+            TimeDropdown(selected = startTime, onSelect = { startTime = it })
+            FieldLabel("End time *")
+            TimeDropdown(selected = endTime, onSelect = { endTime = it })
+
+            if (!timesValid) {
+                Text(
+                    "End time must be later than start time.",
+                    color = Brand.Amber, fontSize = 11.sp,
+                )
+            } else if (hoursPreview != null) {
+                Text(
+                    "${Fmt.num(hoursPreview)} hour${if (hoursPreview == 1.0) "" else "s"} of time off",
+                    color = Brand.Blue, fontSize = 11.sp,
+                )
             }
         }
 
@@ -173,8 +183,9 @@ fun RequestTimeOffScreen(nav: NavController) {
                 try {
                     HrmsApi.createTimeOff(
                         date = df.format(Date(dateMillis)),
-                        startTime = startTime,
-                        endTime = endTime,
+                        // An Off Day is a whole day; the server fixes its times.
+                        startTime = if (isOffDay) "00:00" else startTime,
+                        endTime = if (isOffDay) "23:59" else endTime,
                         reason = reason,
                         reasonDetail = reasonDetail.takeIf { isOthers && it.isNotBlank() },
                     )
@@ -193,7 +204,7 @@ fun RequestTimeOffScreen(nav: NavController) {
             onDismissRequest = { onSubmitted() },
             confirmButton = { TextButton(onClick = { onSubmitted() }) { Text("Done") } },
             title = { Text("Request submitted") },
-            text = { Text("Your time-off request was submitted for approval.") },
+            text = { Text(if (isOffDay) "Your Off Day request was submitted for approval." else "Your time-off request was submitted for approval.") },
         )
     }
 }

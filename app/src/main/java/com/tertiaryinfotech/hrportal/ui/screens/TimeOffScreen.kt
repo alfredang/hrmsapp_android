@@ -176,7 +176,7 @@ fun TimeOffScreen(nav: NavController, auth: AuthViewModel) {
             title = { Text("Cancel this request?") },
             text = {
                 Text(
-                    "Your ${timeOff12h(target.startTime)} – ${timeOff12h(target.endTime)} time-off request on " +
+                    "Your ${timeOffWhen(target)} time-off request on " +
                         "${Fmt.date(target.date)} will be cancelled.",
                 )
             },
@@ -214,9 +214,9 @@ private fun timeOffRow(r: TimeOffRequest, showName: Boolean) = RecordRow(
     id = r.id,
     name = if (showName) r.employee?.name ?: "—" else null,
     status = r.status,
-    type = reasonName(r.reason),
-    dates = "${Fmt.date(r.date)} · ${timeOff12h(r.startTime)}–${timeOff12h(r.endTime)}",
-    amount = "${Fmt.num(r.hours)} h",
+    type = if (r.isOffDay) "Off Day" else reasonName(r.reason),
+    dates = "${Fmt.date(r.date)} · ${timeOffWhen(r)}",
+    amount = if (r.isOffDay) "Day" else "${Fmt.num(r.hours)} h",
     applied = r.createdAt?.let { Fmt.date(it) },
     reason = r.reasonDetail?.takeIf { it.isNotBlank() } ?: timeOffReasonLabel(r),
     details = buildList {
@@ -230,7 +230,13 @@ private fun timeOffRow(r: TimeOffRequest, showName: Boolean) = RecordRow(
 internal fun reasonName(reason: String): String =
     reason.split('_').joinToString(" ") { w -> w.lowercase(Locale.US).replaceFirstChar { it.uppercase() } }
 
+/** "Full day" for an Off Day, else "2:00 PM–4:00 PM". */
+internal fun timeOffWhen(r: TimeOffRequest): String =
+    if (r.isOffDay) "Full day" else "${timeOff12h(r.startTime)}–${timeOff12h(r.endTime)}"
+
 internal fun timeOffReasonLabel(r: TimeOffRequest): String {
+    // The server's Off Day detail already reads "Off Day (full day)[ — note]".
+    if (r.isOffDay) return r.reasonDetail?.takeIf { it.isNotBlank() } ?: "Off Day (full day)"
     val base = reasonName(r.reason)
     return if (r.reason.equals("OTHERS", ignoreCase = true) && !r.reasonDetail.isNullOrBlank()) {
         "$base — ${r.reasonDetail}"

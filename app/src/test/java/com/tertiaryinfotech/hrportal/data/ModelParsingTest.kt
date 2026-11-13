@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.tertiaryinfotech.hrportal.ui.screens.timeOffReasonLabel
+import com.tertiaryinfotech.hrportal.ui.screens.timeOffWhen
 
 /** Payload shapes from the HRMS backend, decoded with the app's own JSON settings. */
 class ModelParsingTest {
@@ -116,5 +118,23 @@ class ModelParsingTest {
         assertEquals("trainers", q.status.param)
         assertTrue(q.certs.isEmpty())
         assertEquals(TrainerQuery(certs = setOf("ACLP")), TrainerQuery(certs = setOf("ACLP")))
+    }
+
+    @Test
+    fun offDayDecodesAsFullDay() {
+        // The server sends an Off Day as OTHERS + offDay:true so older builds keep decoding.
+        val r = decode<List<TimeOffRequest>>(
+            """[{"id":"t2","date":"2026-11-20T00:00:00.000Z","startTime":"00:00","endTime":"23:59","hours":"0",
+                 "reason":"OTHERS","reasonDetail":"Off Day (full day)","offDay":true,"status":"APPROVED"}]""",
+        ).first()
+        assertTrue(r.isOffDay)
+        assertEquals("Full day", timeOffWhen(r))
+        assertEquals("Off Day (full day)", timeOffReasonLabel(r))
+        // Rows without the flag stay hourly.
+        val old = decode<List<TimeOffRequest>>(
+            """[{"id":"t3","startTime":"14:00","endTime":"16:00","hours":2,"reason":"OTHERS","reasonDetail":"Dentist","status":"PENDING"}]""",
+        ).first()
+        assertFalse(old.isOffDay)
+        assertEquals("Others — Dentist", timeOffReasonLabel(old))
     }
 }
