@@ -4,6 +4,33 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.14] — 2026-11-20 · versionCode 29
+
+### Release notes (Play, en-US)
+- New Analytics screen for approvers (More → Manage): 12 months of revenue and expenses, leave and MC per person, and headcount, with filters.
+- Calendar: approvers can show leave for All, Staff or Interns.
+- Notifications on this phone now register correctly, including approvals and decisions on leave, MC, time off and expense claims.
+
+### Added
+- **Analytics** (`ui/screens/AnalyticsScreen.kt`, More → Manage → Analytics, approvers only): `GET /api/mobile/analytics`,
+  the same data as the web `/dashboard/analytics`. One filter block (3 / 6 / 12 months, All / Staff / Interns, person,
+  leave type) drives the six tiles and all three charts: Revenue and expenses (grouped bars + a category list, tap a
+  category to hide it), Leave and MC (stacked bars + By person, tap a name to slice), Number of staff (stacked bars +
+  change by month). Tap a bar for its figures. Filtering and totals live in `AnalyticsCalc` (`data/Analytics.kt`).
+- **Calendar**: All / Staff / Interns filter on team leave for approvers, from the new `group` field on
+  `/api/mobile/team-calendar` entries. Hidden when no entry carries a group (non-approvers, older server).
+- Debug builds only: "Analytics (sample data)" under More for non-approvers, and a sample-data fallback, so the screen
+  can be checked with the App Review login.
+
+### Fixed
+- **Push registration never reached the server.** `PushTokenBody.platform` had a default value, which
+  kotlinx.serialization leaves out of the JSON; the server requires `platform` and answered 400, and the app ignores a
+  failed registration. No Android phone was registered in production. The field is now always sent
+  (`HrmsApi.PUSH_PLATFORM`), with a unit test on the encoded body.
+
+### Play submission
+- 2026-11-20: uploaded through the Publisher API and released to the **production** track as "1.14 (29)", status `completed` (read back after commit), corporate account sales@tertiarycourses.com.sg. The Analytics screen needs the web build that adds `/api/mobile/analytics`.
+
 ## [1.13] — 2026-11-19 · versionCode 28
 
 ### Release notes (Play, en-US)

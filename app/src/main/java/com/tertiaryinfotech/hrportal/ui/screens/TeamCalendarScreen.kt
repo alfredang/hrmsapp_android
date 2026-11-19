@@ -83,6 +83,8 @@ fun TeamCalendarScreen() {
     var selectedDay by remember { mutableStateOf(today) }
     var mineOnly by remember { mutableStateOf(false) }
     var listMode by remember { mutableStateOf(false) }
+    // Approvers: whose leave shows. "all" | "staff" | "intern" (the web calendar has the same control).
+    var group by remember { mutableStateOf("all") }
 
     val year = yearOf(if (listMode) today else monthAnchor)
 
@@ -98,13 +100,18 @@ fun TeamCalendarScreen() {
         fetch = { if (listMode) mergeYears(HrmsApi.teamCalendar(year), runCatching { HrmsApi.teamCalendar(year + 1) }.getOrNull()) else HrmsApi.teamCalendar(year) },
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
     ) { data ->
-        val byDay = indexEntries(data, mineOnly)
+        // The server sends `group` to approvers only; without it there is nothing to filter on.
+        val canFilterGroup = data.entries.any { it.group != null }
+        val byDay = indexEntries(data, mineOnly, if (canFilterGroup) group else "all")
         val holidays = holidayMap(data)
 
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 TwoWay("Month", "List", second = listMode) { listMode = it }
                 TwoWay("Everyone", "Only me", second = mineOnly) { mineOnly = it }
+                if (canFilterGroup && !mineOnly) {
+                    GroupFilter(group, data.entries) { group = it }
+                }
             }
         }
 
@@ -146,6 +153,24 @@ private fun TwoWay(first: String, secondLabel: String, second: Boolean, onChange
     ) {
         SegmentButton(first, selected = !second, modifier = Modifier.weight(1f)) { onChange(false) }
         SegmentButton(secondLabel, selected = second, modifier = Modifier.weight(1f)) { onChange(true) }
+    }
+}
+
+/** Approvers: All / Staff / Interns, with how many leave entries each holds. */
+@Composable
+private fun GroupFilter(selected: String, entries: List<TeamLeaveEntry>, onChange: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Brand.Surface)
+            .border(1.dp, Brand.Border, RoundedCornerShape(10.dp))
+            .padding(3.dp),
+    ) {
+        listOf("all" to "All", "staff" to "Staff", "intern" to "Interns").forEach { (key, label) ->
+            val n = filterByGroup(entries, key).size
+            SegmentButton("$label $n", selected = selected == key, modifier = Modifier.weight(1f)) { onChange(key) }
+        }
     }
 }
 
@@ -472,9 +497,9 @@ private fun dayKey(d: Date): String {
  * Explode each multi-day leave into the days it covers, so a request spanning a week shows on
  * every one of those days. The guard bounds a pathological range (a bad server date) to a year.
  */
-private fun indexEntries(data: TeamCalendarResponse, mineOnly: Boolean): Map<String, List<TeamLeaveEntry>> {
+private fun indexEntries(data: TeamCalendarResponse, mineOnly: Boolean, group: String = "all"): Map<String, List<TeamLeaveEntry>> {
     val map = mutableMapOf<String, MutableList<TeamLeaveEntry>>()
-    val source = if (mineOnly) data.entries.filter { it.isSelf } else data.entries
+    val source = if (mineOnly) data.entries.filter { it.isSelf } else filterByGroup(data.entries, group)
 
     for (e in source) {
         val start = Fmt.parse(e.startDate) ?: continue
@@ -538,3 +563,7 @@ private fun sameMonth(a: Date, b: Date): Boolean {
 }
 
 private fun agendaDate(d: Date): String = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(d)
+
+/** Leave entries for "all", "staff" or "intern". Entries without a group only appear under "all". */
+internal fun filterByGroup(entries: List<TeamLeaveEntry>, group: String): List<TeamLeaveEntry> =
+    if (group == "all") entries else entries.filter { it.group == group }

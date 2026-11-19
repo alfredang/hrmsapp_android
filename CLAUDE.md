@@ -239,3 +239,16 @@ adb shell am force-stop com.tertiaryinfotech.hrportal
 
 Use admin, staff, intern or signedout. Writes are logged under the `MockApi` logcat tag, not sent.
 Delete the file to go back to the real backend.
+
+## Analytics, calendar group filter, push registration (Alfred, 20 Nov 2026)
+- **Analytics** = More → Manage → Analytics, approvers only (`isApprover`). Data: `GET /api/mobile/analytics` (403 for
+  others). All filtering and totals are in `AnalyticsCalc.view()` (`data/Analytics.kt`), unit-tested in
+  `AnalyticsTest`; the screen only draws. Series colours are fixed: blue `#5B82F0`, teal `#22978B`, amber `#BF8420`
+  (Revenue / Expenses = blue / amber; Leave / MC / NPL = blue / teal / amber; Staff / Interns = blue / teal). Text uses
+  `Brand` ink tokens, never a series colour. Debug builds fall back to `AnalyticsCalc.sample()`.
+- **Calendar**: the All / Staff / Interns control shows only when the server sent `group` on a leave entry.
+- **Push**: any `@Serializable` request body field the server requires must have NO default value (defaults are not
+  encoded). `PushTokenBody.platform` broke registration for every Android phone until 1.14.
+- **Emulator**: use the project's own AVD `HRMS_QA` (`emulator -avd HRMS_QA -port 5596`, always `adb -s emulator-5596`).
+  Never send adb commands to another session's emulator. A fresh emulator has no FCM token (AUTHENTICATION_FAILED), so
+  push registration needs a real phone to verify.

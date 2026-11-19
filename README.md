@@ -60,6 +60,7 @@ existing single sign-on session, exactly as a browser would.
 | **Notifications** | In-app bell with unread badge and a notifications list, plus **push alerts** (Firebase Cloud Messaging, channel `hrms_alerts`): interns get missed clock-in/out and timesheet reminders, admins get every new leave / MC / NPL, time-off and expense request; tapping opens the right screen |
 | **Calendar** | Planner-app layout: Month / List, Monday-first grid with adjacent-month days greyed, chips + "+N", today circled, every Singapore public holiday on a light grey cell with its name, agenda for the selected day below |
 | **More menu** | Applications (MC, Leave, Time Off, Expense Claims, Off In Lieu) · Staff (Calendar, Payslips, My Profile, Trainers) · Intern (Time In/Out) · Manage |
+| **Analytics** (approvers) | 12 months of bank revenue and expenses, leave and MC per person, and headcount. Filters: period, All / Staff / Interns, person, leave type, expense category. Tap a bar for its figures |
 | **Profile** | Full employee record and change password. **Appearance**: Light, Dark or System (default System, saved on the device) |
 
 > **Secure by design** — for authorized Tertiary Infotech employees only. Sign in with email and
@@ -163,8 +164,8 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 ## Deployment (Google Play)
 
 > **Live on Google Play** — [TIA HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
-> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.13
-> (versionCode 28: Appearance setting in My Profile with Light, Dark or System, and a dark palette) was released to the production track on 2026-11-19 and is subject to Google review before it reaches users.
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.14
+> (versionCode 29: Analytics screen for approvers, calendar All / Staff / Interns filter, push registration fix) was released to the production track on 2026-11-20 and is subject to Google review before it reaches users.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)

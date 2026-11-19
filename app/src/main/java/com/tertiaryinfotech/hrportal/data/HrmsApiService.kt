@@ -44,7 +44,12 @@ data class ChangePasswordBody(val currentPassword: String, val newPassword: Stri
 
 /** POST/DELETE /api/mobile/push-token — this device's FCM registration token. */
 @Serializable
-data class PushTokenBody(val token: String, val platform: String = "android")
+data class PushTokenBody(
+    val token: String,
+    // No default value: kotlinx.serialization leaves defaults out of the JSON, and the server
+    // rejects a body without `platform` (400), so no Android phone was ever registered.
+    val platform: String,
+)
 
 /** Optional rejection reason for leave/expense reject (matches the web routes' `{reason}` body). */
 @Serializable
@@ -155,6 +160,10 @@ interface HrmsApiService {
     suspend fun attendanceSummary(@Query("month") month: String): Response<AttendanceSummary>
 
     /** Admin only — monthly leave + MC summary of all staff and interns (403 for everyone else). */
+    /** Approvers only — 12 months of revenue / expenses, leave per person and headcount (403 otherwise). */
+    @GET("api/mobile/analytics")
+    suspend fun analytics(): Response<AnalyticsData>
+
     @GET("api/mobile/leave-summary")
     suspend fun leaveSummary(@Query("month") month: String): Response<LeaveSummary>
 

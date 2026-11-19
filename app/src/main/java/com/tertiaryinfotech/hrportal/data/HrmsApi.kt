@@ -30,6 +30,9 @@ class ApiException(
 
 object HrmsApi {
 
+    /** The `platform` the server stores with this phone's push token ("ios" | "android"). */
+    const val PUSH_PLATFORM = "android"
+
     private val service get() = Net.hrmsApiService
     private val json get() = Net.json
 
@@ -70,6 +73,8 @@ object HrmsApi {
     suspend fun attendanceSummary(month: String) = unwrap { service.attendanceSummary(month) }
     /** Admin roll-up: every active staff member's and intern's leave + MC for the month. */
     suspend fun leaveSummary(month: String) = unwrap { service.leaveSummary(month) }
+    /** Approvers: the data behind the Analytics screen. */
+    suspend fun analytics() = unwrap(defaultError = "Could not load analytics.") { service.analytics() }
     suspend fun notifications() = unwrap { service.notifications() }
     suspend fun timesheet(weekStart: String? = null) = unwrap { service.timesheet(weekStart) }
 
@@ -178,10 +183,10 @@ object HrmsApi {
     // MARK: - Push notifications (FCM token for this device)
 
     suspend fun registerPushToken(token: String): Unit =
-        unwrapUnit("Could not register for notifications.") { service.registerPushToken(PushTokenBody(token)) }
+        unwrapUnit("Could not register for notifications.") { service.registerPushToken(PushTokenBody(token, PUSH_PLATFORM)) }
 
     suspend fun unregisterPushToken(token: String): Unit =
-        unwrapUnit("Could not unregister notifications.") { service.unregisterPushToken(PushTokenBody(token)) }
+        unwrapUnit("Could not unregister notifications.") { service.unregisterPushToken(PushTokenBody(token, PUSH_PLATFORM)) }
 
     private suspend fun <T> trainerCall(call: suspend () -> Response<T>): T = try {
         unwrap(defaultError = "Could not load the trainer directory.", call = call)

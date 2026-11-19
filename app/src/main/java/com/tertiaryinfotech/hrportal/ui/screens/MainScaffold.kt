@@ -69,6 +69,7 @@ private val FORM_TITLES = mapOf(
     "calendar_new" to "Add event",
     "payslip_pdf" to "Payslip",
     "notifications" to "Notifications",
+    "analytics" to "Analytics",
 )
 
 /**
@@ -227,6 +228,7 @@ fun MainScaffold(auth: AuthViewModel) {
             composable("time_off") { TimeOffScreen(nav, auth) }
             composable("time_off_request") { RequestTimeOffScreen(nav) }
             composable("approvals") { ApprovalsScreen(nav) }
+            composable("analytics") { AnalyticsScreen() }
             // One admin Timesheet (interns' days + hours, missing punches, Off In Lieu). The old
             // "intern_attendance" route is kept as an alias for links that still point at it.
             composable("timesheet_admin") { AdminTimesheetScreen(nav) }

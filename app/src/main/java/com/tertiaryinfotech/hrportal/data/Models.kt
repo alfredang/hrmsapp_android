@@ -270,6 +270,8 @@ data class TeamLeaveEntry(
     /** Null when the server masked it — render the name alone, never a guess. */
     val leaveType: String? = null,
     val isSelf: Boolean = false,
+    /** "staff" or "intern", sent to approvers only (null for everyone else and from older servers). */
+    val group: String? = null,
 )
 
 @Serializable

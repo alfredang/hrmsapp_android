@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContactPage
 import androidx.compose.material.icons.filled.School
@@ -116,6 +117,12 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             }
         }
 
+        // Debug builds only: reach Analytics (on sample data) without an approver login, to check the layout.
+        if (BuildConfig.DEBUG && !approver) {
+            GroupLabel("Debug")
+            Card(padding = 6) { MenuLink("Analytics (sample data)", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") } }
+        }
+
         if (approver || auth.canManageTrainers) {
             GroupLabel("Manage")
             Card(padding = 6) {
@@ -126,6 +133,9 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
                     MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
                     MenuDivider()
                     MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
+                    MenuDivider()
+                    // 12 months of revenue / expenses, leave and MC per person, headcount (web /dashboard/analytics).
+                    MenuLink("Analytics", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") }
                 }
                 if (approver && auth.canManageTrainers) MenuDivider()
                 // Full directory with NRIC and admin notes — TRAINER_ADMIN only (server enforces 403).
