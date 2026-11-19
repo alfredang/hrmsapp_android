@@ -21,6 +21,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
   Accent text and icons use `Brand.Accent` instead of `Brand.Premier`; system-bar icons follow the theme.
 - Replaces the one-light-theme rule of 10 Nov 2026. Light is unchanged.
 
+### Play submission
+- 2026-11-19: uploaded through the Publisher API and released to the **production** track as "1.13 (28)", status `completed` (read back after commit), corporate account sales@tertiarycourses.com.sg.
+
 ## [1.12.3] — 2026-11-13 · versionCode 27
 
 ### Release notes (Play, en-US)

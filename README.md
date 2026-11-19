@@ -163,8 +163,8 @@ Changing the deployed backend URL means updating `Net.BASE_URL` in
 ## Deployment (Google Play)
 
 > **Live on Google Play** — [TIA HRMS](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal) is published and available for download. It is owned by the corporate
-> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.12.2
-> (versionCode 26 — push alerts, trainer contacts for all staff, Planner-style Monday-first calendar with public holidays and agenda, More menu in Applications / Staff / Intern sections, new premium-blue icon) was released to production on 2026-11-11 and is in Google review; v1.11 (23) is live until it is approved.
+> developer account **Tertiary Infotech Academy Pte Ltd** (`sales@tertiarycourses.com.sg`); v1.13
+> (versionCode 28: Appearance setting in My Profile with Light, Dark or System, and a dark palette) was released to the production track on 2026-11-19 and is subject to Google review before it reaches users.
 
 ```bash
 # Signed release artefacts (require keystore.properties + keystore/ — gitignored)
