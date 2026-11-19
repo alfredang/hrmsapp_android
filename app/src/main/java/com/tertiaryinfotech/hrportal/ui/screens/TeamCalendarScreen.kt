@@ -70,10 +70,10 @@ import java.util.Locale
 /** Chip tints — fixed so the legend always matches the grid. */
 private val HolidayTint = Color(0xFFE04059)
 /** Light grey fill for a public-holiday cell (today's highlight still wins). */
-private val HolidayCell = Color(0xFFE9ECF2)
+private val HolidayCell: Color get() = Brand.HolidayCell
 private val ColleagueTint = Color(0xFFF2A633)
 private val SelfTint = Brand.Premier
-private val GridLine = Color(0xFFD5E1F7)
+private val GridLine: Color get() = Brand.Border
 
 @Composable
 fun TeamCalendarScreen() {
@@ -176,14 +176,14 @@ private fun MonthTitle(title: String, onPrev: () -> Unit, onNext: () -> Unit, on
     ) {
         Text(title, color = Brand.TextPrimary, fontSize = 21.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         Text(
-            "Today", color = Brand.Premier, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            "Today", color = Brand.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onToday).padding(horizontal = 12.dp, vertical = 12.dp),
         )
         IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = Brand.Premier)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = Brand.Accent)
         }
         IconButton(onClick = onNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = Brand.Premier)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = Brand.Accent)
         }
     }
 }
@@ -277,7 +277,7 @@ private fun DayCell(
                 color = when {
                     today -> Color.White
                     !inMonth -> Brand.TextFaint
-                    selected -> Brand.Premier
+                    selected -> Brand.Accent
                     else -> Brand.TextPrimary
                 },
                 fontSize = 12.sp,
@@ -394,7 +394,7 @@ private fun LeaveCard(e: TeamLeaveEntry) {
                 Column(modifier = Modifier.padding(start = 12.dp)) {
                     Text(
                         if (e.isSelf) "You" else e.employeeName,
-                        color = if (e.isSelf) Brand.Premier else Brand.TextPrimary,
+                        color = if (e.isSelf) Brand.Accent else Brand.TextPrimary,
                         fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )

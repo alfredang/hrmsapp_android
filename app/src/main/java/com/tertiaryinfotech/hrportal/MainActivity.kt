@@ -1,6 +1,7 @@
 package com.tertiaryinfotech.hrportal
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,6 +10,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.tertiaryinfotech.hrportal.push.Push
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.RootScreen
+import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import com.tertiaryinfotech.hrportal.ui.theme.TertiaryHRMSTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -17,6 +19,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        Appearance.readSystem(resources.configuration)
         if (savedInstanceState == null) takeLink(intent)
         setContent {
             TertiaryHRMSTheme {
@@ -24,6 +27,11 @@ class MainActivity : ComponentActivity() {
                 RootScreen(auth)
             }
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Appearance.readSystem(newConfig) // "System" follows the device
     }
 
     override fun onNewIntent(intent: Intent) {

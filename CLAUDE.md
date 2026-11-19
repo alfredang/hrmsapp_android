@@ -11,16 +11,24 @@ WebView, no cross-platform runtime**. It is the Android sibling of the native iO
 source of truth for both *functionality* and *visual design*. Min SDK **24 (Android 7)**, target
 SDK **36**, phone-first.
 
-**Theme — one light TIA HRMS premium-blue theme (Alfred, 10 Nov 2026; BRAND.md,
-`~/projects/tertiary/tia-hrms-brand/`).** Same as the web app (tertiary-hrms 464200b): the top and
-tab bars are navy-950 (`Brand.Bar` / `OnBar` / `BarAccent` = royal-300), content sits on a
-near-white → mist-blue backdrop (`GradientScreen`), cards are white with a light-blue hairline, text
-is navy ink, royal-600 `#2F5BE6` is the accent (`Brand.Accent` for text/icons, `Brand.Primary` as a
-fill), and gold-400 `#F5B83D` is the single sparing warm accent (unread badge, accreditation
-badges; always a fill with navy text). **There is no dark theme, no dynamic colour and no theme
-switch** — don't bring them back. All tokens are plain `val`s in `ui/theme/Theme.kt` (`Brand.*`) +
-`Type.kt`. The iOS app is still the source of truth for structure; its colours should follow this
-light theme. The launcher icon is the iOS AppIcon (`tia-hrms-brand/icon-1024.png`); the adaptive
+**Appearance: Light, Dark or System (Alfred, 19 Nov 2026; replaces the one-theme rule of 10 Nov 2026).**
+The person picks it in **My Profile → Appearance** only (no toggle anywhere else). Default is System;
+`angch@` and `tansc@tertiaryinfotech.com` start on Light (`Appearance.LIGHT_DEFAULT_EMAILS`, applied after
+sign-in or session restore when nothing is saved). The choice is saved on the device (SharedPreferences
+`hrms_appearance`, read in `Application.onCreate`), never on the account. `ui/theme/Appearance.kt` holds
+the mode as Compose snapshot state, and every theme-dependent token in `ui/theme/Theme.kt` (`Brand.*`,
+`StatusTint`, `IconTint`, `BannerTint`) is a getter over `Appearance.isDark`, so call sites keep reading
+`Brand.X` and the whole app repaints at once. Never copy a token into a top-level `val` or an unkeyed
+`remember`. **Light** is the TIA HRMS premium-blue look (BRAND.md, `~/projects/tertiary/tia-hrms-brand/`;
+web app 464200b): navy-950 bars (`Brand.Bar` / `OnBar` / `BarAccent` = royal-300), a near-white → mist-blue
+backdrop (`GradientScreen`), white cards with a light-blue hairline, navy ink text. **Dark** matches the
+web app's dark: page `#030712`, cards and bars `#111827`, text `#F9FAFB` / `#9CA3AF`, hairlines white at
+10 percent, lightened status colours. Royal-600 `#2F5BE6` is the fill in both (`Brand.Primary` /
+`Premier`, white text on it); text and icons use `Brand.Accent` (royal-600 in light, royal-300 `#8FB0FF`
+in dark), never `Brand.Premier`. Gold-400 `#F5B83D` is the single sparing warm accent, always a fill with
+`Brand.Navy` text. No dynamic colour. The Android 12+ launch splash follows the device, not the in-app
+choice (`values-night-v31/themes.xml`). Fixed-white surfaces stay white on purpose: the Google button and
+the payslip PDF page. The iOS app is still the source of truth for structure. The launcher icon is the iOS AppIcon (`tia-hrms-brand/icon-1024.png`); the adaptive
 foreground is rendered glyph-only from `make_app_icon.swift`. Never bring back the old
 purple/indigo "HR" icon.
 

@@ -83,7 +83,7 @@ fun CollapsibleSection(
                     modifier = Modifier.padding(start = 8.dp).clip(CircleShape).background(bg)
                         .padding(horizontal = 8.dp, vertical = 2.dp),
                 ) {
-                    Text("$count", color = Brand.Navy, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("$count", color = if (highlight && count > 0) Brand.Navy else Brand.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Box(Modifier.weight(1f))

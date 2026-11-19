@@ -3,6 +3,7 @@ package com.tertiaryinfotech.hrportal
 import android.app.Application
 import com.tertiaryinfotech.hrportal.data.Net
 import com.tertiaryinfotech.hrportal.push.Push
+import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import dagger.hilt.android.HiltAndroidApp
 
 /** Initialises the shared networking stack (OkHttp + persistent cookie jar) once per process,
@@ -11,6 +12,7 @@ import dagger.hilt.android.HiltAndroidApp
 class TertiaryHrmsApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        Appearance.init(this) // saved Light / Dark / System, before the first frame
         Net.init(this)
         Push.createChannel(this)
     }

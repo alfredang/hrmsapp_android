@@ -320,8 +320,9 @@ private fun RemovableChip(label: String, gold: Boolean = false, onRemove: () -> 
             .padding(start = 12.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = Brand.Navy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-        Icon(Icons.Filled.Close, contentDescription = "Remove $label", tint = Brand.Navy, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+        val ink = if (gold) Brand.Navy else Brand.TextPrimary // navy on the gold fill in both themes
+        Text(label, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Icon(Icons.Filled.Close, contentDescription = "Remove $label", tint = ink, modifier = Modifier.padding(start = 4.dp).size(16.dp))
     }
 }
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Device in dark mode (Android 12+): a dark launch splash instead of the default white one.
+         The splash follows the device, not the in-app Appearance choice, which Compose applies
+         from the first frame. -->
+    <style name="Theme.TertiaryHRMS" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0D1638</item>
+        <item name="android:navigationBarColor">#0D1638</item>
+        <item name="android:windowBackground">#030712</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowSplashScreenBackground">#030712</item>
+    </style>
+</resources>

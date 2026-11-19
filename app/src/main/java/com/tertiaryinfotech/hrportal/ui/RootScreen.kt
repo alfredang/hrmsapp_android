@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.tertiaryinfotech.hrportal.ui.components.BrandHeader
 import com.tertiaryinfotech.hrportal.ui.screens.MainScaffold
+import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.GradientScreen
 import com.tertiaryinfotech.hrportal.ui.theme.Spacing
@@ -28,10 +29,11 @@ import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 fun RootScreen(auth: AuthViewModel) {
     LaunchedEffect(Unit) { auth.bootstrap() }
 
-    // Signed in, the top and tab bars are navy, so the system-bar icons are light. On the launch
-    // and login screens the backdrop is light, so they are dark.
+    // Signed in, the top and tab bars are dark (navy, or grey in the dark theme), so the system-bar
+    // icons are light. The launch and login screens sit on the backdrop: dark icons in the light
+    // theme, light icons in the dark theme.
     val view = LocalView.current
-    val lightIcons = auth.phase == AuthViewModel.Phase.SIGNED_IN
+    val lightIcons = auth.phase == AuthViewModel.Phase.SIGNED_IN || Appearance.isDark
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect

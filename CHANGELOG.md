@@ -4,6 +4,23 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.13] — 2026-11-19 · versionCode 28
+
+### Release notes (Play, en-US)
+- New Appearance setting in My Profile: choose Light, Dark or System. System follows your device.
+
+### Added
+- My Profile → Appearance: Light, Dark or System. Default is System; the choice is saved on the device
+  (`hrms_appearance` SharedPreferences) and applies at once, with no restart. Two accounts start on Light
+  (`Appearance.LIGHT_DEFAULT_EMAILS`) when nothing is saved.
+- Dark palette matching the web app (`#030712` page, `#111827` cards and bars, near-white text,
+  royal-300 accent text, lightened status colours); a dark launch splash on Android 12+ dark devices.
+
+### Changed
+- `Brand.*`, `StatusTint`, `IconTint` and `BannerTint` are theme-aware getters (`ui/theme/Appearance.kt`).
+  Accent text and icons use `Brand.Accent` instead of `Brand.Premier`; system-bar icons follow the theme.
+- Replaces the one-light-theme rule of 10 Nov 2026. Light is unchanged.
+
 ## [1.12.3] — 2026-11-13 · versionCode 27
 
 ### Release notes (Play, en-US)

@@ -76,7 +76,7 @@ object RecordsRoutes {
 }
 
 /** Link / accent text. */
-private val accent: Color get() = Brand.Premier
+private val accent: Color get() = Brand.Accent
 
 /** Approved days only — pending/rejected requests weren't taken. */
 private fun approvedDays(rows: List<LeaveRequest>): String =

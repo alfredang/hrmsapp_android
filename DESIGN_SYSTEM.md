@@ -8,7 +8,12 @@ native apps should follow.
 
 ## 1. Color tokens
 
-> **10 Nov 2026 — one light theme.** The web app (464200b) and this Android app now ship a single
+> **19 Nov 2026 — Light, Dark or System.** The one-theme rule below is replaced: the app has a light
+> and a dark palette again, chosen in My Profile → Appearance (default System). `Brand.*` tokens are
+> getters over `Appearance.isDark` (`ui/theme/Appearance.kt`); dark is `#030712` page, `#111827` cards,
+> `#F9FAFB` / `#9CA3AF` text, royal-300 accent text. Still no dynamic colour.
+>
+> **10 Nov 2026 — one light theme (history).** The web app (464200b) and this Android app now ship a single
 > light premium-blue theme: navy-950 bars, a near-white → mist-blue backdrop, white cards, navy ink
 > text, royal-600 accents, gold-400 only for badges (`tia-hrms-brand/BRAND.md`). Dark mode, dynamic
 > colour and the theme switch are gone; the "Dark" column below is history. Android tokens:

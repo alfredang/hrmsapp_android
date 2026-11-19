@@ -262,7 +262,7 @@ private fun MonthGrid(
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                                 modifier = Modifier.fillMaxWidth()
                                     .clip(RoundedCornerShape(6.dp))
-                                    .let { if (isHoliday && !isToday) it.background(Color(0xFFE9ECF2)) else it }
+                                    .let { if (isHoliday && !isToday) it.background(Brand.HolidayCell) else it }
                                     .clickable { onDayClick(dateKey) },
                             ) {
                                 Box(

@@ -60,7 +60,7 @@ existing single sign-on session, exactly as a browser would.
 | **Notifications** | In-app bell with unread badge and a notifications list, plus **push alerts** (Firebase Cloud Messaging, channel `hrms_alerts`): interns get missed clock-in/out and timesheet reminders, admins get every new leave / MC / NPL, time-off and expense request; tapping opens the right screen |
 | **Calendar** | Planner-app layout: Month / List, Monday-first grid with adjacent-month days greyed, chips + "+N", today circled, every Singapore public holiday on a light grey cell with its name, agenda for the selected day below |
 | **More menu** | Applications (MC, Leave, Time Off, Expense Claims, Off In Lieu) · Staff (Calendar, Payslips, My Profile, Trainers) · Intern (Time In/Out) · Manage |
-| **Profile** | Full employee record and change password. One light premium-blue theme app-wide |
+| **Profile** | Full employee record and change password. **Appearance**: Light, Dark or System (default System, saved on the device) |
 
 > **Secure by design** — for authorized Tertiary Infotech employees only. Sign in with email and
 > password or a one-time email code; the session cookie is reused for every call over HTTPS. No

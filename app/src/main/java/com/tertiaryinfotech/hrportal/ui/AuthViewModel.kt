@@ -1,5 +1,6 @@
 package com.tertiaryinfotech.hrportal.ui
 
+import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -98,6 +99,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
             }
             if (existing != null) {
                 user = existing
+                Appearance.applyAccountDefault(existing.email)
                 phase = Phase.SIGNED_IN
                 Push.registerAfterSignIn()
             } else {
@@ -276,6 +278,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         user = u
         password = ""; otp = ""
         infoMessage = null; errorMessage = null
+        Appearance.applyAccountDefault(u.email)
         phase = Phase.SIGNED_IN
         Push.registerAfterSignIn()
     }

@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -34,6 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +52,8 @@ import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
+import com.tertiaryinfotech.hrportal.ui.theme.Appearance
+import com.tertiaryinfotech.hrportal.ui.theme.AppearanceMode
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
 
@@ -96,6 +104,8 @@ fun ProfileScreen(nav: NavController) {
                     }
                 }
             }
+            item { Spacer18() }
+            item { AppearanceCard() }
         }
     }
 
@@ -135,6 +145,49 @@ private fun AvatarHeader(e: EmployeeProfile) {
                     .padding(horizontal = 12.dp, vertical = 5.dp),
             ) {
                 Text(e.roles.joinToString(" \u00b7 "), color = Brand.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/** Light / Dark / System. Saved on this device; the whole app repaints at once. */
+@Composable
+private fun AppearanceCard() {
+    val options = listOf(
+        AppearanceMode.LIGHT to Icons.Filled.LightMode,
+        AppearanceMode.DARK to Icons.Filled.DarkMode,
+        AppearanceMode.SYSTEM to Icons.Filled.PhoneAndroid,
+    )
+    Card {
+        Text("Appearance", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        Text(
+            "System follows your device's light or dark setting. Your choice is saved on this device.",
+            color = Brand.TextSecondary, fontSize = 13.sp, lineHeight = 18.sp,
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+        )
+        Row(modifier = Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (mode, icon) ->
+                val on = Appearance.mode == mode
+                val shape = RoundedCornerShape(Brand.SmallCorner.dp)
+                val content = if (on) Color.White else Brand.TextPrimary
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clip(shape)
+                        .background(if (on) Brand.Primary else Brand.Field)
+                        .border(1.dp, if (on) Brand.Primary else Brand.TextPrimary.copy(alpha = 0.18f), shape)
+                        .selectable(selected = on, role = Role.RadioButton) { Appearance.select(mode) },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(16.dp))
+                    Text(
+                        mode.label, color = content, fontSize = 14.sp, maxLines = 1,
+                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
             }
         }
     }
