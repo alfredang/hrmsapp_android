@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -21,10 +22,12 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PendingActions
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -38,6 +41,8 @@ import com.tertiaryinfotech.hrportal.data.AnalyticsCalc
 import com.tertiaryinfotech.hrportal.data.DashboardSummary
 import com.tertiaryinfotech.hrportal.data.HomeTiles
 import com.tertiaryinfotech.hrportal.data.HrmsApi
+import com.tertiaryinfotech.hrportal.data.ViewAsRules
+import com.tertiaryinfotech.hrportal.ui.ViewAs
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
@@ -53,6 +58,10 @@ import kotlinx.coroutines.coroutineScope
 /** Home tab: a snapshot from /api/mobile/summary (iOS `DashboardView`). */
 @Composable
 fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
+    if (auth.isTrainerView) {
+        TrainerAdminHome(nav)
+        return
+    }
     // Approvers also load the active staff and intern counts (from Analytics) for the three tiles.
     // That call is optional: when it fails or an older server has no counts, the tiles fall back.
     val approver = isApprover(auth)
@@ -125,12 +134,17 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
             item { Spacer18() }
         }
 
-        // Trainer Admins: the same three counts as Trainer Management, each opening it.
+        // Trainer Admins: the same three counts as the Trainer Admin directory, each opening it.
         s.trainerKpis?.let { t ->
-            item { SectionTitle("Trainer Management") }
+            item { SectionTitle("Trainer Admin") }
             item { Spacer12() }
             item {
-                KpiStrip(HomeTiles.trainers(t).map { Kpi(it.value, it.label, Brand.TextPrimary) { nav.navigate("trainers") } })
+                KpiStrip(ViewAsRules.trainerTiles(t).map { (tile, filter) ->
+                    Kpi(tile.value, tile.label, Brand.TextPrimary) {
+                        ViewAs.pendingDirectoryFilter = filter
+                        nav.navigate("trainers")
+                    }
+                })
             }
             item { Spacer18() }
         }
@@ -231,6 +245,46 @@ private fun Greeting(s: DashboardSummary, auth: AuthViewModel) {
                     Text(
                         role.lowercase().replaceFirstChar { it.uppercase() },
                         color = Brand.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Home in the Trainer Admin view (More → View As; web view mode "trainer"): the heading, the three trainer
+ * counts (each opening the directory on its filter) and a link to the directory. Nothing else.
+ */
+@Composable
+private fun TrainerAdminHome(nav: NavController) {
+    AsyncListScreen(fetch = { HrmsApi.summary() }) { s ->
+        item {
+            Text("Trainer Admin", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
+        }
+        item { Spacer18() }
+        s.trainerKpis?.let { t ->
+            item {
+                KpiStrip(ViewAsRules.trainerTiles(t).map { (tile, filter) ->
+                    Kpi(tile.value, tile.label, Brand.TextPrimary) {
+                        ViewAs.pendingDirectoryFilter = filter
+                        openTab(nav, "trainers")
+                    }
+                })
+            }
+            item { Spacer18() }
+        }
+        item {
+            Card(onClick = { openTab(nav, "trainers") }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.School, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(22.dp))
+                    Text(
+                        "Open trainer directory", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                        modifier = Modifier.padding(start = 12.dp).weight(1f),
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+                        tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp),
                     )
                 }
             }

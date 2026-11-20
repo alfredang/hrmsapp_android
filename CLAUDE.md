@@ -98,8 +98,8 @@ Mirrors the iOS app 1:1:
 - **Trainers (contacts)** — More → **Trainers**, every signed-in user (11 Nov 2026): read-only
   `GET /api/mobile/trainers/contacts` (name, email, phone, certs, skills, courses; demo accounts get
   an empty list), searchable on the device; detail `trainer_contact/{id}` has Call / WhatsApp / Email.
-- **Trainer Management** (Trainer Admins only — `summary.canManageTrainers`; server 403 otherwise) —
-  More → Manage → Trainer Management (route `trainers`; no longer a bottom tab). The directory loads once (`/api/mobile/trainers?status=all`, no NRIC) and is filtered on the
+- **Trainer Admin** (renamed from Trainer Management, 20 Nov 2026; Trainer Admins only — `summary.canManageTrainers`;
+  server 403 otherwise) — More → Manage → Trainer Admin (route `trainers`; a tab only in the Trainer Admin view, below). The directory loads once (`/api/mobile/trainers?status=all`, no NRIC) and is filtered on the
   device by `data/Trainers.kt` `TrainerSearch` (a 1:1 port of the web's `src/lib/trainers.ts`,
   unit-tested): a search box with skill / certification suggestions and counts that become
   removable chips, ACLP / Non-ACLP / All (default ACLP), an Accreditation menu (`Accreditation` enum:
@@ -125,9 +125,10 @@ Mirrors the iOS app 1:1:
   a monthly daily check-in/out history with total hours (`AttendanceHistorySection`, ported from
   iOS; punches via `/api/mobile/attendance` + `attendance/clock-{in,out}`, history via
   `/api/mobile/attendance/history?month=`).
-- **Timesheet — only interns have timesheets** (web 464200b). More shows **Timesheet** to interns
-  and **Off In Lieu** to everyone else; both open the weekly weekend / public-holiday grid
-  (`WeeklyTimesheetScreen`, `timesheet_week`). Approvers also get the admin **Timesheet**
+- **Timesheet — interns and accountants who clock in** (web 464200b; 1.17). More shows **Timesheet**
+  (`my_timesheet`, their days and hours, linking to the weekly grid) to `mustClockIn` users and **Off In Lieu**
+  (the weekly weekend / public-holiday grid, `WeeklyTimesheetScreen`, `timesheet_week`) to everyone but interns
+  (see the 1.17 section). Approvers also get the admin **Timesheet**
   (`AdminTimesheetScreen`, route `timesheet_admin`; `intern_attendance` is kept as an alias): a
   collapsible **Needs approval** section with pending missing-punch requests
   (`GET /api/attendance/corrections?scope=all&status=PENDING`, `POST /api/attendance/corrections/{id}`
@@ -302,3 +303,20 @@ All new fields are nullable or defaulted; pure logic is in `data/CalendarLogic.k
   (accountants) and `trainerKpis` (Trainer Admins) add their own rows.
 - **Profile**: Work Schedule card from `workdays` / `workingDays` / `offDays` / `officeHours` (`WorkWeek.split` ports the
   web `splitWorkWeek`).
+
+## 1.17 attendance and View As (Alfred, 20 Nov 2026)
+- **Who clocks in**: `LeaveRules.mustClockIn(roles, role)` / `SessionUser.mustClockIn` = web `mustClockIn`
+  (`src/lib/attendance-policy.ts`): roles exactly `["INTERN"]`, or `ACCOUNTANT` with none of ADMIN / HR / MANAGER,
+  case-insensitive. Keep the two identical. `/api/attendance/missed` already answers `isIntern: true` for them.
+- **More**: group **Attendance** (Time In/Out) for interns, `mustClockIn` users and approvers. Applications: interns get
+  **Timesheet** (`my_timesheet`, `MyTimesheetScreen` = iOS `MyTimesheetView`), accountants who clock in get Timesheet
+  AND Off In Lieu (`timesheet_week`), everyone else Off In Lieu. Push: `/timesheet` → `my_timesheet` when `mustClockIn`
+  (`routeForLink(…, mustClockIn)`), else `timesheet_week`; `/attendance` → the clock screen.
+- **View As → Trainer Admin** (web 1a394c4): `ViewAsMode` / `ViewAsRules` in `data/ViewAs.kt` (pure, `ViewAsTest`), state
+  in `ui/ViewAs.kt` (SharedPreferences `hrms_view_as`, read in `Application.onCreate`). `auth.isTrainerView` is the one
+  switch: a saved Trainer Admin choice holds until `/api/mobile/summary` answers (`capabilitiesKnown`), then needs
+  `canManageTrainers`; losing the role resets it. Reset on sign-out, fresh sign-in and a launch with no session. Tabs
+  `TRAINER_TABS` (Home / Trainers / Calendar / More) vs `NORMAL_TABS` in `MainScaffold`; switching opens Trainers or Home.
+  Home (`TrainerAdminHome`) = heading, `ViewAsRules.trainerTiles` (filter via `ViewAs.pendingDirectoryFilter`, applied
+  and cleared by `TrainersScreen`), "Open trainer directory". More = View As, My Profile, Calendar, Trainer Admin, sign
+  out (Android has no Help group; the Privacy / Terms links stay). Push routing does not change with the view.

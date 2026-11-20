@@ -77,7 +77,7 @@ fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
                                             reloadKey++
                                         } catch (_: Exception) { /* keep showing as unread */ }
                                     }
-                                    routeForLink(n.link, n.type, isApprover(auth))?.let { nav.navigate(it) }
+                                    routeForLink(n.link, n.type, isApprover(auth), auth.user?.mustClockIn == true)?.let { nav.navigate(it) }
                                 }
                             }
                             Spacer12()

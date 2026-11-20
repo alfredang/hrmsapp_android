@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.AttendanceDay
 import com.tertiaryinfotech.hrportal.data.AttendanceHistory
 import com.tertiaryinfotech.hrportal.data.HrmsApi
@@ -242,5 +243,33 @@ fun InternAttendanceDetailScreen(employeeId: String, name: String, code: String,
     ) {
         Text("$name · $code", color = Brand.TextSecondary, fontSize = 14.sp)
         AttendanceHistorySection(month = month, onMonthChange = { month = it }, employeeId = employeeId)
+    }
+}
+
+/**
+ * Interns and accountants who clock in (`SessionUser.mustClockIn`): their own clock-in / clock-out days and
+ * hours for a month, then a link to the weekend / public-holiday grid for Off In Lieu (iOS `MyTimesheetView`).
+ */
+@Composable
+fun MyTimesheetScreen(nav: NavController) {
+    var month by rememberSaveable { mutableStateOf(AttendanceMonth.current()) }
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        AttendanceHistorySection(month = month, onMonthChange = { month = it }, title = "Timesheet")
+        Card(onClick = { nav.navigate("timesheet_week") }) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.EventAvailable, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(22.dp))
+                Column(modifier = Modifier.padding(start = 12.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Weekend & public-holiday hours", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text("Log them for Off In Lieu", color = Brand.TextSecondary, fontSize = 12.sp)
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+                    tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp),
+                )
+            }
+        }
     }
 }

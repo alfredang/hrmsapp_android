@@ -29,6 +29,9 @@ data class SessionUser(
     /** Roles exactly ["INTERN"] — interns have no paid MC (their sick leave is No Pay Leave). */
     val isIntern: Boolean get() = LeaveRules.isIntern(roles, role)
 
+    /** Interns and accountants without an approver role: they clock in / out and get the clock-in reminders. */
+    val mustClockIn: Boolean get() = LeaveRules.mustClockIn(roles, role)
+
     val initials: String
         get() {
             val source = if (!name.isNullOrEmpty()) name else (email ?: "?")

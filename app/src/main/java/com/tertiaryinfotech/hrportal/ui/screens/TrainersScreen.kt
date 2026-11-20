@@ -1,5 +1,6 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
+import com.tertiaryinfotech.hrportal.ui.ViewAs
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.widthIn
 import com.tertiaryinfotech.hrportal.data.ApiException
@@ -67,6 +68,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,7 +108,7 @@ import com.tertiaryinfotech.hrportal.util.Fmt
 
 /**
  * Trainer directory (Trainer Admins only — `summary.canManageTrainers`; the server answers 403 for
- * everyone else), rebuilt to the web's Trainer Management (464200b) so a trainer is easy to find by
+ * everyone else), rebuilt to the web's Trainer Admin (formerly Trainer Management, 464200b) so a trainer is easy to find by
  * skill and certification and easy to reach:
  *
  *  - one search box with a suggestion list of skills / certifications and their trainer counts;
@@ -130,6 +132,16 @@ fun TrainersScreen(nav: NavController) {
     // ACLP / Non-ACLP / All. The directory opens on ACLP trainers, A to Z (Alfred, 20 Nov 2026).
     var aclp by rememberSaveable { mutableStateOf(AclpFilter.ACLP.name) }
     var contact by remember { mutableStateOf<TrainerListItem?>(null) }
+
+    // A Home tile (Trainers / ACLP / Non-ACLP) opens the directory on its filter, like the tiles below.
+    val pending = ViewAs.pendingDirectoryFilter
+    LaunchedEffect(pending) {
+        val f = pending ?: return@LaunchedEffect
+        search = ""; tags = emptyList(); accreditation = Accreditation.ANY.name
+        status = TrainerStatusFilter.TRAINERS.name
+        aclp = f.name
+        ViewAs.pendingDirectoryFilter = null
+    }
 
     AsyncListScreen(
         fetch = { HrmsApi.trainers(TrainerQuery(status = TrainerStatusFilter.ALL)).trainers },

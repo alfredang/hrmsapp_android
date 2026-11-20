@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -52,12 +53,17 @@ import com.tertiaryinfotech.hrportal.ui.components.BrandBarTitle
 import com.tertiaryinfotech.hrportal.ui.components.NotificationBell
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
-/** The five bottom tabs, matching the iOS `MainTabView` 1:1. */
+/**
+ * The bottom tabs, matching the iOS `MainTabView` 1:1: Home / Leave / Calendar / Team / More, or in the
+ * Trainer Admin view (More → View As) Home / Trainers / Calendar / More ([TRAINER_TABS]).
+ */
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "Home", Icons.Filled.Home),
     LEAVE("leave", "Leave", Icons.AutoMirrored.Filled.EventNote),
     CALENDAR("calendar", "Calendar", Icons.Filled.CalendarMonth),
     TEAM("team", "Team", Icons.Filled.Groups),
+    // Trainer Admin view only: the trainer directory as a tab (the same "trainers" route More opens).
+    TRAINERS("trainers", "Trainers", Icons.Filled.School),
     MORE("more", "More", Icons.Filled.Pending),
 }
 
@@ -85,16 +91,27 @@ fun MainScaffold(auth: AuthViewModel) {
 
     // A nested screen stays under whichever tab it was opened from, so the Clock screen highlights
     // Home when reached from Home's quick action and More when reached from the More menu.
-    val rootTab = Tab.entries.firstOrNull { it.route == route }
+    val trainerView = auth.isTrainerView
+    val tabs = if (trainerView) TRAINER_TABS else NORMAL_TABS
+    val rootTab = tabs.firstOrNull { it.route == route }
     var activeTabName by rememberSaveable { mutableStateOf(Tab.HOME.name) }
     LaunchedEffect(rootTab) { rootTab?.let { activeTabName = it.name } }
     val activeTab = rootTab ?: Tab.valueOf(activeTabName)
+
+    // Switching View As: Trainer Admin opens the Trainers tab, My view goes back to Home.
+    var shownView by rememberSaveable { mutableStateOf(trainerView) }
+    LaunchedEffect(trainerView) {
+        if (trainerView == shownView) return@LaunchedEffect
+        shownView = trainerView
+        val target = if (trainerView) Tab.TRAINERS else Tab.HOME
+        activeTabName = target.name
+        switchTab(nav, target.route)
+    }
 
     LaunchedEffect(Unit) {
         auth.refreshUnreadCount()
         auth.refreshCapabilities()
     }
-    val tabs = Tab.entries
 
     // Push alerts: ask once for the Android 13+ notification permission after sign-in.
     val context = LocalContext.current
@@ -120,8 +137,8 @@ fun MainScaffold(auth: AuthViewModel) {
     LaunchedEffect(pendingLink) {
         val link = pendingLink ?: return@LaunchedEffect
         Push.pendingLink = null
-        val target = routeForLink(link, isApprover = isApprover(auth)) ?: "notifications"
-        val tab = Tab.entries.firstOrNull { it.route == target }
+        val target = routeForLink(link, isApprover = isApprover(auth), mustClockIn = auth.user?.mustClockIn == true) ?: "notifications"
+        val tab = tabs.firstOrNull { it.route == target }
         if (tab != null) { activeTabName = tab.name; switchTab(nav, target) } else nav.navigate(target)
     }
 
@@ -188,8 +205,8 @@ fun MainScaffold(auth: AuthViewModel) {
             composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
             composable(Tab.TEAM.route) { TeamScreen(nav) }
             composable(Tab.MORE.route) { MoreScreen(auth, nav) }
-            // Trainer Management (TRAINER_ADMIN only) — opened from More → Manage.
-            composable("trainers") { TrainersScreen(nav) }
+            // Trainer Admin directory (TRAINER_ADMIN only) — More → Manage, or the Trainers tab of the Trainer Admin view.
+            composable(Tab.TRAINERS.route) { TrainersScreen(nav) }
             // Trainer contact list — every signed-in user, opened from More.
             composable("trainer_contacts") { TrainerContactsScreen(nav) }
             composable("trainer_contact/{id}") { e ->
@@ -225,6 +242,8 @@ fun MainScaffold(auth: AuthViewModel) {
             }
             composable("timesheet") { TimesheetScreen(nav) }
             composable("timesheet_week") { WeeklyTimesheetScreen(nav) }
+            // Interns and accountants who clock in: their own days and hours by month (iOS MyTimesheetView).
+            composable("my_timesheet") { MyTimesheetScreen(nav) }
             composable("time_off") { TimeOffScreen(nav, auth) }
             composable("time_off_request") { RequestTimeOffScreen(nav) }
             composable("approvals") { ApprovalsScreen(nav) }
@@ -262,6 +281,9 @@ private fun AddAction(description: String, onClick: () -> Unit) {
         Icon(Icons.Filled.AddCircle, contentDescription = description, tint = Brand.BarAccent)
     }
 }
+
+private val NORMAL_TABS = listOf(Tab.HOME, Tab.LEAVE, Tab.CALENDAR, Tab.TEAM, Tab.MORE)
+private val TRAINER_TABS = listOf(Tab.HOME, Tab.TRAINERS, Tab.CALENDAR, Tab.MORE)
 
 private fun switchTab(nav: NavHostController, route: String) {
     nav.navigate(route) {

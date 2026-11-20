@@ -1,5 +1,6 @@
 package com.tertiaryinfotech.hrportal.ui
 
+import com.tertiaryinfotech.hrportal.data.ViewAsRules
 import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,10 +71,22 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
     var canManageTrainers by mutableStateOf(false)
         private set
 
+    /** True once `/api/mobile/summary` has answered this session, so [canManageTrainers] is real. */
+    var capabilitiesKnown by mutableStateOf(false)
+        private set
+
+    /** The Trainer Admin view (More → View As) is in force for this user. */
+    val isTrainerView: Boolean
+        get() = ViewAsRules.isTrainerView(ViewAs.mode, canManageTrainers, capabilitiesKnown)
+
     fun refreshCapabilities() {
         viewModelScope.launch {
             try {
                 canManageTrainers = HrmsApi.summary().canManageTrainers
+                capabilitiesKnown = true
+                // Lost the role: back to My view.
+                val keep = ViewAsRules.afterCapabilities(ViewAs.mode, canManageTrainers)
+                if (keep != ViewAs.mode) ViewAs.select(keep)
             } catch (_: Exception) { /* keep last-known value on failure */ }
         }
     }
@@ -103,6 +116,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
                 phase = Phase.SIGNED_IN
                 Push.registerAfterSignIn()
             } else {
+                ViewAs.reset()
                 phase = Phase.SIGNED_OUT
             }
         }
@@ -266,6 +280,8 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
             AuthService.signOut()
             user = null
             canManageTrainers = false
+            capabilitiesKnown = false
+            ViewAs.reset()
             password = ""; otp = ""
             step = Step.EMAIL
             phase = Phase.SIGNED_OUT
@@ -276,6 +292,8 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
 
     private fun finishSignIn(u: SessionUser) {
         user = u
+        ViewAs.reset() // a fresh sign-in starts on My view
+        capabilitiesKnown = false
         password = ""; otp = ""
         infoMessage = null; errorMessage = null
         Appearance.applyAccountDefault(u.email)

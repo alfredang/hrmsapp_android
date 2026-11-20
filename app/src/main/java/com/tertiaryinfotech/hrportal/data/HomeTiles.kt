@@ -34,7 +34,7 @@ object HomeTiles {
         HomeTile("Expenses, ${f.monthLabel}", Fmt.money(f.expensesMonth), "${Fmt.money(f.expensesYtd)} in ${f.year} so far"),
     )
 
-    /** Trainer Admins: the same three counts as the tiles on Trainer Management. */
+    /** Trainer Admins: the same three counts as the tiles on Trainer Admin. */
     fun trainers(t: TrainerKpis): List<HomeTile> = listOf(
         HomeTile("Trainers", t.total.toString(), "All trainers on record"),
         HomeTile("ACLP trainers", t.aclp.toString(), "Hold the ACLP"),

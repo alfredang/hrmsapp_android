@@ -109,6 +109,19 @@ object LeaveRules {
     fun isIntern(roles: List<String>?, role: String? = null): Boolean =
         if (roles != null) roles.size == 1 && roles[0] == "INTERN" else role == "INTERN"
 
+    /**
+     * Who must clock in and out every workday (web `mustClockIn` in `attendance-policy.ts`, 20 Nov 2026):
+     * interns (roles exactly ["INTERN"]) and accountants who hold none of ADMIN, HR or MANAGER.
+     * Case-insensitive. Without a roles list, the primary [role] decides.
+     */
+    fun mustClockIn(roles: List<String>?, role: String? = null): Boolean {
+        val r = (roles ?: listOfNotNull(role)).map { it.trim().uppercase() }
+        if (r.size == 1 && r[0] == "INTERN") return true
+        return "ACCOUNTANT" in r && r.none { it in CLOCK_EXEMPT_ROLES }
+    }
+
+    private val CLOCK_EXEMPT_ROLES = setOf("ADMIN", "HR", "MANAGER")
+
     fun isMedical(code: String?): Boolean = code != null && code.uppercase() in MEDICAL_CODES
 
     /** The reason an intern's sick leave carries once it goes in as No Pay Leave (as the web form does). */

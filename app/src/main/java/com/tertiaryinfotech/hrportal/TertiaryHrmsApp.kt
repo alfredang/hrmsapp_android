@@ -3,6 +3,7 @@ package com.tertiaryinfotech.hrportal
 import android.app.Application
 import com.tertiaryinfotech.hrportal.data.Net
 import com.tertiaryinfotech.hrportal.push.Push
+import com.tertiaryinfotech.hrportal.ui.ViewAs
 import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import dagger.hilt.android.HiltAndroidApp
 
@@ -13,6 +14,7 @@ class TertiaryHrmsApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Appearance.init(this) // saved Light / Dark / System, before the first frame
+        ViewAs.init(this) // saved My view / Trainer Admin (Trainer Admin holders)
         Net.init(this)
         Push.createChannel(this)
     }

@@ -39,3 +39,7 @@ play/service-account.json
 
 # Firebase client config (public repo — fetch locally, see CLAUDE.md "Push alerts")
 app/google-services.json
+
+# Release artefacts (built locally, uploaded to Play; never pushed)
+*.aab
+*.apk

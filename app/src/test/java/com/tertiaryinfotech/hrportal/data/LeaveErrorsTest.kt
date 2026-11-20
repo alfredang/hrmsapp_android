@@ -1,5 +1,6 @@
 package com.tertiaryinfotech.hrportal.data
 
+import com.tertiaryinfotech.hrportal.push.routeForLink
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -101,6 +102,36 @@ class LeaveErrorsTest {
         assertFalse(LeaveRules.isIntern(null, "STAFF"))
         assertTrue(SessionUser(roles = listOf("INTERN"), role = "INTERN").isIntern)
         assertFalse(SessionUser(roles = listOf("ADMIN", "INTERN"), role = "ADMIN").isIntern)
+    }
+
+    @Test
+    fun mustClockInMatchesTheServerRule() {
+        // Web attendance-policy.ts mustClockIn (20 Nov 2026).
+        assertTrue(LeaveRules.mustClockIn(listOf("INTERN")))
+        assertTrue(LeaveRules.mustClockIn(listOf("intern")))
+        assertTrue(LeaveRules.mustClockIn(listOf("ACCOUNTANT")))
+        assertTrue(LeaveRules.mustClockIn(listOf("STAFF", "ACCOUNTANT")))
+        assertTrue(LeaveRules.mustClockIn(listOf("accountant", "TRAINER_ADMIN")))
+        assertFalse(LeaveRules.mustClockIn(listOf("ADMIN", "ACCOUNTANT")))
+        assertFalse(LeaveRules.mustClockIn(listOf("HR", "ACCOUNTANT")))
+        assertFalse(LeaveRules.mustClockIn(listOf("manager", "accountant")))
+        assertFalse(LeaveRules.mustClockIn(listOf("ADMIN", "INTERN")))
+        assertFalse(LeaveRules.mustClockIn(listOf("STAFF")))
+        assertFalse(LeaveRules.mustClockIn(emptyList()))
+        assertTrue(LeaveRules.mustClockIn(null, "ACCOUNTANT"))
+        assertTrue(LeaveRules.mustClockIn(null, "INTERN"))
+        assertFalse(LeaveRules.mustClockIn(null, "ADMIN"))
+        assertTrue(SessionUser(roles = listOf("STAFF", "ACCOUNTANT"), role = "ACCOUNTANT").mustClockIn)
+        assertFalse(SessionUser(roles = listOf("ADMIN", "ACCOUNTANT"), role = "ADMIN").mustClockIn)
+    }
+
+    @Test
+    fun timesheetLinkOpensMyTimesheetForThoseWhoClockIn() {
+        assertEquals("my_timesheet", routeForLink("/timesheet", mustClockIn = true))
+        assertEquals("timesheet_week", routeForLink("/timesheet", mustClockIn = false))
+        assertEquals("timesheet", routeForLink("/attendance", mustClockIn = true))
+        assertEquals("timesheet", routeForLink("/attendance"))
+        assertEquals("timesheet_admin", routeForLink("/timesheet/overview", isApprover = true))
     }
 
     @Test

@@ -221,7 +221,7 @@ data class TagCount(val tag: String, val count: Int, val kind: Kind) {
  * The app loads the whole directory once and filters on the device, as the web page does, so the
  * suggestions can show counts and results update as you type.
  */
-/** Headline counts for the Trainer Management tiles. Applicants are never counted as trainers. */
+/** Headline counts for the Trainer Admin tiles. Applicants are never counted as trainers. */
 data class TrainerStats(val total: Int, val aclp: Int, val applicants: Int) {
     val nonAclp: Int get() = total - aclp
 }

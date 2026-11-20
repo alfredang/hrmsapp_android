@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.BuildConfig
+import com.tertiaryinfotech.hrportal.data.ViewAsMode
+import com.tertiaryinfotech.hrportal.ui.ViewAs
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
@@ -76,73 +78,106 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
 
         val approver = isApprover(auth)
         val intern = auth.user?.isIntern == true
+        // Interns and accountants without an approver role clock in every workday (web `mustClockIn`).
+        val clocksIn = auth.user?.mustClockIn == true
 
-        GroupLabel("Applications")
-        Card(padding = 6) {
-            MenuLink("MC", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("leave_request/MC") }
-            MenuDivider()
-            MenuLink("Leave", Icons.AutoMirrored.Filled.EventNote, Brand.Accent) { nav.navigate("leave_request/AL") }
-            MenuDivider()
-            MenuLink("Time Off", Icons.Filled.HourglassBottom, Brand.Purple) { nav.navigate("time_off") }
-            MenuDivider()
-            MenuLink("Expense Claims", Icons.Filled.CreditCard, Brand.Orange) { nav.navigate("expenses") }
-            // Staff log weekend / PH work for Off In Lieu; interns have a timesheet instead (Intern group).
-            if (!intern) {
+        // View As (Trainer Admin holders only; web 1a394c4): My view or the Trainer Admin view.
+        val trainerView = auth.isTrainerView
+        if (auth.canManageTrainers || trainerView) {
+            GroupLabel("View As")
+            SegmentedPicker(
+                options = ViewAsMode.entries.map { it.name to it.label },
+                selected = (if (trainerView) ViewAsMode.TRAINER else ViewAsMode.MINE).name,
+                onSelect = { ViewAs.select(ViewAsMode.valueOf(it)) },
+            )
+        }
+
+        if (trainerView) {
+            // Trainer Admin view: only the trainer pages, as the web sidebar in that view.
+            GroupLabel("Trainer Admin")
+            Card(padding = 6) {
+                MenuLink("My Profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
                 MenuDivider()
-                MenuLink("Off In Lieu", Icons.Filled.EventAvailable, Brand.Mint) { nav.navigate("timesheet_week") }
+                MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
+                MenuDivider()
+                MenuLink("Trainer Admin", Icons.Filled.ContactPage, Brand.Gold600) {
+                    nav.navigate("trainers") {
+                        popUpTo(nav.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             }
-        }
-
-        GroupLabel("Staff")
-        Card(padding = 6) {
-            MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
-            MenuDivider()
-            MenuLink("Payslips", Icons.Filled.Description, Brand.Green) { nav.navigate("payslips") }
-            MenuDivider()
-            MenuLink("My Profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
-            MenuDivider()
-            // Every staff member and intern can look up and contact a trainer.
-            MenuLink("Trainers", Icons.Filled.School, Brand.Gold600) { nav.navigate("trainer_contacts") }
-        }
-
-        // Interns must clock in and out every workday; admins see it too. Hidden for plain staff.
-        if (intern || approver) {
-            GroupLabel("Intern")
+        } else {
+            GroupLabel("Applications")
             Card(padding = 6) {
-                MenuLink("Time In/Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
-                if (intern) {
+                MenuLink("MC", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("leave_request/MC") }
+                MenuDivider()
+                MenuLink("Leave", Icons.AutoMirrored.Filled.EventNote, Brand.Accent) { nav.navigate("leave_request/AL") }
+                MenuDivider()
+                MenuLink("Time Off", Icons.Filled.HourglassBottom, Brand.Purple) { nav.navigate("time_off") }
+                MenuDivider()
+                MenuLink("Expense Claims", Icons.Filled.CreditCard, Brand.Orange) { nav.navigate("expenses") }
+                // Interns: their own Timesheet. Accountants who clock in: Timesheet and Off In Lieu.
+                // Everyone else logs weekend / PH work under Off In Lieu.
+                if (clocksIn) {
                     MenuDivider()
-                    MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_week") }
+                    MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("my_timesheet") }
+                }
+                if (!intern) {
+                    MenuDivider()
+                    MenuLink("Off In Lieu", Icons.Filled.EventAvailable, Brand.Mint) { nav.navigate("timesheet_week") }
                 }
             }
-        }
 
-        // Debug builds only: reach Analytics (on sample data) without an approver login, to check the layout.
-        if (BuildConfig.DEBUG && !approver) {
-            GroupLabel("Debug")
-            Card(padding = 6) { MenuLink("Analytics (sample data)", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") } }
-        }
-
-        if (approver || auth.canManageTrainers) {
-            GroupLabel("Manage")
+            GroupLabel("Staff")
             Card(padding = 6) {
-                if (approver) {
-                    MenuLink("Approvals", Icons.Filled.CheckCircle, Brand.Green) { nav.navigate("approvals") }
-                    MenuDivider()
-                    // Admin: one Timesheet for interns (days, hours, missing punches, Off In Lieu).
-                    MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
-                    MenuDivider()
-                    MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
-                    MenuDivider()
-                    // 12 months of revenue / expenses, leave and MC per person, headcount (web /dashboard/analytics).
-                    MenuLink("Analytics", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") }
-                }
-                if (approver && auth.canManageTrainers) MenuDivider()
-                // Full directory with NRIC and admin notes — TRAINER_ADMIN only (server enforces 403).
-                if (auth.canManageTrainers) {
-                    MenuLink("Trainer Management", Icons.Filled.ContactPage, Brand.Gold600) { nav.navigate("trainers") }
+                MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
+                MenuDivider()
+                MenuLink("Payslips", Icons.Filled.Description, Brand.Green) { nav.navigate("payslips") }
+                MenuDivider()
+                MenuLink("My Profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
+                MenuDivider()
+                // Every staff member and intern can look up and contact a trainer.
+                MenuLink("Trainers", Icons.Filled.School, Brand.Gold600) { nav.navigate("trainer_contacts") }
+            }
+
+            // Interns and accountants must clock in and out every workday; admins see it too. Hidden for plain staff.
+            if (intern || clocksIn || approver) {
+                GroupLabel("Attendance")
+                Card(padding = 6) {
+                    MenuLink("Time In/Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
                 }
             }
+
+            // Debug builds only: reach Analytics (on sample data) without an approver login, to check the layout.
+            if (BuildConfig.DEBUG && !approver) {
+                GroupLabel("Debug")
+                Card(padding = 6) { MenuLink("Analytics (sample data)", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") } }
+            }
+
+            if (approver || auth.canManageTrainers) {
+                GroupLabel("Manage")
+                Card(padding = 6) {
+                    if (approver) {
+                        MenuLink("Approvals", Icons.Filled.CheckCircle, Brand.Green) { nav.navigate("approvals") }
+                        MenuDivider()
+                        // Admin: one Timesheet for interns (days, hours, missing punches, Off In Lieu).
+                        MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
+                        MenuDivider()
+                        MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
+                        MenuDivider()
+                        // 12 months of revenue / expenses, leave and MC per person, headcount (web /dashboard/analytics).
+                        MenuLink("Analytics", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") }
+                    }
+                    if (approver && auth.canManageTrainers) MenuDivider()
+                    // Full directory with NRIC and admin notes — TRAINER_ADMIN only (server enforces 403).
+                    if (auth.canManageTrainers) {
+                        MenuLink("Trainer Admin", Icons.Filled.ContactPage, Brand.Gold600) { nav.navigate("trainers") }
+                    }
+                }
+            }
+
         }
 
         SignOutButton(auth)

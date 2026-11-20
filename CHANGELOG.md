@@ -4,6 +4,45 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.17] — 2026-11-20 · versionCode 32
+
+### Release notes (Play, en-US)
+- Accountants now clock in and out like interns: More → Attendance → Time In/Out, and a Timesheet of your days and hours.
+- Trainer Admins can switch More → View As to "Trainer Admin" for a view with just the trainer directory and its counts.
+- "Trainer Management" is now called "Trainer Admin".
+
+### Added
+- **`mustClockIn`** (`LeaveRules.mustClockIn(roles, role)`, `SessionUser.mustClockIn`): the web rule of
+  `src/lib/attendance-policy.ts` (20 Nov 2026), case-insensitive: roles exactly `["INTERN"]`, or `ACCOUNTANT` with none
+  of `ADMIN`, `HR`, `MANAGER`. Unit-tested in `LeaveErrorsTest`.
+- **My Timesheet** (route `my_timesheet`, `MyTimesheetScreen` in `AttendanceHistoryScreen.kt`), the port of iOS
+  `MyTimesheetView`: the month's clock-in / clock-out days and hours, then a link to the weekend / public-holiday grid
+  (Off In Lieu).
+- **View As → Trainer Admin** (web 1a394c4, view mode "trainer"), Trainer Admin holders only (`summary.canManageTrainers`).
+  A My view / Trainer Admin control at the top of More, saved on the device (`hrms_view_as`), reset to My view on
+  sign-out, on a fresh sign-in and when the role is gone. In the Trainer Admin view: tabs Home / Trainers / Calendar /
+  More (Leave and Team hidden); Home shows "Trainer Admin", the Trainers / ACLP trainers / Non-ACLP trainers tiles (each
+  opens the directory on that filter) and "Open trainer directory"; More shows View As, My Profile, Calendar, Trainer
+  Admin and sign out. Switching to Trainer Admin opens the Trainers tab; switching back opens Home. Rules in
+  `data/ViewAs.kt` (`ViewAsRules`), unit-tested in `ViewAsTest`; state in `ui/ViewAs.kt`. Push routing is the same
+  in both views.
+
+### Changed
+- **More**: the "Intern" group is now **Attendance** (Time In/Out) and also shows for accountants who clock in.
+  Applications: interns get **Timesheet** (My Timesheet); accountants who clock in get **Timesheet** and **Off In Lieu**;
+  everyone else keeps Off In Lieu. Manage → **Trainer Admin** (was Trainer Management).
+- **Home**: the trainer row is titled **Trainer Admin**; its tiles now open the directory on their own filter.
+- **Push / notifications**: a `/timesheet` link opens My Timesheet for anyone who must clock in (it opened the weekly
+  grid); `/attendance` still opens the clock screen.
+
+### Play submission
+- 2026-11-21 (SGT): uploaded through the Android Publisher API and released to the **production** track, read back
+  after commit as `1.17 (32)`, status `completed`; subject to Google review before it reaches users. Account ownership
+  (corporate, `sales@tertiarycourses.com.sg`) is from the saved transfer note, not re-checked in the console.
+- The App Review demo password stored in `~/.claude/.env` was refused by production (`CredentialsSignin`) for both
+  `angch+appreview@` and `appreview@tertiaryinfotech.com`; the account was not changed. Check Play's App access sign-in
+  details before the review needs them.
+
 ## [1.16] — 2026-11-20 · versionCode 31
 
 ### Release notes (Play, en-US)
