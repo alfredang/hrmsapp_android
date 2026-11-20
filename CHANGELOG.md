@@ -42,9 +42,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
 - The calendar's All / Staff / Interns control (1.14) is replaced by the person filter.
 
 ### Play submission
-- Not uploaded yet. The signed bundle is built locally (`app/build/outputs/bundle/release/app-release.aab`).
-  The new sections need the web build that adds `people`, `breakdown` and `intern`; without it the app shows the
-  fallbacks described above.
+- Uploaded through the Android Publisher API on 2026-11-20 and released to the **production** track
+  (status `completed`, read back as `1.15 (30)`); subject to Google review before it reaches users.
+  Account ownership (corporate, `sales@tertiarycourses.com.sg`) is from the saved transfer note, not re-checked in the console.
+- The web build that adds `people`, `breakdown` and `intern` (web `144d203`) was live before the upload.
 
 ## [1.14] — 2026-11-20 · versionCode 29
 
