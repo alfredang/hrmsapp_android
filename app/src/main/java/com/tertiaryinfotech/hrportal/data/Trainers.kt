@@ -128,13 +128,29 @@ object FlexStringSerializer : KSerializer<String> {
 data class TrainerQuery(
     val q: String = "",
     val certs: Set<String> = emptySet(),
-    /** Device-side only: trainers who hold none of these training certificates (the Non-ACLP tile). */
-    val withoutCerts: Set<String> = emptySet(),
+    /** Device-side only: ACLP / Non-ACLP / All (the screen opens on ACLP; the bare query matches all). */
+    val aclp: AclpFilter = AclpFilter.ALL,
     val tags: Set<String> = emptySet(),
     val finance: Boolean = false,
     val ibfFit: Boolean = false,
     val status: TrainerStatusFilter = TrainerStatusFilter.TRAINERS,
 )
+
+/**
+ * The directory's ACLP / Non-ACLP / All control (web `AclpFilter`). Non-ACLP means "ACLP" is not in
+ * `trainingCerts` (ACTA, DACE or nothing on record). The screen opens on [ACLP].
+ */
+enum class AclpFilter(val label: String) {
+    ACLP("ACLP"),
+    NON_ACLP("Non-ACLP"),
+    ALL("All"),
+    ;
+
+    fun matches(t: TrainerListItem): Boolean = this == ALL || ("ACLP" in t.trainingCerts) == (this == ACLP)
+
+    /** How many trainers (never applicants) each choice holds. */
+    fun count(stats: TrainerStats): Int = when (this) { ACLP -> stats.aclp; NON_ACLP -> stats.nonAclp; ALL -> stats.total }
+}
 
 enum class TrainerStatusFilter(val param: String, val label: String) {
     TRAINERS("trainers", "Trainers"),
@@ -168,7 +184,6 @@ enum class Accreditation(val label: String) {
     ACTA("ACTA"),
     DACE("DACE"),
     DDDLP("DDDLP"),
-    NON_ACLP("Non-ACLP"),
     FINANCE("Finance background"),
     IBF("IBF Fit & Proper"),
     ;
@@ -181,16 +196,14 @@ enum class Accreditation(val label: String) {
     }
 
     fun applyTo(q: TrainerQuery): TrainerQuery = when (this) {
-        ANY -> q.copy(certs = emptySet(), withoutCerts = emptySet(), finance = false, ibfFit = false)
-        NON_ACLP -> q.copy(certs = emptySet(), withoutCerts = setOf("ACLP"), finance = false, ibfFit = false)
-        FINANCE -> q.copy(certs = emptySet(), withoutCerts = emptySet(), finance = true, ibfFit = false)
-        IBF -> q.copy(certs = emptySet(), withoutCerts = emptySet(), finance = false, ibfFit = true)
-        else -> q.copy(certs = setOf(name), withoutCerts = emptySet(), finance = false, ibfFit = false)
+        ANY -> q.copy(certs = emptySet(), finance = false, ibfFit = false)
+        FINANCE -> q.copy(certs = emptySet(), finance = true, ibfFit = false)
+        IBF -> q.copy(certs = emptySet(), finance = false, ibfFit = true)
+        else -> q.copy(certs = setOf(name), finance = false, ibfFit = false)
     }
 
     fun count(pool: List<TrainerListItem>): Int = when (this) {
         ANY -> pool.size
-        NON_ACLP -> pool.count { "ACLP" !in it.trainingCerts }
         FINANCE -> pool.count { it.financeBackground }
         IBF -> pool.count { it.ibfFitDeclaration }
         else -> pool.count { name in it.trainingCerts }
@@ -222,6 +235,13 @@ object TrainerSearch {
         val pool = all.filterNot(::isApplicant)
         return TrainerStats(total = pool.size, aclp = pool.count { "ACLP" in it.trainingCerts }, applicants = all.size - pool.size)
     }
+
+    /** A to Z by name, ignoring case: the directory's default order (web `byName`). */
+    fun sortedByName(list: List<TrainerListItem>): List<TrainerListItem> =
+        list.sortedWith(compareBy<TrainerListItem> { it.name.trim().lowercase() }.thenBy { it.id })
+
+    /** What the directory shows: the filtered trainers, A to Z. */
+    fun directory(all: List<TrainerListItem>, f: TrainerQuery): List<TrainerListItem> = sortedByName(filter(all, f))
 
     private val SPACES = Regex("\\s+")
     private fun norm(s: String) = s.lowercase().replace(SPACES, " ").trim()
@@ -258,7 +278,7 @@ object TrainerSearch {
             f.finance && !t.financeBackground -> false
             f.ibfFit && !t.ibfFitDeclaration -> false
             f.certs.isNotEmpty() && !f.certs.all { it in t.trainingCerts } -> false
-            f.withoutCerts.any { it in t.trainingCerts } -> false
+            !f.aclp.matches(t) -> false
             f.tags.isNotEmpty() && !f.tags.all { hasTag(t, it) } -> false
             else -> matchesQuery(haystack(t), f.q)
         }

@@ -3,6 +3,8 @@ package com.tertiaryinfotech.hrportal.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -168,7 +170,14 @@ fun <T> AsyncContent(
 }
 
 /** One figure in a [KpiStrip]. */
-data class Kpi(val value: String, val label: String, val tint: Color = Brand.Accent, val onClick: (() -> Unit)? = null)
+data class Kpi(
+    val value: String,
+    val label: String,
+    val tint: Color = Brand.Accent,
+    /** The figure that is the active filter: a tinted cell with an accent underline. */
+    val selected: Boolean = false,
+    val onClick: (() -> Unit)? = null,
+)
 
 /** A single compact card of 3–4 headline figures side by side (KPI-first, without four big tiles). */
 @Composable
@@ -181,13 +190,15 @@ fun KpiStrip(items: List<Kpi>, modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .let { m -> k.onClick?.let { m.clickable(onClickLabel = k.label, onClick = it) } ?: m }
+                        .background(if (k.selected) Brand.SurfaceStrong else Color.Transparent)
+                        .let { m -> k.onClick?.let { m.selectable(selected = k.selected, role = Role.Tab, onClick = it) } ?: m }
                         .padding(vertical = 14.dp, horizontal = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    Text(k.value, color = k.tint, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
-                    Text(k.label, color = Brand.TextSecondary, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 2, textAlign = TextAlign.Center)
+                    Text(k.value, color = if (k.selected) Brand.Accent else k.tint, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+                    Text(k.label, color = if (k.selected) Brand.TextPrimary else Brand.TextSecondary,
+                        fontWeight = if (k.selected) FontWeight.SemiBold else FontWeight.Normal, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 2, textAlign = TextAlign.Center)
                 }
             }
         }

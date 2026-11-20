@@ -9,7 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
 ### Release notes (Play, en-US)
 - Calendar: approvers can show leave for one person. The list has every active staff member and intern, grouped, with their number of leave entries.
 - Analytics: new workforce breakdown by gender, age group and ethnic group, for staff, interns or everyone.
-- Trainer Management: Total, ACLP and Non-ACLP trainer counts at the top. Tap a count to list those trainers.
+- Trainer Management: Total, ACLP and Non-ACLP trainer counts at the top, with an ACLP / Non-ACLP / All filter. The list opens on ACLP trainers, sorted by name.
 - Team: approvers see Staff and Interns as two lists.
 - Home: approvers see full-time staff, interns and pending approvals at a glance.
 
@@ -23,15 +23,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
   Age group, Ethnic group) with counts and percentages, and a Staff / Interns / All control (Staff first), from the new
   `breakdown` field of `/api/mobile/analytics`. A note says how many people have no ethnic group recorded. The section
   is hidden when the field is null or absent.
-- **Trainer Management tiles**: Total trainers, ACLP trainers, Non-ACLP trainers, counted on the device over the whole
-  directory (`TrainerSearch.stats`); applicants are not counted. Total clears the filters, ACLP and Non-ACLP list those
-  trainers (new "Non-ACLP" entry in the Accreditation menu).
+- **Trainer Management tiles and ACLP filter**: Total trainers, ACLP trainers, Non-ACLP trainers, counted on the device
+  over the whole directory (`TrainerSearch.stats`); applicants are not counted. A new ACLP / Non-ACLP / All control
+  with counts (`AclpFilter`) sits under the status tabs. The screen opens on ACLP and the list is sorted A to Z by
+  name (`TrainerSearch.directory`). The tiles set the same filter (Total = All) and clear the others; the active tile
+  is highlighted. Non-ACLP means "ACLP" is not in `trainingCerts`. ACLP is no longer in the Accreditation menu.
 - **Team**: Staff / Interns tabs with counts for approvers (default Staff), from the new `intern` field of
   `/api/mobile/employees`. One list, as before, when the field is null or absent.
 - **Home**: the approver row is now three figures, Full-time staff, Interns and Pending approvals (leave and MC plus
   claims), matching the web dashboard. The counts come from `/api/mobile/analytics`; if that call fails or has no
   counts, the previous Pending leave / Pending claims tiles show instead.
-- `KpiStrip` figures can be tapped (`Kpi.onClick`) and their labels may wrap to two lines.
+- `KpiStrip` figures can be tapped (`Kpi.onClick`), can show as the active one (`Kpi.selected`), and their labels may
+  wrap to two lines.
 - Debug mock (`app/src/debug`): analytics, the calendar roster, intern flags and two more trainers, so approver screens
   can be previewed with `ui_preview` = admin.
 

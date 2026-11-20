@@ -214,18 +214,35 @@ class ParityFeaturesTest {
     }
 
     @Test
-    fun `tapping a tile lists exactly the trainers it counts`() {
+    fun `ACLP, Non-ACLP and All each list exactly the trainers their tile counts`() {
         val s = TrainerSearch.stats(trainers)
-        val aclp = TrainerSearch.filter(trainers, Accreditation.ACLP.applyTo(TrainerQuery()))
-        assertEquals(listOf("1", "4"), aclp.map { it.id })
-        assertEquals(s.aclp, aclp.size)
-        val non = TrainerSearch.filter(trainers, Accreditation.NON_ACLP.applyTo(TrainerQuery()))
-        assertEquals(listOf("2", "3"), non.map { it.id })
-        assertEquals(s.nonAclp, non.size)
-        assertEquals(s.nonAclp, Accreditation.NON_ACLP.count(trainers.filterNot(TrainerSearch::isApplicant)))
-        assertEquals(s.total, TrainerSearch.filter(trainers, Accreditation.ANY.applyTo(TrainerQuery())).size)
-        // Switching away from Non-ACLP drops the exclusion.
-        assertTrue(Accreditation.ACTA.applyTo(Accreditation.NON_ACLP.applyTo(TrainerQuery())).withoutCerts.isEmpty())
+        fun ids(f: AclpFilter) = TrainerSearch.directory(trainers, TrainerQuery(aclp = f)).map { it.id }
+        assertEquals(listOf("1", "4"), ids(AclpFilter.ACLP))
+        // Non-ACLP = "ACLP" is not in trainingCerts: ACTA only, or nothing on record.
+        assertEquals(listOf("2", "3"), ids(AclpFilter.NON_ACLP))
+        assertEquals(listOf("1", "2", "3", "4"), ids(AclpFilter.ALL))
+        AclpFilter.entries.forEach { assertEquals(it.name, it.count(s), ids(it).size) }
+        assertEquals(listOf("ACLP", "Non-ACLP", "All"), AclpFilter.entries.map { it.label })
+        // A bare query (the API call that loads the directory) is not narrowed.
+        assertEquals(AclpFilter.ALL, TrainerQuery().aclp)
+        // The filter also applies to the Applicants list, and combines with an accreditation.
+        assertEquals(listOf("5"), TrainerSearch.directory(trainers, TrainerQuery(aclp = AclpFilter.ACLP, status = TrainerStatusFilter.APPLICANTS)).map { it.id })
+        assertEquals(listOf("2"), TrainerSearch.directory(trainers, Accreditation.ACTA.applyTo(TrainerQuery(aclp = AclpFilter.NON_ACLP))).map { it.id })
+        assertTrue(TrainerSearch.directory(trainers, Accreditation.DACE.applyTo(TrainerQuery(aclp = AclpFilter.ACLP))).isEmpty())
+    }
+
+    @Test
+    fun `the directory is sorted A to Z by name, ignoring case`() {
+        val list = decode<TrainersResponse>(
+            """{"trainers":[
+                {"id":"1","name":"TAN WEI MING","status":"Active","trainingCerts":["ACLP"]},
+                {"id":"2","name":"goh siew ling","status":"Active","trainingCerts":["ACLP"]},
+                {"id":"3","name":"  ALFRED ANG (DR)","status":"Active","trainingCerts":["ACLP"]},
+                {"id":"4","name":"MUTHU KUMAR","status":"Active","trainingCerts":[]},
+                {"id":"5","name":"Goh Siew Ling","status":"Active","trainingCerts":["ACLP"]}]}""",
+        ).trainers
+        assertEquals(listOf("3", "2", "5", "4", "1"), TrainerSearch.sortedByName(list).map { it.id })
+        assertEquals(listOf("3", "2", "5", "1"), TrainerSearch.directory(list, TrainerQuery(aclp = AclpFilter.ACLP)).map { it.id })
     }
 
     // MARK: - Directory: Staff and Interns

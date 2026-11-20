@@ -101,8 +101,8 @@ Mirrors the iOS app 1:1:
   More → Manage → Trainer Management (route `trainers`; no longer a bottom tab). The directory loads once (`/api/mobile/trainers?status=all`, no NRIC) and is filtered on the
   device by `data/Trainers.kt` `TrainerSearch` (a 1:1 port of the web's `src/lib/trainers.ts`,
   unit-tested): a search box with skill / certification suggestions and counts that become
-  removable chips, an Accreditation menu (`Accreditation` enum: ACLP / ACTA / DACE / DDDLP /
-  Finance / IBF Fit), Trainers / Applicants / All, compact rows with the matching expertise first,
+  removable chips, ACLP / Non-ACLP / All (default ACLP), an Accreditation menu (`Accreditation` enum:
+  ACTA / DACE / DDDLP / Finance / IBF Fit), Trainers / Applicants / All, compact rows with the matching expertise first,
   and a contact sheet (call, WhatsApp `https://wa.me/65XXXXXXXX` for 8-digit SG numbers, email,
   copy). The profile (`trainer_profile/{id}`) has Call / WhatsApp / Email buttons, copy icons, NRIC
   masked with Show, and long sections (experience, courses, classes) that fold. Names are uppercase
@@ -270,8 +270,12 @@ reach phones before the server is deployed. Pure logic is in `data/` and unit-te
   grey (`Brand.TextFaint`). Colours: categorical `#5B82F0 #22978B #BF8420 #8E5FD0 #D9627A`, age ramp
   `#A9BEF7 #7F9DF3 #5B82F0 #3D63D6 #2A47A8`. Its Staff / Interns / All control is its own (default Staff), not the
   filter row at the top.
-- **Trainer tiles**: `TrainerSearch.stats(all)` over the unfiltered directory; applicants (`Applicant` / `Contacted`)
-  are never counted. Non-ACLP is `Accreditation.NON_ACLP` → `TrainerQuery.withoutCerts` (device-side only).
+- **Trainer tiles and ACLP filter**: `TrainerSearch.stats(all)` over the unfiltered directory; applicants
+  (`Applicant` / `Contacted`) are never counted. `AclpFilter` (ACLP / Non-ACLP / All, `TrainerQuery.aclp`, device-side
+  only) is a `FilterTabs` row with counts; the screen opens on ACLP and `TrainerSearch.directory()` sorts A to Z by
+  name. Tiles set the same filter (Total = All) and the active one is highlighted (`Kpi.selected`). Non-ACLP = "ACLP"
+  not in `trainingCerts`. ACLP is left out of the Accreditation menu, as on the web. `TrainerQuery()` itself defaults
+  to All so the load call and other callers are not narrowed.
 - **Team Staff / Interns**: `Employee.intern` (null for non-approvers); `Directory.split()` returns null when no row
   has the flag, and the screen keeps one list.
 - **Home**: approvers load `/api/mobile/analytics` alongside the summary for `AnalyticsCalc.activeCounts()` (breakdown,

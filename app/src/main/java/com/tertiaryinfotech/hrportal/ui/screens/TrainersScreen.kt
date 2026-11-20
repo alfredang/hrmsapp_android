@@ -32,6 +32,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import com.tertiaryinfotech.hrportal.data.Accreditation
+import com.tertiaryinfotech.hrportal.data.AclpFilter
+import com.tertiaryinfotech.hrportal.ui.components.FilterTabs
 import com.tertiaryinfotech.hrportal.data.TagCount
 import com.tertiaryinfotech.hrportal.data.TrainerSearch
 import com.tertiaryinfotech.hrportal.ui.components.CollapsibleSection
@@ -109,7 +111,8 @@ import com.tertiaryinfotech.hrportal.util.Fmt
  *
  *  - one search box with a suggestion list of skills / certifications and their trainer counts;
  *    picking one adds it as a removable filter chip (only the chosen ones are shown);
- *  - an Accreditation menu (ACLP / ACTA / DACE / DDDLP / Finance background / IBF Fit);
+ *  - Total / ACLP / Non-ACLP tiles and an ACLP / Non-ACLP / All control with counts (opens on ACLP);
+ *  - an Accreditation menu (ACTA / DACE / DDDLP / Finance background / IBF Fit);
  *  - Trainers / Applicants / All;
  *  - compact rows (name, accreditation badges, the matching expertise first) with a contact button
  *    for call, WhatsApp, email and copy.
@@ -124,6 +127,8 @@ fun TrainersScreen(nav: NavController) {
     var status by rememberSaveable { mutableStateOf(TrainerStatusFilter.TRAINERS.name) }
     var tags by rememberSaveable { mutableStateOf(listOf<String>()) }
     var accreditation by rememberSaveable { mutableStateOf(Accreditation.ANY.name) }
+    // ACLP / Non-ACLP / All. The directory opens on ACLP trainers, A to Z (Alfred, 20 Nov 2026).
+    var aclp by rememberSaveable { mutableStateOf(AclpFilter.ACLP.name) }
     var contact by remember { mutableStateOf<TrainerListItem?>(null) }
 
     AsyncListScreen(
@@ -131,10 +136,11 @@ fun TrainersScreen(nav: NavController) {
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
     ) { all ->
         val acc = Accreditation.valueOf(accreditation)
-        val query = acc.applyTo(TrainerQuery(q = search, tags = tags.toSet(), status = TrainerStatusFilter.valueOf(status)))
+        val aclpFilter = AclpFilter.valueOf(aclp)
+        val query = acc.applyTo(TrainerQuery(q = search, aclp = aclpFilter, tags = tags.toSet(), status = TrainerStatusFilter.valueOf(status)))
         val pool = all.filterNot(TrainerSearch::isApplicant)
         val vocab = TrainerSearch.vocabulary(pool)
-        val results = TrainerSearch.filter(all, query)
+        val results = TrainerSearch.directory(all, query)
         val needles = tags + search.split(' ')
 
         item {
@@ -147,16 +153,15 @@ fun TrainersScreen(nav: NavController) {
                 }
                 // Headline counts over the whole directory, whatever is filtered below. Applicants are not counted.
                 val stats = TrainerSearch.stats(all)
-                fun clearAll() {
+                fun clearAll(show: AclpFilter = AclpFilter.ACLP) {
                     search = ""; tags = emptyList(); accreditation = Accreditation.ANY.name
                     status = TrainerStatusFilter.TRAINERS.name
+                    aclp = show.name
                 }
+                // The tiles set the same filter as the control below; the active one is highlighted.
                 KpiStrip(
-                    listOf(
-                        Kpi("${stats.total}", "Total trainers", Brand.TextPrimary) { clearAll() },
-                        Kpi("${stats.aclp}", "ACLP trainers", Brand.TextPrimary) { clearAll(); accreditation = Accreditation.ACLP.name },
-                        Kpi("${stats.nonAclp}", "Non-ACLP trainers", Brand.TextPrimary) { clearAll(); accreditation = Accreditation.NON_ACLP.name },
-                    ),
+                    listOf(AclpFilter.ALL to "Total trainers", AclpFilter.ACLP to "ACLP trainers", AclpFilter.NON_ACLP to "Non-ACLP trainers")
+                        .map { (f, label) -> Kpi("${f.count(stats)}", label, Brand.TextPrimary, selected = aclpFilter == f) { clearAll(f) } },
                 )
                 SkillSearch(
                     value = search, onChange = { search = it }, vocab = vocab, selected = tags,
@@ -167,18 +172,21 @@ fun TrainersScreen(nav: NavController) {
                     selected = status,
                     onSelect = { status = it },
                 )
+                FilterTabs(
+                    options = AclpFilter.entries.map { it.name to "${it.label} ${it.count(stats)}" },
+                    selected = aclp,
+                    onSelect = { aclp = it },
+                )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AccreditationMenu(acc, pool) { accreditation = it.name }
                     val anyFilter = search.isNotBlank() || tags.isNotEmpty() || acc != Accreditation.ANY ||
-                        status != TrainerStatusFilter.TRAINERS.name
+                        status != TrainerStatusFilter.TRAINERS.name || aclpFilter != AclpFilter.ACLP
                     Box(Modifier.weight(1f))
                     if (anyFilter) {
                         Text(
                             "Clear all", color = Brand.Accent, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
-                                search = ""; tags = emptyList(); accreditation = Accreditation.ANY.name
-                                status = TrainerStatusFilter.TRAINERS.name
-                            }.padding(horizontal = 10.dp, vertical = 10.dp),
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { clearAll() }
+                                .padding(horizontal = 10.dp, vertical = 10.dp),
                         )
                     }
                 }
@@ -301,7 +309,8 @@ private fun AccreditationMenu(current: Accreditation, pool: List<TrainerListItem
             Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextSecondary)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = Brand.Dialog) {
-            Accreditation.entries.forEach { a ->
+            // ACLP has its own ACLP / Non-ACLP / All control, so it is not repeated here (as on the web).
+            Accreditation.entries.filter { it != Accreditation.ACLP }.forEach { a ->
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {

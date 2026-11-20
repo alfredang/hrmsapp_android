@@ -132,7 +132,8 @@ Interns and Pending approvals. Android Home shows the same three figures to appr
 counts from `/api/mobile/analytics`). The web `/dashboard/analytics` workforce breakdown (gender / age group /
 ethnic group donuts, Staff default) is on the Android Analytics screen (`breakdown` in `/api/mobile/analytics`).
 The web splits people into Staff Management and Intern Management; Android Team has Staff / Interns tabs
-(`intern` in `/api/mobile/employees`). Trainer Management has Total / ACLP / Non-ACLP tiles on both.
+(`intern` in `/api/mobile/employees`). Trainer Management has Total / ACLP / Non-ACLP tiles and an ACLP / Non-ACLP / All filter on both (opens on
+ACLP, sorted by name).
 
 **Loading state**: Shared route-group `(dashboard)/loading.tsx` — `Loader2 spin` + `"Loading…"`,
 centered, `min-h-[60vh]`.
