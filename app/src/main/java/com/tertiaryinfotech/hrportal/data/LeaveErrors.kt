@@ -3,8 +3,9 @@ package com.tertiaryinfotech.hrportal.data
 import kotlinx.serialization.Serializable
 
 /**
- * No Pay Leave cap status as the server reports it (`getNplStatus` in the web app): the cap is
- * 21 days a year prorated by completed months served, and [remaining] = cap - used - pending.
+ * No Pay Leave cap status as the server reports it (`getNplStatus` in the web app): the cap is a
+ * flat 14 days a year with no proration (since 20 Nov 2026), and [remaining] = cap - used - pending.
+ * The app always shows the server's numbers; it never computes the cap itself.
  */
 @Serializable
 data class NplStatus(
@@ -96,6 +97,12 @@ object LeaveErrors {
 /** Pure leave rules the form applies before it talks to the server (mirrors `leave-policy.ts`). */
 object LeaveRules {
     val MEDICAL_CODES = setOf("MC", "SL", "MEDICAL")
+
+    /**
+     * Only for wording when the server sent no cap: No Pay Leave is a flat 14 days a year for staff
+     * and interns, with no proration (web `NPL_ANNUAL_CAP_DAYS`, 20 Nov 2026). Never used to decide.
+     */
+    const val NPL_ANNUAL_CAP_DAYS = 14.0
     const val INTERN_SICK_REASON = "Sick leave (MC)"
 
     /** An intern is a user whose roles are exactly ["INTERN"]; admins also hold INTERN to switch views. */
@@ -118,7 +125,7 @@ object LeaveRules {
     fun typeIdFor(types: List<LeaveType>, code: String): String? =
         types.firstOrNull { it.code.equals(code, ignoreCase = true) }?.id
 
-    /** The No Pay Leave cap and remaining days from the `/api/mobile/leave` balances (proRated = cap). */
+    /** The No Pay Leave cap and remaining days from the `/api/mobile/leave` balances (proRated = cap, the server's figure). */
     fun nplFromBalances(balances: List<LeaveBalance>): NplStatus? {
         val b = balances.firstOrNull { it.code == NPL_CODE_ROW } ?: return null
         val cap = b.proRated ?: return null

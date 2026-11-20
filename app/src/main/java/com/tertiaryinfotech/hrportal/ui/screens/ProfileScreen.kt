@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.EmployeeProfile
 import com.tertiaryinfotech.hrportal.data.HrmsApi
+import com.tertiaryinfotech.hrportal.data.WorkWeek
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
@@ -90,6 +91,10 @@ fun ProfileScreen(nav: NavController) {
                         Detail("Department", e.department ?: "\u2014")
                         Detail("Employment", cap(e.employmentType), last = true)
                     }
+                }
+                if (WorkScheduleRows.shown(e)) {
+                    item { Spacer18() }
+                    item { WorkScheduleCard(e) }
                 }
                 item { Spacer18() }
                 item {
@@ -147,6 +152,35 @@ private fun AvatarHeader(e: EmployeeProfile) {
                 Text(e.roles.joinToString(" \u00b7 "), color = Brand.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
+    }
+}
+
+/** Rows of the Work Schedule card (web `work-schedule-card.tsx`). */
+internal object WorkScheduleRows {
+    /** Hidden on an older server that sends none of the schedule fields. */
+    fun shown(e: EmployeeProfile): Boolean =
+        e.officeHours != null || e.workdays != null || e.workingDays != null || e.offDays != null
+
+    fun of(e: EmployeeProfile): List<Pair<String, String>> {
+        val (working, off) = WorkWeek.of(e)
+        return listOf(
+            "Title" to (e.position?.takeIf { it.isNotBlank() } ?: "\u2014"),
+            "Department" to (e.department?.takeIf { it.isNotBlank() } ?: "\u2014"),
+            "Working hours" to (e.officeHours?.takeIf { it.isNotBlank() } ?: "9am to 6pm"),
+            "Working days" to working.joinToString(", ").ifEmpty { "None" },
+            "Off days" to off.joinToString(", ").ifEmpty { "None" },
+        )
+    }
+}
+
+/** My Profile: title, department, working hours, working days and off days at a glance (web, 20 Nov 2026). */
+@Composable
+private fun WorkScheduleCard(e: EmployeeProfile) {
+    val rows = WorkScheduleRows.of(e)
+    Card {
+        Text("Work Schedule", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        Box(Modifier.padding(top = 4.dp))
+        rows.forEachIndexed { i, (label, value) -> Detail(label, value, last = i == rows.lastIndex) }
     }
 }
 

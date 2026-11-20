@@ -60,7 +60,39 @@ data class DashboardSummary(
     val expenseYtd: Double = 0.0,
     val pendingLeaves: Int = 0,
     val pendingClaims: Int = 0,
+    /**
+     * 1.16: the signed-in person's own leave tiles (paid leave taken, AL balance, MC taken, NPL taken
+     * with "N of 14 left"), the same summary as the web dashboard and the decision email. Shown as
+     * given. Null for someone without an employee record and absent from an older server.
+     */
+    val leaveSummary: List<SummaryStat>? = null,
+    /** 1.16: accountants (not admins) only, else null. */
+    val financeKpis: FinanceKpis? = null,
+    /** 1.16: Trainer Admins only, else null. */
+    val trainerKpis: TrainerKpis? = null,
 )
+
+/** One tile of [DashboardSummary.leaveSummary]: "MC taken" / "2 days", with an optional hint line. */
+@Serializable
+data class SummaryStat(val label: String = "", val value: String = "", val hint: String? = null)
+
+/** Web `FinanceKpis` (src/lib/dashboard-kpis.ts): claims waiting, and this month's bank income / expenses. */
+@Serializable
+data class FinanceKpis(
+    val pendingClaims: Int = 0,
+    @Serializable(with = FlexNumberSerializer::class) val pendingClaimsAmount: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val incomeMonth: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val incomeYtd: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val expensesMonth: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val expensesYtd: Double = 0.0,
+    /** "November". */
+    val monthLabel: String = "",
+    val year: Int = 0,
+)
+
+/** Web `TrainerKpis`: every trainer on record (applicants excluded), with and without the ACLP. */
+@Serializable
+data class TrainerKpis(val total: Int = 0, val aclp: Int = 0, val nonAclp: Int = 0)
 
 // MARK: - Leave (/api/mobile/leave)
 
@@ -278,10 +310,49 @@ data class TeamCalendarResponse(
      * "Leave shown for" filter. Null for everyone else and absent from an older server.
      */
     val people: List<TeamCalendarPerson>? = null,
+    /** 1.16: approved time off and intern Off Days. Approvers get everyone's, others only their own. */
+    val timeOff: List<TeamTimeOff> = emptyList(),
+    /** 1.16: approvers only (null otherwise): one all-day birthday per person per year, never the age. */
+    val birthdays: List<TeamBirthday>? = null,
+    /** 1.16: the viewer's own workdays, ISO 1 = Mon … 7 = Sun (null without an employee record or on an older server). */
+    val ownWorkdays: List<Int>? = null,
+    /** 1.16: the colour + emoji legend. Absent on an older server: [CalendarCategories.FALLBACK] is used. */
+    val categories: List<CalendarCategoryInfo>? = null,
 )
 
 @Serializable
-data class TeamCalendarPerson(val id: String = "", val name: String = "", val intern: Boolean = false)
+data class TeamCalendarPerson(
+    val id: String = "",
+    val name: String = "",
+    val intern: Boolean = false,
+    /** 1.16: ISO weekdays this person works (1 = Mon … 7 = Sun); empty means Mon–Fri. */
+    val workdays: List<Int>? = null,
+)
+
+/** Approved time off on the team calendar. [offDay] is a full day (shown as all-day "Off Day"). */
+@Serializable
+data class TeamTimeOff(
+    val id: String = "",
+    val employeeId: String = "",
+    val employeeName: String = "",
+    val date: String? = null,
+    /** "HH:mm". */
+    val startTime: String = "",
+    val endTime: String = "",
+    @Serializable(with = FlexNumberSerializer::class) val hours: Double = 0.0,
+    val offDay: Boolean = false,
+    val isSelf: Boolean = false,
+    /** "staff" or "intern" for approvers, else null. */
+    val group: String? = null,
+)
+
+/** A birthday on the approvers' calendar; [date] is SGT noon of the day. */
+@Serializable
+data class TeamBirthday(val id: String = "", val employeeId: String = "", val name: String = "", val date: String? = null)
+
+/** One legend row: key (HOLIDAY, ANNUAL_LEAVE, …), label, "#RRGGBB" and the emoji ("" when none). */
+@Serializable
+data class CalendarCategoryInfo(val key: String = "", val label: String = "", val color: String = "", val emoji: String = "")
 
 @Serializable
 data class TeamLeaveEntry(
@@ -298,6 +369,11 @@ data class TeamLeaveEntry(
     val isSelf: Boolean = false,
     /** "staff" or "intern", sent to approvers only (null for everyone else and from older servers). */
     val group: String? = null,
+    /**
+     * 1.16: ANNUAL_LEAVE / MEDICAL_LEAVE / NO_PAY_LEAVE / OTHER_LEAVE where the type is shown (own
+     * leave, approvers); null when masked, which keeps the neutral leave colour and no emoji.
+     */
+    val category: String? = null,
 )
 
 @Serializable
@@ -338,6 +414,13 @@ data class EmployeeProfile(
     val monthlyLeaveRate: Double? = null,
     val roles: List<String> = emptyList(),
     val role: String = "",
+    /** 1.16 Work Schedule: ISO weekdays worked (1 = Mon … 7 = Sun). Null on an older server. */
+    val workdays: List<Int>? = null,
+    /** 1.16: ["Mon", "Tue", …] and the rest of the week as off days. */
+    val workingDays: List<String>? = null,
+    val offDays: List<String>? = null,
+    /** 1.16: "9am to 6pm". */
+    val officeHours: String? = null,
 )
 
 // MARK: - Notifications (/api/notifications)

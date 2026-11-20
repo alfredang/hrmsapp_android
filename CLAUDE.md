@@ -91,7 +91,8 @@ Mirrors the iOS app 1:1:
   `AL_EXCEEDS_BALANCE` (dialog offers *Apply as No Pay Leave instead*, resubmitting the same dates
   and day type with the NPL type id from the loaded types), `INTERN_MC_NOT_PAID` (interns, roles
   exactly `["INTERN"]`, have no paid MC; the form already switches MC to No Pay Leave up front with
-  reason "Sick leave (MC)" and keeps the certificate) and `NPL_CAP_EXCEEDED`. Parsing lives in
+  reason "Sick leave (MC)" and keeps the certificate) and `NPL_CAP_EXCEEDED` (NPL is a flat 14 days a
+  year since 20 Nov 2026; always show the server's cap, never compute it). Parsing lives in
   `data/LeaveErrors.kt` (`LeaveRejectedException`). The NPL balance row carries `proRated` = cap and
   `available` = remaining.
 - **Trainers (contacts)** — More → **Trainers**, every signed-in user (11 Nov 2026): read-only
@@ -283,3 +284,21 @@ reach phones before the server is deployed. Pure logic is in `data/` and unit-te
   time-off count, so it can be lower than the web tile). No counts → the old two pending tiles.
 - **Previewing approver screens**: `ui_preview` = admin (debug builds); the mock serves the roster, intern flags,
   the analytics sample and five trainers.
+
+## 1.16 web parity (Alfred, 20 Nov 2026)
+All new fields are nullable or defaulted; pure logic is in `data/CalendarLogic.kt` and `data/HomeTiles.kt`, unit-tested in
+`CalendarParityTest`.
+- **Calendar colours**: `TeamLeaveEntry.category` + `TeamCalendarResponse.categories` (legend `{key,label,color,emoji}`;
+  `CalendarCategories.FALLBACK` is the web table for an older server). Null category = masked leave: neutral You /
+  Colleague tint, no emoji. Category chips are tinted (fill at ~16 %, ink darkened 45 % in light, the colour in dark).
+- **Time off / birthdays**: `timeOff` (approvers: everyone's; others: own) and `birthdays` (approvers only) are items on
+  their day (`CalItem`); both follow Only me and the person filter (`CalendarFilters`). The person filter counts leave +
+  time off. There is no All / Staff / Interns control on Android (replaced in 1.15 by the person filter).
+- **Off-day shading** (`OffDays.schedule` / `isOff`): only with one schedule (own `ownWorkdays`, approver's "Only me",
+  or the picked person's `people[].workdays`; empty = Mon–Fri). Everyone = no shading; no workdays anywhere = no shading.
+- **Month totals**: `CalendarSummary.personMonthSummary` is a 1:1 port of web `src/lib/calendar-summary.ts`; keep the two
+  identical (the server's test cases are in `CalendarParityTest`).
+- **Home**: staff / interns use `summary.leaveSummary` as given; approvers keep the balance tiles. `financeKpis`
+  (accountants) and `trainerKpis` (Trainer Admins) add their own rows.
+- **Profile**: Work Schedule card from `workdays` / `workingDays` / `offDays` / `officeHours` (`WorkWeek.split` ports the
+  web `splitWorkWeek`).

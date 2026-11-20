@@ -103,7 +103,7 @@ private fun Spacer(height: Int) = androidx.compose.foundation.layout.Spacer(Modi
 
 @Composable
 private fun BalanceCard(b: LeaveBalance) {
-    // No Pay Leave: the server sends the prorated cap as proRated and what's left as available.
+    // No Pay Leave: the server sends the cap as proRated (a flat 14 since 20 Nov 2026) and what's left as available.
     if (b.code == "NPL" && b.proRated != null) {
         NplBalanceCard(b, cap = b.proRated)
         return
@@ -131,7 +131,7 @@ private fun BalanceCard(b: LeaveBalance) {
     }
 }
 
-/** No Pay Leave: days left against the cap (21 a year, prorated by full months served). */
+/** No Pay Leave: days left against the cap (the server's number; a flat 14 days a year since 20 Nov 2026). */
 @Composable
 private fun NplBalanceCard(b: LeaveBalance, cap: Double) {
     val remaining = b.available
@@ -140,7 +140,7 @@ private fun NplBalanceCard(b: LeaveBalance, cap: Double) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(b.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text("Unpaid \u00b7 capped at ${Fmt.num(cap)} days to date", color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp)
+                Text("Unpaid \u00b7 capped at ${Fmt.num(cap)} days a year", color = Brand.TextPrimary.copy(alpha = 0.6f), fontSize = 11.sp)
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -174,7 +174,7 @@ private fun NplBalanceCard(b: LeaveBalance, cap: Double) {
             MiniStat("Left", remaining)
         }
         Text(
-            "No Pay Leave is capped at 21 days a year, prorated by the full months you have served.",
+            "No Pay Leave is capped at ${Fmt.num(cap)} days a year.",
             color = Brand.TextPrimary.copy(alpha = 0.55f), fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp),
         )
     }

@@ -1,6 +1,9 @@
 package com.tertiaryinfotech.hrportal.data
 
-/** One choice in the calendar's "Leave shown for" list. [intern] is null when the server did not say. */
+/**
+ * One choice in the calendar's "Leave & time off for" list. [intern] is null when the server did not
+ * say. [leaveCount] counts the person's leave and time off entries (web `calendar-view.tsx`, 1.16).
+ */
 data class CalendarPersonOption(val id: String, val name: String, val intern: Boolean?, val leaveCount: Int)
 
 /** The people an approver can filter the team calendar by, grouped as the web calendar groups them. */
@@ -9,7 +12,7 @@ data class CalendarPeopleList(
     val interns: List<CalendarPersonOption>,
     /** People whose group is unknown (an older server that sends neither `people` nor `group`). */
     val others: List<CalendarPersonOption>,
-    /** Every leave entry, including leave of people who have left (shown under Everyone only). */
+    /** Every leave and time-off entry, including those of people who have left (shown under Everyone only). */
     val totalEntries: Int,
 ) {
     val all: List<CalendarPersonOption> get() = staff + interns + others
@@ -30,7 +33,8 @@ object CalendarPeople {
      * leave. An approver is recognised by `canSeeTypes` or by a `group` on any entry.
      */
     fun build(data: TeamCalendarResponse): CalendarPeopleList? {
-        val counts = data.entries.filter { it.employeeId.isNotEmpty() }.groupingBy { it.employeeId }.eachCount()
+        val counts = (data.entries.map { it.employeeId } + data.timeOff.map { it.employeeId })
+            .filter { it.isNotEmpty() }.groupingBy { it }.eachCount()
         val options: List<CalendarPersonOption> = when {
             data.people != null -> data.people
                 .filter { it.id.isNotEmpty() }
@@ -50,7 +54,7 @@ object CalendarPeople {
             staff = sorted.filter { it.intern == false },
             interns = sorted.filter { it.intern == true },
             others = sorted.filter { it.intern == null },
-            totalEntries = data.entries.size,
+            totalEntries = data.entries.size + data.timeOff.size,
         )
     }
 

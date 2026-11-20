@@ -111,12 +111,17 @@ object MockApi {
     }
 
     private fun summary(role: String) = """{"name":"Sarah Lim","role":"${role.uppercase()}","isAdmin":${role == "admin"},"canManageTrainers":${role == "admin"},
-        "alAvailable":6,"mcAvailable":12,"otRemaining":1.5,"expenseYtd":428.5,"pendingLeaves":3,"pendingClaims":2}"""
+        "alAvailable":6,"mcAvailable":12,"otRemaining":1.5,"expenseYtd":428.5,"pendingLeaves":3,"pendingClaims":2,
+        "leaveSummary":[{"label":"Paid leave taken","value":"5 days"},{"label":"Annual leave balance","value":"6 days"},
+          {"label":"MC taken","value":"2 days"},{"label":"No-pay leave taken","value":"1 day","hint":"11 of 14 left"}],
+        "financeKpis":null,
+        "trainerKpis":${if (role == "admin") "{\"total\":5,\"aclp\":3,\"nonAclp\":2}" else "null"}}"""
 
     private fun profile(role: String) = """{"employee":{"id":"e1","employeeId":"E0007","name":"Sarah Lim","email":"sarah.lim@example.com",
         "phone":"+65 9123 4567","position":"Training Executive","department":"Operations","employmentType":"FULL_TIME",
         "nationality":"SINGAPOREAN","gender":"FEMALE","educationLevel":"DEGREE","dateOfBirth":null,"startDate":"2024-03-01",
-        "status":"ACTIVE","roles":["${role.uppercase()}"],"role":"${role.uppercase()}"}}"""
+        "status":"ACTIVE","roles":["${role.uppercase()}"],"role":"${role.uppercase()}",
+        "workdays":${if (role == "intern") "[1,2,3]" else "[1,2,3,4,5]"},"officeHours":"9am to 6pm"}}"""
 
     private const val LEAVE = """{
       "balances":[
@@ -209,20 +214,27 @@ object MockApi {
 
     /** Approver view: `group` on each entry and the roster of active people. Evan Pang has left, so he is not in `people`. */
     private const val TEAM_CALENDAR = """{"year":2026,"canSeeTypes":true,"entries":[
-        {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":"No Pay Leave","group":"staff"},
-        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","isSelf":true,"group":"staff"},
-        {"id":"t3","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-26","endDate":"2026-11-27","days":2,"leaveType":"Annual Leave","group":"staff"},
-        {"id":"t4","employeeId":"e5","employeeName":"Amanda Halim","startDate":"2026-11-17","endDate":"2026-11-18","days":2,"leaveType":"Medical Leave","group":"intern"},
-        {"id":"t5","employeeId":"e9","employeeName":"Evan Pang","startDate":"2026-11-03","endDate":"2026-11-03","days":1,"leaveType":"Annual Leave","group":"intern"}],
-      "people":[{"id":"e5","name":"Amanda Halim","intern":true},{"id":"e2","name":"Daniel Tan","intern":false},
-                {"id":"e6","name":"Kenneth Wang","intern":true},{"id":"e3","name":"Priya Nair","intern":false},{"id":"e1","name":"Sarah Lim","intern":false}],
-      "holidays":[{"id":"h1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
+        {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":"No Pay Leave","category":"NO_PAY_LEAVE","group":"staff"},
+        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","category":"ANNUAL_LEAVE","isSelf":true,"group":"staff"},
+        {"id":"t3","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-26","endDate":"2026-11-27","days":2,"leaveType":"Annual Leave","category":"ANNUAL_LEAVE","group":"staff"},
+        {"id":"t4","employeeId":"e5","employeeName":"Amanda Halim","startDate":"2026-11-17","endDate":"2026-11-18","days":2,"leaveType":"Medical Leave","category":"MEDICAL_LEAVE","group":"intern"},
+        {"id":"t5","employeeId":"e9","employeeName":"Evan Pang","startDate":"2026-11-03","endDate":"2026-11-03","days":1,"leaveType":"Annual Leave","category":"ANNUAL_LEAVE","group":"intern"}],
+      "people":[{"id":"e5","name":"Amanda Halim","intern":true,"workdays":[1,2,3]},{"id":"e2","name":"Daniel Tan","intern":false,"workdays":[1,2,3,4,5]},
+                {"id":"e6","name":"Kenneth Wang","intern":true,"workdays":[1,2,3,4]},{"id":"e3","name":"Priya Nair","intern":false,"workdays":[]},{"id":"e1","name":"Sarah Lim","intern":false,"workdays":[1,2,3,4,5]}],
+      "timeOff":[{"id":"to4","employeeId":"e5","employeeName":"Amanda Halim","date":"2026-11-13","startTime":"14:00","endTime":"16:00","hours":2,"offDay":false,"isSelf":false,"group":"intern"},
+                 {"id":"to5","employeeId":"e5","employeeName":"Amanda Halim","date":"2026-11-20","startTime":"09:00","endTime":"18:00","hours":0,"offDay":true,"isSelf":false,"group":"intern"}],
+      "birthdays":[{"id":"bd-e3-2026","employeeId":"e3","name":"Priya Nair","date":"2026-11-24T04:00:00.000Z"}],
+      "ownWorkdays":[1,2,3,4,5],
+      "holidays":[{"id":"h1","title":"\uD83E\uDE94 Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
 
     /** Everyone else: leave types of colleagues masked, no `group`, `people` null. */
     private const val TEAM_CALENDAR_STAFF = """{"year":2026,"canSeeTypes":false,"entries":[
         {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":null,"group":null},
-        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","isSelf":true,"group":null}],
+        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","category":"ANNUAL_LEAVE","isSelf":true,"group":null}],
       "people":null,
+      "timeOff":[{"id":"to6","employeeId":"e1","employeeName":"Sarah Lim","date":"2026-11-25","startTime":"14:00","endTime":"16:00","hours":2,"offDay":false,"isSelf":true,"group":null}],
+      "birthdays":null,
+      "ownWorkdays":[1,2,3,4,5],
       "holidays":[{"id":"h1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
 
     private const val CALENDAR = """{"events":[{"id":"ev1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08","allDay":true,"type":"HOLIDAY"}]}"""

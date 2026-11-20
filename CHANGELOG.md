@@ -4,6 +4,44 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.16] — 2026-11-20 · versionCode 31
+
+### Release notes (Play, en-US)
+- Calendar: leave is colour-coded by type with an emoji (annual, medical, no pay, other). Approved time off and Off Days now show.
+- Calendar: off days are shaded. Approvers see birthdays and, for one person, their leave and time off totals for the month.
+- My Profile: a new Work Schedule card with your working hours, working days and off days.
+- Home: your leave summary as on the web; finance figures for accountants and trainer counts for Trainer Admins.
+- No Pay Leave is now 14 days a year.
+
+### Added
+- **Calendar colours** (`ui/screens/TeamCalendarScreen.kt`, `data/CalendarLogic.kt`): leave chips and agenda bars use the
+  colour of their `category` from `/api/mobile/team-calendar` (`categories` legend, with the web table hard-coded as
+  `CalendarCategories.FALLBACK`), with the category emoji in front (🏖️ annual, 🤒 medical, 💸 no pay, 📋 other). A
+  colleague's masked leave (`category` null) keeps the neutral You / Colleague colour and no emoji. Category chips are
+  the web's tinted style (light tint, darker ink in light, the colour itself in dark). Holiday titles arrive with their
+  emoji and are shown as sent.
+- **Time off and Off Days** on the calendar from the new `timeOff` field (⏰, Time Off colour): "Off Day" for a full day,
+  else "Time off 2:00 PM – 4:00 PM"; approvers see whose it is. It follows Everyone / Only me and the person filter.
+- **Birthdays** for approvers (`birthdays`, 🎂 "NAME birthday", no age), following the person filter.
+- **Off-day shading** (`OffDays`): when one schedule applies (your own `ownWorkdays`, or the person an approver picked;
+  none for Everyone) a day is shaded if its weekday is not a workday (Mon–Fri when empty) or it has an approved full-day
+  Off Day for that person. The legend then shows an "Off day" swatch.
+- **Month totals** for the person an approver picked: Annual / Medical / No Pay Leave in days, Other Leave when above 0,
+  and Time Off in hours plus Off Days. `CalendarSummary.personMonthSummary` is a 1:1 port of the web
+  `personMonthSummary` (leave crossing a month is split by working days, public holidays excluded).
+- The legend lists the categories shown, and wraps. The person filter reads "Leave & time off for" and counts both.
+- **My Profile → Work Schedule** card: Title, Department, Working hours, Working days, Off days (new `workdays`,
+  `workingDays`, `offDays`, `officeHours` profile fields); hidden on an older server.
+- **Home**: staff and interns see the server's `leaveSummary` tiles as given (label, value, hint; interns' MC tile says
+  sick leave is No Pay Leave), replacing the local AL / MC tiles; accountants get Pending expense claims, Income and
+  Expenses for the month (`financeKpis`); Trainer Admins get Trainers / ACLP / Non-ACLP counts (`trainerKpis`) that
+  open Trainer Management. Without those fields Home is as before. `StatTile` takes an optional hint line.
+
+### Changed
+- **No Pay Leave** is a flat 14 days a year (no proration): the Leave and Apply Leave screens show the server's cap and
+  say "capped at N days a year"; the old "21 days, prorated" wording is gone.
+- Debug mock: categories, time off, birthdays, workdays, Home tiles and the profile schedule.
+
 ## [1.15] — 2026-11-20 · versionCode 30
 
 ### Release notes (Play, en-US)

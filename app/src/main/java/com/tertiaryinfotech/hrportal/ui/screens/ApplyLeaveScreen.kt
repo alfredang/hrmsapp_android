@@ -725,14 +725,14 @@ private fun NplPanel(npl: NplStatus?, daysNum: Double, internSick: Boolean, exce
         if (npl != null) {
             Text("NO PAY LEAVE", color = Brand.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SummaryStat("Cap to date", Fmt.num(npl.cap), Brand.TextPrimary)
+                SummaryStat("Cap", Fmt.num(npl.cap), Brand.TextPrimary)
                 SummaryStat("Taken", Fmt.num(npl.used), Brand.Amber)
                 SummaryStat("Pending", Fmt.num(npl.pending), Brand.Accent)
                 SummaryStat("Remaining", Fmt.num(npl.remaining), if (exceeded) Brand.Red else Brand.Green)
             }
         }
         Text(
-            "No Pay Leave is capped at 21 days a year, prorated by the full months you have served this year.",
+            "No Pay Leave is capped at ${Fmt.num(npl?.cap?.takeIf { it > 0 } ?: LeaveRules.NPL_ANNUAL_CAP_DAYS)} days a year.",
             color = Brand.TextMuted, fontSize = 11.sp,
         )
         if (exceeded && npl != null) {

@@ -10,7 +10,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.MedicalServices
@@ -31,6 +36,7 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.ActiveCounts
 import com.tertiaryinfotech.hrportal.data.AnalyticsCalc
 import com.tertiaryinfotech.hrportal.data.DashboardSummary
+import com.tertiaryinfotech.hrportal.data.HomeTiles
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
@@ -98,6 +104,37 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
             item { Spacer18() }
         }
 
+        // Accountants (web role tiles, 20 Nov 2026): claims waiting, this month's income and expenses.
+        s.financeKpis?.let { f ->
+            val tiles = HomeTiles.finance(f)
+            item { SectionTitle("Finance") }
+            item { Spacer12() }
+            item {
+                StatTile(
+                    tiles[0].value, tiles[0].label, icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                    tint = if (f.pendingClaims > 0) Brand.Amber else Brand.Accent, hint = tiles[0].hint,
+                )
+            }
+            item { Spacer12() }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatTile(tiles[1].value, tiles[1].label, Modifier.weight(1f), Icons.AutoMirrored.Filled.TrendingUp, Brand.Green, hint = tiles[1].hint)
+                    StatTile(tiles[2].value, tiles[2].label, Modifier.weight(1f), Icons.AutoMirrored.Filled.TrendingDown, Brand.Orange, hint = tiles[2].hint)
+                }
+            }
+            item { Spacer18() }
+        }
+
+        // Trainer Admins: the same three counts as Trainer Management, each opening it.
+        s.trainerKpis?.let { t ->
+            item { SectionTitle("Trainer Management") }
+            item { Spacer12() }
+            item {
+                KpiStrip(HomeTiles.trainers(t).map { Kpi(it.value, it.label, Brand.TextPrimary) { nav.navigate("trainers") } })
+            }
+            item { Spacer18() }
+        }
+
         item { SectionTitle("Quick actions") }
         item { Spacer12() }
         item {
@@ -114,13 +151,31 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
 
         item { SectionTitle("My balances") }
         item { Spacer12() }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatTile(fmt(s.alAvailable), "Annual leave", Modifier.weight(1f), Icons.Filled.WbSunny, Brand.Accent)
-                StatTile(fmt(s.mcAvailable), "Medical leave", Modifier.weight(1f), Icons.Filled.MedicalServices, Brand.Pink)
+        // Staff and interns: the server's own leave tiles (the web dashboard and decision-email
+        // summary), shown as given. Approvers, and an older server without them, keep the balances.
+        val leaveTiles = if (s.isAdmin) null else HomeTiles.leave(s, auth.user?.isIntern == true)
+        if (leaveTiles != null) {
+            leaveTiles.chunked(2).forEach { pair ->
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEach { t ->
+                            val (icon, tint) = leaveTileStyle(leaveTiles.indexOf(t))
+                            StatTile(t.value, t.label, Modifier.weight(1f), icon, tint, onClick = { openTab(nav, "leave") }, hint = t.hint)
+                        }
+                        if (pair.size == 1) Box(Modifier.weight(1f))
+                    }
+                }
+                item { Spacer12() }
             }
+        } else {
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatTile(fmt(s.alAvailable), "Annual leave", Modifier.weight(1f), Icons.Filled.WbSunny, Brand.Accent)
+                    StatTile(fmt(s.mcAvailable), "Medical leave", Modifier.weight(1f), Icons.Filled.MedicalServices, Brand.Pink)
+                }
+            }
+            item { Spacer12() }
         }
-        item { Spacer12() }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(fmt(s.otRemaining), "Off In Lieu", Modifier.weight(1f), Icons.Filled.AccessTime, Brand.Mint)
@@ -128,6 +183,14 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
             }
         }
     }
+}
+
+/** Icon and colour per leave tile, by position (web `LEAVE_TILE_STYLE`: paid taken, AL balance, MC, NPL). */
+private fun leaveTileStyle(i: Int): Pair<ImageVector, Color> = when (i % 4) {
+    0 -> Icons.Filled.EventAvailable to Brand.Green
+    1 -> Icons.Filled.WbSunny to Brand.Accent
+    2 -> Icons.Filled.MedicalServices to Brand.Red
+    else -> Icons.Filled.EventBusy to Brand.Amber
 }
 
 private data class HomeData(val summary: DashboardSummary, val counts: ActiveCounts?)

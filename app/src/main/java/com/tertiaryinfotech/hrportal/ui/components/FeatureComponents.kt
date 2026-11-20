@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
@@ -63,7 +64,7 @@ fun Card(
     )
 }
 
-/** Small stat tile stacking icon, value and label (iOS `StatTile`). */
+/** Small stat tile stacking icon, value, label and an optional [hint] line (iOS `StatTile`). */
 @Composable
 fun StatTile(
     value: String,
@@ -72,12 +73,14 @@ fun StatTile(
     icon: ImageVector? = null,
     tint: Color = Brand.Accent,
     onClick: (() -> Unit)? = null,
+    hint: String? = null,
 ) {
     Card(modifier = modifier, onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (icon != null) Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-            Text(value, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1)
-            Text(label, color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1)
+            Text(value, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (hint != null) Text(hint, color = Brand.TextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
