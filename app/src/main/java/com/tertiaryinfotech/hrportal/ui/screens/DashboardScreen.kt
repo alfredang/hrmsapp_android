@@ -28,38 +28,71 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.tertiaryinfotech.hrportal.data.ActiveCounts
+import com.tertiaryinfotech.hrportal.data.AnalyticsCalc
 import com.tertiaryinfotech.hrportal.data.DashboardSummary
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
+import com.tertiaryinfotech.hrportal.ui.components.Kpi
+import com.tertiaryinfotech.hrportal.ui.components.KpiStrip
 import com.tertiaryinfotech.hrportal.ui.components.StatTile
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 /** Home tab: a snapshot from /api/mobile/summary (iOS `DashboardView`). */
 @Composable
 fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
-    AsyncListScreen(fetch = { HrmsApi.summary() }) { s ->
+    // Approvers also load the active staff and intern counts (from Analytics) for the three tiles.
+    // That call is optional: when it fails or an older server has no counts, the tiles fall back.
+    val approver = isApprover(auth)
+    AsyncListScreen(fetch = {
+        coroutineScope {
+            val counts = if (approver) async { activeCountsOrNull() } else null
+            HomeData(HrmsApi.summary(), counts?.await())
+        }
+    }) { home ->
+        val s = home.summary
         item { Greeting(s, auth) }
         item { Spacer18() }
 
         // ADMIN/HR/MANAGER only, enforced server-side.
         if (s.isAdmin) {
-            item { SectionTitle("Approvals queue") }
-            item { Spacer12() }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile(
-                        value = "${s.pendingLeaves}", label = "Pending leave",
-                        icon = Icons.AutoMirrored.Filled.EventNote, tint = Brand.Amber,
-                        modifier = Modifier.weight(1f), onClick = { nav.navigate("approvals") },
+            val counts = home.counts
+            val pending = s.pendingLeaves + s.pendingClaims
+            if (counts != null) {
+                // Web /dashboard (20 Nov 2026): full-time staff, interns, pending approvals.
+                item { SectionTitle("Overview") }
+                item { Spacer12() }
+                item {
+                    KpiStrip(
+                        listOf(
+                            Kpi("${counts.staff}", "Full-time staff", Brand.TextPrimary) { openTab(nav, "team") },
+                            Kpi("${counts.interns}", "Interns", Brand.TextPrimary) { openTab(nav, "team") },
+                            Kpi("$pending", "Pending approvals", if (pending > 0) Brand.Amber else Brand.TextPrimary) { nav.navigate("approvals") },
+                        ),
                     )
-                    StatTile(
-                        value = "${s.pendingClaims}", label = "Pending claims",
-                        icon = Icons.Filled.PendingActions, tint = Brand.Orange,
-                        modifier = Modifier.weight(1f), onClick = { nav.navigate("approvals") },
-                    )
+                }
+            } else {
+                item { SectionTitle("Approvals queue") }
+                item { Spacer12() }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatTile(
+                            value = "${s.pendingLeaves}", label = "Pending leave",
+                            icon = Icons.AutoMirrored.Filled.EventNote, tint = Brand.Amber,
+                            modifier = Modifier.weight(1f), onClick = { nav.navigate("approvals") },
+                        )
+                        StatTile(
+                            value = "${s.pendingClaims}", label = "Pending claims",
+                            icon = Icons.Filled.PendingActions, tint = Brand.Orange,
+                            modifier = Modifier.weight(1f), onClick = { nav.navigate("approvals") },
+                        )
+                    }
                 }
             }
             item { Spacer18() }
@@ -94,6 +127,25 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
                 StatTile(Fmt.money(s.expenseYtd), "Expenses YTD", Modifier.weight(1f), Icons.Filled.CreditCard, Brand.Green)
             }
         }
+    }
+}
+
+private data class HomeData(val summary: DashboardSummary, val counts: ActiveCounts?)
+
+private suspend fun activeCountsOrNull(): ActiveCounts? = try {
+    AnalyticsCalc.activeCounts(HrmsApi.analytics())
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    null
+}
+
+/** Switch to a bottom tab from Home, the way the tab bar does. */
+private fun openTab(nav: NavController, route: String) {
+    nav.navigate(route) {
+        popUpTo(nav.graph.startDestinationId) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 

@@ -41,6 +41,8 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -56,6 +58,11 @@ import com.tertiaryinfotech.hrportal.data.AnalyticsData
 import com.tertiaryinfotech.hrportal.data.AnalyticsFilter
 import com.tertiaryinfotech.hrportal.data.AnalyticsView
 import com.tertiaryinfotech.hrportal.data.AnalyticsWho
+import com.tertiaryinfotech.hrportal.data.BreakdownChart
+import com.tertiaryinfotech.hrportal.data.BreakdownKind
+import com.tertiaryinfotech.hrportal.data.BreakdownPerson
+import com.tertiaryinfotech.hrportal.data.BreakdownSlice
+import com.tertiaryinfotech.hrportal.data.Demographics
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.MonthValues
 import com.tertiaryinfotech.hrportal.ui.components.AsyncContent
@@ -69,6 +76,11 @@ import com.tertiaryinfotech.hrportal.ui.theme.Brand
 private val SeriesBlue = Color(0xFF5B82F0)
 private val SeriesTeal = Color(0xFF22978B)
 private val SeriesAmber = Color(0xFFBF8420)
+
+// Workforce breakdown: five categorical slots, and one blue ramp for age (an ordered scale).
+// Both validated for the web dashboard on the light and dark cards.
+private val Categorical = listOf(SeriesBlue, SeriesTeal, SeriesAmber, Color(0xFF8E5FD0), Color(0xFFD9627A))
+private val AgeRamp = listOf(Color(0xFFA9BEF7), Color(0xFF7F9DF3), Color(0xFF5B82F0), Color(0xFF3D63D6), Color(0xFF2A47A8))
 
 private data class Series(val key: String, val label: String, val color: Color)
 
@@ -267,6 +279,9 @@ fun AnalyticsScreen() {
                     }
                 }
             }
+
+            // Hidden when the server does not send it (an older server).
+            data.breakdown?.let { WorkforceBreakdown(it) }
         }
     }
 }
@@ -275,6 +290,94 @@ private fun whoLabel(who: AnalyticsWho) = when (who) {
     AnalyticsWho.ALL -> "Staff and interns"
     AnalyticsWho.STAFF -> "Staff"
     AnalyticsWho.INTERNS -> "Interns"
+}
+
+/**
+ * Gender, age group and ethnic group of active people as three donuts, with its own
+ * Staff / Interns / All control (Staff first, as on the web dashboard).
+ */
+@Composable
+private fun WorkforceBreakdown(people: List<BreakdownPerson>) {
+    var who by rememberSaveable { mutableStateOf(AnalyticsWho.STAFF) }
+    val v = remember(people, who) { Demographics.view(people, who) }
+    Card {
+        Text("Workforce breakdown", color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Text("${v.shown} active ${v.noun}, by gender, age group and ethnic group", color = Brand.TextMuted, fontSize = 12.sp)
+        Box(modifier = Modifier.padding(top = 10.dp)) {
+            Segments(listOf("STAFF" to "Staff", "INTERNS" to "Interns", "ALL" to "All"), who.name) { who = AnalyticsWho.valueOf(it) }
+        }
+        v.charts.forEachIndexed { i, c ->
+            if (i > 0) Box(modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(1.dp).background(Brand.Border))
+            Donut(c, v.noun)
+        }
+        if (v.shown > 0 && v.ethnicMissing > 0) {
+            Text(
+                (if (v.ethnicMissing == v.shown) "Ethnic group is not recorded yet."
+                else "Ethnic group is not recorded for ${v.ethnicMissing} of ${v.shown}.") +
+                    " Set it on each person's page in Staff Management on the web portal.",
+                color = Brand.TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 14.dp),
+            )
+        }
+    }
+}
+
+private fun sliceColor(kind: BreakdownKind, s: BreakdownSlice, neutral: Color): Color {
+    if (s.notRecorded) return neutral
+    val palette = if (kind == BreakdownKind.AGE) AgeRamp else Categorical
+    return palette[s.order % palette.size]
+}
+
+/** One donut with the total in the middle and a legend of counts and percentages beside it. */
+@Composable
+private fun Donut(chart: BreakdownChart, noun: String) {
+    val neutral = Brand.TextFaint
+    val total = chart.total
+    Text(chart.title, color = Brand.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 14.dp))
+    if (total == 0) {
+        Empty("No $noun to show.")
+        return
+    }
+    val summary = chart.title + ": " + chart.slices.joinToString(", ") { "${it.label} ${it.count}, ${it.percent} percent" }
+    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(116.dp).semantics { contentDescription = summary }, contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(116.dp)) {
+                val stroke = 19.dp.toPx()
+                val inset = stroke / 2
+                val arc = Size(size.width - stroke, size.height - stroke)
+                // A 2 degree gap between slices; a single slice is a full ring.
+                val gap = if (chart.slices.size > 1) 2f else 0f
+                var start = -90f
+                chart.slices.forEach { s ->
+                    val sweep = s.count * 360f / total
+                    drawArc(
+                        sliceColor(chart.kind, s, neutral), startAngle = start + gap / 2, sweepAngle = (sweep - gap).coerceAtLeast(0.5f),
+                        useCenter = false, topLeft = Offset(inset, inset), size = arc, style = Stroke(width = stroke, cap = StrokeCap.Butt),
+                    )
+                    start += sweep
+                }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(total.toString(), color = Brand.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(noun, color = Brand.TextMuted, fontSize = 11.sp, maxLines = 1)
+            }
+        }
+        Column(modifier = Modifier.weight(1f).padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            chart.slices.forEach { s ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(sliceColor(chart.kind, s, neutral)))
+                    Text(
+                        s.label, color = Brand.TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(start = 7.dp),
+                    )
+                    Text(s.count.toString(), color = Brand.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(
+                        "${s.percent}%", color = Brand.TextMuted, fontSize = 12.sp, maxLines = 1, textAlign = TextAlign.End,
+                        modifier = Modifier.width(40.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /** Segmented control with a clear selected state (brand fill, white label). */

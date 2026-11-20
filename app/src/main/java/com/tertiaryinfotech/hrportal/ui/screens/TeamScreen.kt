@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,17 +27,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.tertiaryinfotech.hrportal.data.Directory
 import com.tertiaryinfotech.hrportal.data.Employee
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
+import com.tertiaryinfotech.hrportal.ui.components.FilterTabs
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * Team tab — the company directory with a name/role search. Approvers tap a person for their
- * clock-in, MC and leave history ([EmployeeRecordsScreen]).
+ * Team tab — the company directory with a name/role search. Approvers see it as two lists,
+ * Staff and Interns (when the server sends `intern`), and tap a person for their clock-in, MC and
+ * leave history ([EmployeeRecordsScreen]).
  *
  * A bottom-tab destination, so it renders bare: MainScaffold supplies the shared top bar and
  * bottom nav (a BrandScaffold here would stack a second, back-arrow app bar on top).
@@ -44,6 +48,8 @@ import com.tertiaryinfotech.hrportal.ui.theme.Brand
 @Composable
 fun TeamScreen(nav: NavController) {
     var query by remember { mutableStateOf("") }
+    // Approvers: Staff or Interns (the web has Staff Management and Intern Management).
+    var group by rememberSaveable { mutableStateOf("staff") }
 
     Column {
         AsyncListScreen(fetch = { HrmsApi.employees() }) { data ->
@@ -67,9 +73,27 @@ fun TeamScreen(nav: NavController) {
                 )
             }
 
-            val filtered = filterEmployees(data.employees, query)
+            val matches = filterEmployees(data.employees, query)
+            // Null unless the server sent the intern flag (approvers on a current server).
+            val groups = Directory.split(matches)
+            val showTabs = Directory.split(data.employees) != null
+            if (showTabs) {
+                item {
+                    FilterTabs(
+                        options = listOf("staff" to "Staff ${groups?.staff?.size ?: 0}", "interns" to "Interns ${groups?.interns?.size ?: 0}"),
+                        selected = group,
+                        onSelect = { group = it },
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
+            }
+            val filtered = when {
+                !showTabs -> matches
+                group == "interns" -> groups?.interns.orEmpty()
+                else -> groups?.staff.orEmpty()
+            }
             if (filtered.isEmpty()) {
-                item { EmptyHint(Icons.Filled.Group, "No colleagues found.") }
+                item { EmptyHint(Icons.Filled.Group, if (!showTabs) "No colleagues found." else if (group == "interns") "No interns found." else "No staff found.") }
             } else {
                 items(filtered) { e ->
                     EmployeeRow(e, data.isAdmin) { nav.navigate(RecordsRoutes.records(e.id)) }

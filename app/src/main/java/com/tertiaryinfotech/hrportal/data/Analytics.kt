@@ -16,6 +16,20 @@ data class AnalyticsData(
     val leave: List<LeaveDaysRow> = emptyList(),
     val people: List<AnalyticsPerson> = emptyList(),
     val headcount: List<HeadcountRow> = emptyList(),
+    /**
+     * One row per ACTIVE person (no name, no date of birth) for the workforce breakdown donuts.
+     * Null or absent (an older server) hides that section.
+     */
+    val breakdown: List<BreakdownPerson>? = null,
+)
+
+/** Gender, age group and ethnic group of one active person, as text labels from the server. */
+@Serializable
+data class BreakdownPerson(
+    val intern: Boolean = false,
+    val gender: String = "",
+    val ageGroup: String = "",
+    val ethnicGroup: String = "",
 )
 
 @Serializable
@@ -102,6 +116,78 @@ data class AnalyticsView(
     val hasFinanceRows: Boolean get() = categories.isNotEmpty()
     val peopleOnMc: Int get() = byPerson.count { it.mc > 0 }
 }
+
+enum class BreakdownKind { GENDER, AGE, ETHNIC }
+
+/** One donut slice. [order] is the label's position in its fixed order (the colour slot); -1 = "Not recorded". */
+data class BreakdownSlice(val label: String, val count: Int, val percent: Int, val order: Int) {
+    val notRecorded: Boolean get() = order < 0
+}
+
+data class BreakdownChart(val kind: BreakdownKind, val title: String, val slices: List<BreakdownSlice>) {
+    val total: Int get() = slices.sumOf { it.count }
+}
+
+data class BreakdownView(
+    val who: AnalyticsWho,
+    /** "staff", "interns" or "people". */
+    val noun: String,
+    val shown: Int,
+    val charts: List<BreakdownChart>,
+    /** People in the shown group whose ethnic group is "Not recorded". */
+    val ethnicMissing: Int,
+)
+
+/**
+ * Workforce breakdown (web `src/lib/demographics.ts` + `workforce-breakdown.tsx`): counts of active
+ * people by gender, age group and ethnic group. Pure, unit-tested on the JVM.
+ */
+object Demographics {
+    const val NOT_RECORDED = "Not recorded"
+    val GENDERS = listOf("Male", "Female", "Other")
+    /** En dashes, exactly as the server sends them. */
+    val AGE_GROUPS = listOf("Under 25", "25–34", "35–44", "45–54", "55 and over")
+    val ETHNIC_GROUPS = listOf("Chinese", "Malay", "Indian", "Eurasian", "Others")
+
+    /**
+     * Count per label in the fixed [order], then any label the app does not know yet (so the total
+     * still equals the number of people), then "Not recorded" last. Empty slices are dropped.
+     * A blank value counts as "Not recorded".
+     */
+    fun countBy(people: List<BreakdownPerson>, order: List<String>, value: (BreakdownPerson) -> String): List<BreakdownSlice> {
+        val counts = LinkedHashMap<String, Int>()
+        for (p in people) {
+            val label = value(p).trim().ifEmpty { NOT_RECORDED }
+            counts[label] = (counts[label] ?: 0) + 1
+        }
+        val total = people.size
+        val unknown = counts.keys.filter { it !in order && it != NOT_RECORDED }.sorted()
+        val labels = order.filter { it != NOT_RECORDED } + unknown + NOT_RECORDED
+        return labels.mapNotNull { label ->
+            val n = counts[label] ?: return@mapNotNull null
+            val slot = if (label == NOT_RECORDED) -1 else labels.indexOf(label)
+            BreakdownSlice(label, n, percent(n, total), slot)
+        }
+    }
+
+    /** Whole percent, rounded half up as the web's `Math.round`. */
+    fun percent(n: Int, total: Int): Int = if (total <= 0) 0 else Math.round(n * 100.0 / total).toInt()
+
+    fun view(people: List<BreakdownPerson>, who: AnalyticsWho): BreakdownView {
+        val shown = people.filter { who == AnalyticsWho.ALL || (who == AnalyticsWho.INTERNS) == it.intern }
+        val charts = listOf(
+            BreakdownChart(BreakdownKind.GENDER, "Gender", countBy(shown, GENDERS) { it.gender }),
+            BreakdownChart(BreakdownKind.AGE, "Age group", countBy(shown, AGE_GROUPS) { it.ageGroup }),
+            BreakdownChart(BreakdownKind.ETHNIC, "Ethnic group", countBy(shown, ETHNIC_GROUPS) { it.ethnicGroup }),
+        )
+        val noun = when (who) { AnalyticsWho.STAFF -> "staff"; AnalyticsWho.INTERNS -> "interns"; AnalyticsWho.ALL -> "people" }
+        val missing = shown.count { it.ethnicGroup.trim().ifEmpty { NOT_RECORDED } == NOT_RECORDED }
+        return BreakdownView(who, noun, shown.size, charts, missing)
+    }
+}
+
+/** Active staff and interns today, for the Home tiles. */
+data class ActiveCounts(val staff: Int, val interns: Int)
 
 /** Pure filtering and aggregation for the Analytics screen (no Android types: unit-tested on the JVM). */
 object AnalyticsCalc {
@@ -193,6 +279,16 @@ object AnalyticsCalc {
         )
     }
 
+    /**
+     * Active full-time staff and interns for the Home tiles: from the breakdown (one row per active
+     * person) when the server sends it, else the last month of the headcount series. Null when
+     * neither is there, and the tiles are then not shown.
+     */
+    fun activeCounts(data: AnalyticsData): ActiveCounts? {
+        data.breakdown?.let { b -> return ActiveCounts(b.count { !it.intern }, b.count { it.intern }) }
+        return data.headcount.lastOrNull()?.let { ActiveCounts(it.staff, it.interns) }
+    }
+
     /** Axis maximum whose midpoint is also a round number (minimum 4). Same rule as the web chart. */
     fun niceCeil(v: Double): Double {
         if (v <= 4) return 4.0
@@ -256,9 +352,22 @@ object AnalyticsCalc {
         )
         val staff = listOf(10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14)
         val interns = listOf(0, 1, 1, 5, 5, 7, 9, 7, 6, 6, 9, 9)
+        // 14 staff and 9 interns, matching the last headcount month. Ethnic group is only partly recorded.
+        fun rows(intern: Boolean, n: Int, gender: List<String>, age: List<String>, ethnic: List<String>) =
+            (0 until n).map { BreakdownPerson(intern, gender[it % gender.size], age[it % age.size], ethnic[it % ethnic.size]) }
+        val breakdown = rows(
+            false, 14, listOf("Female", "Male", "Female", "Male", "Female"),
+            listOf("25–34", "35–44", "25–34", "45–54", "35–44", "55 and over", "25–34"),
+            listOf("Chinese", "Chinese", "Malay", "Indian", "Chinese", "Not recorded", "Eurasian"),
+        ) + rows(
+            true, 9, listOf("Male", "Female", "Male"),
+            listOf("Under 25", "Under 25", "Under 25", "25–34"),
+            listOf("Not recorded"),
+        )
         return AnalyticsData(
             months, finance, FinanceRange("2026-04-30", "2026-11-16"), leave, people,
             months.mapIndexed { i, m -> HeadcountRow(m.key, staff[i], interns[i]) },
+            breakdown,
         )
     }
 }

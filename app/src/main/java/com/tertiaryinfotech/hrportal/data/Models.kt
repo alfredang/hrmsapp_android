@@ -143,7 +143,25 @@ data class Employee(
     val phone: String? = null,
     val employmentType: String? = null,
     val startDate: String? = null,
+    /** Approvers only: true for an intern. Null for everyone else and from an older server. */
+    val intern: Boolean? = null,
 )
+
+/** The directory split into staff and interns for approvers. */
+data class DirectoryGroups(val staff: List<Employee>, val interns: List<Employee>)
+
+object Directory {
+    /**
+     * Staff and interns as two lists, or null when the server sent no `intern` flag at all
+     * (a non-approver, or an older server): the screen then keeps its single list.
+     * A person without the flag, next to others that have it, counts as staff.
+     */
+    fun split(employees: List<Employee>): DirectoryGroups? {
+        if (employees.none { it.intern != null }) return null
+        val (interns, staff) = employees.partition { it.intern == true }
+        return DirectoryGroups(staff, interns)
+    }
+}
 
 // MARK: - Expenses (/api/mobile/expenses)
 
@@ -255,7 +273,15 @@ data class TeamCalendarResponse(
     val canSeeTypes: Boolean = false,
     val entries: List<TeamLeaveEntry> = emptyList(),
     val holidays: List<TeamHoliday> = emptyList(),
+    /**
+     * Approvers only: every active staff member and intern, with or without leave, for the
+     * "Leave shown for" filter. Null for everyone else and absent from an older server.
+     */
+    val people: List<TeamCalendarPerson>? = null,
 )
+
+@Serializable
+data class TeamCalendarPerson(val id: String = "", val name: String = "", val intern: Boolean = false)
 
 @Serializable
 data class TeamLeaveEntry(

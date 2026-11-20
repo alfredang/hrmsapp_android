@@ -14,14 +14,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -29,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,11 +42,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tertiaryinfotech.hrportal.data.CalendarPeople
+import com.tertiaryinfotech.hrportal.data.CalendarPeopleList
+import com.tertiaryinfotech.hrportal.data.CalendarPersonOption
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.TeamCalendarResponse
 import com.tertiaryinfotech.hrportal.data.TeamLeaveEntry
@@ -60,7 +69,7 @@ import java.util.Locale
  * title with ‹ ›, a Monday-first edge-to-edge grid with thin separators (adjacent-month days greyed,
  * up to two chips per day + "+N", today a filled circle on a tinted cell), and the selected day's
  * agenda underneath. List mode shows upcoming leave and holidays grouped by day. Everyone / Only me
- * narrows it to your own leave.
+ * narrows it to your own leave; approvers also get "Leave shown for" (Everyone or one person).
  *
  * A colleague's leave *type* is only present when the server chose to disclose it (your own
  * leave, or an approver viewing). When it is null the card reads "On leave" — the masking is the
@@ -83,8 +92,8 @@ fun TeamCalendarScreen() {
     var selectedDay by remember { mutableStateOf(today) }
     var mineOnly by remember { mutableStateOf(false) }
     var listMode by remember { mutableStateOf(false) }
-    // Approvers: whose leave shows. "all" | "staff" | "intern" (the web calendar has the same control).
-    var group by remember { mutableStateOf("all") }
+    // Approvers: whose leave shows. Null = everyone (the web calendar's "Leave shown for").
+    var personId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val year = yearOf(if (listMode) today else monthAnchor)
 
@@ -100,17 +109,19 @@ fun TeamCalendarScreen() {
         fetch = { if (listMode) mergeYears(HrmsApi.teamCalendar(year), runCatching { HrmsApi.teamCalendar(year + 1) }.getOrNull()) else HrmsApi.teamCalendar(year) },
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
     ) { data ->
-        // The server sends `group` to approvers only; without it there is nothing to filter on.
-        val canFilterGroup = data.entries.any { it.group != null }
-        val byDay = indexEntries(data, mineOnly, if (canFilterGroup) group else "all")
+        // Approvers only (null otherwise). A person picked earlier who is not in this year's list
+        // (they left, or the list changed) falls back to Everyone.
+        val people = CalendarPeople.build(data)
+        val person = people?.find(personId)
+        val byDay = indexEntries(data, mineOnly, person?.id)
         val holidays = holidayMap(data)
 
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 TwoWay("Month", "List", second = listMode) { listMode = it }
                 TwoWay("Everyone", "Only me", second = mineOnly) { mineOnly = it }
-                if (canFilterGroup && !mineOnly) {
-                    GroupFilter(group, data.entries) { group = it }
+                if (people != null && !mineOnly) {
+                    PersonFilter(people, person) { personId = it }
                 }
             }
         }
@@ -156,22 +167,66 @@ private fun TwoWay(first: String, secondLabel: String, second: Boolean, onChange
     }
 }
 
-/** Approvers: All / Staff / Interns, with how many leave entries each holds. */
+/**
+ * Approvers: "Leave shown for" Everyone or one person. Every active staff member and intern is
+ * listed, grouped Staff then Interns, each with their number of leave entries. Holidays always show.
+ */
 @Composable
-private fun GroupFilter(selected: String, entries: List<TeamLeaveEntry>, onChange: (String) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Brand.Surface)
-            .border(1.dp, Brand.Border, RoundedCornerShape(10.dp))
-            .padding(3.dp),
-    ) {
-        listOf("all" to "All", "staff" to "Staff", "intern" to "Interns").forEach { (key, label) ->
-            val n = filterByGroup(entries, key).size
-            SegmentButton("$label $n", selected = selected == key, modifier = Modifier.weight(1f)) { onChange(key) }
+private fun PersonFilter(people: CalendarPeopleList, selected: CalendarPersonOption?, onPick: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(10.dp)
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(Brand.Surface)
+                .border(1.dp, if (selected != null) Brand.Accent else Brand.Border, shape)
+                .clickable(onClickLabel = "Choose whose leave is shown") { open = true }
+                .padding(start = 14.dp, end = 8.dp, top = 13.dp, bottom = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Leave shown for", color = Brand.TextSecondary, fontSize = 14.sp, maxLines = 1)
+            Text(
+                selected?.name ?: "Everyone", color = Brand.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f).padding(start = 12.dp),
+            )
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.TextSecondary)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = Brand.Dialog) {
+            PersonMenuItem("Everyone", people.totalEntries, selected == null) { onPick(null); open = false }
+            listOf("Staff" to people.staff, "Interns" to people.interns, "People" to people.others).forEach { (title, list) ->
+                if (list.isNotEmpty()) {
+                    Text(
+                        "$title (${list.size})".uppercase(), color = Brand.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
+                    )
+                    list.forEach { p ->
+                        PersonMenuItem(p.name, p.leaveCount, selected?.id == p.id) { onPick(p.id); open = false }
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun PersonMenuItem(name: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            Row(modifier = Modifier.widthIn(min = 220.dp, max = 280.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    name, color = if (selected) Brand.Accent else Brand.TextPrimary, fontSize = 15.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
+                Text(count.toString(), color = Brand.TextMuted, fontSize = 13.sp, maxLines = 1, modifier = Modifier.padding(start = 16.dp))
+            }
+        },
+        onClick = onClick,
+        modifier = Modifier.semantics { contentDescription = "$name, $count leave ${if (count == 1) "entry" else "entries"}" },
+    )
 }
 
 @Composable
@@ -448,6 +503,7 @@ private fun mergeYears(a: TeamCalendarResponse, b: TeamCalendarResponse?): TeamC
     if (b == null) a else a.copy(
         entries = (a.entries + b.entries).distinctBy { it.id },
         holidays = (a.holidays + b.holidays).distinctBy { it.id },
+        people = a.people ?: b.people,
     )
 
 // MARK: - Date helpers
@@ -497,9 +553,9 @@ private fun dayKey(d: Date): String {
  * Explode each multi-day leave into the days it covers, so a request spanning a week shows on
  * every one of those days. The guard bounds a pathological range (a bad server date) to a year.
  */
-private fun indexEntries(data: TeamCalendarResponse, mineOnly: Boolean, group: String = "all"): Map<String, List<TeamLeaveEntry>> {
+private fun indexEntries(data: TeamCalendarResponse, mineOnly: Boolean, personId: String? = null): Map<String, List<TeamLeaveEntry>> {
     val map = mutableMapOf<String, MutableList<TeamLeaveEntry>>()
-    val source = if (mineOnly) data.entries.filter { it.isSelf } else filterByGroup(data.entries, group)
+    val source = if (mineOnly) data.entries.filter { it.isSelf } else CalendarPeople.filter(data.entries, personId)
 
     for (e in source) {
         val start = Fmt.parse(e.startDate) ?: continue
@@ -563,7 +619,3 @@ private fun sameMonth(a: Date, b: Date): Boolean {
 }
 
 private fun agendaDate(d: Date): String = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(d)
-
-/** Leave entries for "all", "staff" or "intern". Entries without a group only appear under "all". */
-internal fun filterByGroup(entries: List<TeamLeaveEntry>, group: String): List<TeamLeaveEntry> =
-    if (group == "all") entries else entries.filter { it.group == group }

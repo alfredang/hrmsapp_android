@@ -2,6 +2,7 @@ package com.tertiaryinfotech.hrportal.data
 
 import android.content.Context
 import android.util.Log
+import kotlinx.serialization.encodeToString
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -65,20 +66,24 @@ object MockApi {
         path == "/api/mobile/expenses" -> EXPENSES
         path == "/api/mobile/payslips" -> PAYSLIPS
         path == "/api/mobile/approvals" -> APPROVALS
+        // `intern` goes to approvers only, as on the real server.
         path == "/api/mobile/employees" -> EMPLOYEES.replace("ISADMIN", (role == "admin").toString())
+            .let { if (role == "admin") it else it.replace(Regex(",\"intern\":(true|false)"), "") }
         path.startsWith("/api/mobile/employees/") -> RECORDS
         path == "/api/mobile/profile" -> profile(role)
         path == "/api/mobile/attendance" -> ATTENDANCE
         path == "/api/mobile/attendance/history" -> HISTORY
         path == "/api/mobile/attendance/summary" -> ATTENDANCE_SUMMARY
         path == "/api/mobile/leave-summary" -> LEAVE_SUMMARY
-        path == "/api/mobile/team-calendar" -> TEAM_CALENDAR
+        path == "/api/mobile/team-calendar" -> if (role == "admin") TEAM_CALENDAR else TEAM_CALENDAR_STAFF
         path == "/api/mobile/calendar" -> CALENDAR
         path == "/api/notifications" -> NOTIFICATIONS
         path == "/api/time-off" -> if (role == "admin") TIME_OFF_ALL else TIME_OFF
         path == "/api/attendance/corrections" -> CORRECTIONS
         path == "/api/timesheet/admin" -> OIL
         path == "/api/timesheet" -> TIMESHEET
+        // Approvers only, like the real server (403 there): the same sample the Analytics screen falls back to.
+        path == "/api/mobile/analytics" -> if (role == "admin") HrmsJson.encodeToString(AnalyticsCalc.sample()) else null
         path == "/api/mobile/trainers" -> TRAINERS
         path.startsWith("/api/mobile/trainers/") -> TRAINER
         else -> null
@@ -158,8 +163,11 @@ object MockApi {
       "claims":[{"id":"c1","employee":"Amanda Halim","category":"Travel","description":"Grab to venue for the Python class at Woods Square","amount":18.4,"expenseDate":"2026-11-03","createdAt":"2026-11-04T01:00:00.000Z"}]}"""
 
     private const val EMPLOYEES = """{"isAdmin":ISADMIN,"employees":[
-        {"id":"e1","name":"Sarah Lim","position":"Training Executive","department":"Operations","email":"sarah.lim@example.com","phone":"+65 9123 4567"},
-        {"id":"e2","name":"Daniel Tan","position":"Developer","department":"Technology","email":"daniel.tan@example.com"}]}"""
+        {"id":"e1","name":"Sarah Lim","position":"Training Executive","department":"Operations","email":"sarah.lim@example.com","phone":"+65 9123 4567","intern":false},
+        {"id":"e2","name":"Daniel Tan","position":"Developer","department":"Technology","email":"daniel.tan@example.com","intern":false},
+        {"id":"e3","name":"Priya Nair","position":"Course Consultant","department":"Sales","email":"priya.nair@example.com","intern":false},
+        {"id":"e5","name":"Amanda Halim","position":"Intern","department":"Technology","email":"amanda.halim@example.com","intern":true},
+        {"id":"e6","name":"Kenneth Wang","position":"Intern","department":"Operations","email":"kenneth.wang@example.com","intern":true}]}"""
 
     private const val RECORDS = """{"employee":{"id":"e2","employeeCode":"E0012","name":"Daniel Tan","position":"Developer","department":"Technology","employmentType":"FULL_TIME"},
       "attendance":{"days":[{"id":"d1","date":"2026-11-05","clockIn":"2026-11-05T01:05:00.000Z","clockOut":"2026-11-05T10:02:00.000Z","hours":8.95}],"totalHours":8.95,"daysWorked":1},
@@ -199,9 +207,22 @@ object MockApi {
          "requests":[],"timeOff":{"approvedHours":3,"pendingHours":1,"requests":[]},"balances":[]}
       ]}"""
 
+    /** Approver view: `group` on each entry and the roster of active people. Evan Pang has left, so he is not in `people`. */
     private const val TEAM_CALENDAR = """{"year":2026,"canSeeTypes":true,"entries":[
-        {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":"No Pay Leave"},
-        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","isSelf":true}],
+        {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":"No Pay Leave","group":"staff"},
+        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","isSelf":true,"group":"staff"},
+        {"id":"t3","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-26","endDate":"2026-11-27","days":2,"leaveType":"Annual Leave","group":"staff"},
+        {"id":"t4","employeeId":"e5","employeeName":"Amanda Halim","startDate":"2026-11-17","endDate":"2026-11-18","days":2,"leaveType":"Medical Leave","group":"intern"},
+        {"id":"t5","employeeId":"e9","employeeName":"Evan Pang","startDate":"2026-11-03","endDate":"2026-11-03","days":1,"leaveType":"Annual Leave","group":"intern"}],
+      "people":[{"id":"e5","name":"Amanda Halim","intern":true},{"id":"e2","name":"Daniel Tan","intern":false},
+                {"id":"e6","name":"Kenneth Wang","intern":true},{"id":"e3","name":"Priya Nair","intern":false},{"id":"e1","name":"Sarah Lim","intern":false}],
+      "holidays":[{"id":"h1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
+
+    /** Everyone else: leave types of colleagues masked, no `group`, `people` null. */
+    private const val TEAM_CALENDAR_STAFF = """{"year":2026,"canSeeTypes":false,"entries":[
+        {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":null,"group":null},
+        {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","isSelf":true,"group":null}],
+      "people":null,
       "holidays":[{"id":"h1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
 
     private const val CALENDAR = """{"events":[{"id":"ev1","title":"Deepavali","startDate":"2026-11-08","endDate":"2026-11-08","allDay":true,"type":"HOLIDAY"}]}"""
@@ -220,13 +241,19 @@ object MockApi {
         {"date":"2026-11-07","dayName":"Sat","hours":8,"status":"PENDING","isNonWorkDay":true,"isSubmittable":true},
         {"date":"2026-11-08","dayName":"Sun","hours":0,"isNonWorkDay":true,"isSubmittable":true,"isPublicHoliday":true,"phName":"Deepavali"}]}"""
 
-    private const val TRAINERS = """{"count":3,"trainers":[
+    private const val TRAINERS = """{"count":5,"trainers":[
         {"id":"tr1","name":"TAN WEI MING","nickname":"Wei Ming","phone":"+65 9123 4567","email":"weiming.tan@example.com","trainerType":"ACLP","status":"Active","inTms":true,
          "trainingCerts":["ACLP","ACTA"],"certifications":["PMP","CCAR-F"],"skills":["Power BI","Python","Agile"],"education":"MSc Business Analytics, NUS",
          "financeBackground":true,"ibfFitDeclaration":true,"classesCount":34,"lastClassDate":"2026-10-28","courseTitles":["Data Analytics with Power BI"]},
         {"id":"tr2","name":"NUR AISYAH BINTE RAHMAN","phone":"+65 8234 5678","email":"aisyah@example.com","trainerType":"non-ACLP","status":"Active","inTms":true,
          "trainingCerts":["ACTA"],"certifications":["AWS Solutions Architect"],"skills":["Cloud","Docker"],"financeBackground":false,"ibfFitDeclaration":false,
          "classesCount":12,"lastClassDate":"2026-09-15","courseTitles":["AWS Cloud Practitioner"]},
+        {"id":"tr4","name":"GOH SIEW LING","phone":"+65 8345 6789","email":"siewling.goh@example.com","trainerType":"ACLP","status":"Active","inTms":true,
+         "trainingCerts":["ACLP"],"certifications":["Scrum Master"],"skills":["Agile","Leadership"],"financeBackground":false,"ibfFitDeclaration":false,
+         "classesCount":8,"lastClassDate":"2026-10-02","courseTitles":["Agile Project Management"]},
+        {"id":"tr5","name":"MUTHU KUMAR","email":"muthu.kumar@example.com","trainerType":"non-ACLP","status":"Active","inTms":false,
+         "trainingCerts":[],"certifications":["CISSP"],"skills":["Cybersecurity"],"financeBackground":false,"ibfFitDeclaration":false,
+         "classesCount":3,"lastClassDate":"2026-07-21","courseTitles":["Cybersecurity Essentials"]},
         {"id":"tr3","name":"LIM KAH HENG (DR)","email":"kh.lim@example.com","trainerType":"Applicant","status":"Applicant","inTms":false,
          "trainingCerts":["DACE"],"certifications":["CFA"],"skills":["Corporate Finance","Excel"],"financeBackground":true,"ibfFitDeclaration":false,
          "classesCount":0,"lastClassDate":null,"courseTitles":[]}

@@ -95,6 +95,8 @@ import com.tertiaryinfotech.hrportal.data.TrainerStatusFilter
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
+import com.tertiaryinfotech.hrportal.ui.components.Kpi
+import com.tertiaryinfotech.hrportal.ui.components.KpiStrip
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.components.StatusPill
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
@@ -143,6 +145,19 @@ fun TrainersScreen(nav: NavController) {
                     Text("${pool.size} trainers · ${all.size - pool.size} applicants", color = Brand.TextMuted, fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 6.dp))
                 }
+                // Headline counts over the whole directory, whatever is filtered below. Applicants are not counted.
+                val stats = TrainerSearch.stats(all)
+                fun clearAll() {
+                    search = ""; tags = emptyList(); accreditation = Accreditation.ANY.name
+                    status = TrainerStatusFilter.TRAINERS.name
+                }
+                KpiStrip(
+                    listOf(
+                        Kpi("${stats.total}", "Total trainers", Brand.TextPrimary) { clearAll() },
+                        Kpi("${stats.aclp}", "ACLP trainers", Brand.TextPrimary) { clearAll(); accreditation = Accreditation.ACLP.name },
+                        Kpi("${stats.nonAclp}", "Non-ACLP trainers", Brand.TextPrimary) { clearAll(); accreditation = Accreditation.NON_ACLP.name },
+                    ),
+                )
                 SkillSearch(
                     value = search, onChange = { search = it }, vocab = vocab, selected = tags,
                     onPick = { tag -> tags = tags + tag; search = "" },

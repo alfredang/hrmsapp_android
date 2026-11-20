@@ -128,6 +128,8 @@ object FlexStringSerializer : KSerializer<String> {
 data class TrainerQuery(
     val q: String = "",
     val certs: Set<String> = emptySet(),
+    /** Device-side only: trainers who hold none of these training certificates (the Non-ACLP tile). */
+    val withoutCerts: Set<String> = emptySet(),
     val tags: Set<String> = emptySet(),
     val finance: Boolean = false,
     val ibfFit: Boolean = false,
@@ -166,6 +168,7 @@ enum class Accreditation(val label: String) {
     ACTA("ACTA"),
     DACE("DACE"),
     DDDLP("DDDLP"),
+    NON_ACLP("Non-ACLP"),
     FINANCE("Finance background"),
     IBF("IBF Fit & Proper"),
     ;
@@ -178,14 +181,16 @@ enum class Accreditation(val label: String) {
     }
 
     fun applyTo(q: TrainerQuery): TrainerQuery = when (this) {
-        ANY -> q.copy(certs = emptySet(), finance = false, ibfFit = false)
-        FINANCE -> q.copy(certs = emptySet(), finance = true, ibfFit = false)
-        IBF -> q.copy(certs = emptySet(), finance = false, ibfFit = true)
-        else -> q.copy(certs = setOf(name), finance = false, ibfFit = false)
+        ANY -> q.copy(certs = emptySet(), withoutCerts = emptySet(), finance = false, ibfFit = false)
+        NON_ACLP -> q.copy(certs = emptySet(), withoutCerts = setOf("ACLP"), finance = false, ibfFit = false)
+        FINANCE -> q.copy(certs = emptySet(), withoutCerts = emptySet(), finance = true, ibfFit = false)
+        IBF -> q.copy(certs = emptySet(), withoutCerts = emptySet(), finance = false, ibfFit = true)
+        else -> q.copy(certs = setOf(name), withoutCerts = emptySet(), finance = false, ibfFit = false)
     }
 
     fun count(pool: List<TrainerListItem>): Int = when (this) {
         ANY -> pool.size
+        NON_ACLP -> pool.count { "ACLP" !in it.trainingCerts }
         FINANCE -> pool.count { it.financeBackground }
         IBF -> pool.count { it.ibfFitDeclaration }
         else -> pool.count { name in it.trainingCerts }
@@ -203,7 +208,21 @@ data class TagCount(val tag: String, val count: Int, val kind: Kind) {
  * The app loads the whole directory once and filters on the device, as the web page does, so the
  * suggestions can show counts and results update as you type.
  */
+/** Headline counts for the Trainer Management tiles. Applicants are never counted as trainers. */
+data class TrainerStats(val total: Int, val aclp: Int, val applicants: Int) {
+    val nonAclp: Int get() = total - aclp
+}
+
 object TrainerSearch {
+    /**
+     * Counts over the whole, unfiltered directory (web `stats` in trainer-directory.tsx): trainers
+     * are everyone who is not an applicant; ACLP trainers hold "ACLP" in `trainingCerts`.
+     */
+    fun stats(all: List<TrainerListItem>): TrainerStats {
+        val pool = all.filterNot(::isApplicant)
+        return TrainerStats(total = pool.size, aclp = pool.count { "ACLP" in it.trainingCerts }, applicants = all.size - pool.size)
+    }
+
     private val SPACES = Regex("\\s+")
     private fun norm(s: String) = s.lowercase().replace(SPACES, " ").trim()
 
@@ -239,6 +258,7 @@ object TrainerSearch {
             f.finance && !t.financeBackground -> false
             f.ibfFit && !t.ibfFitDeclaration -> false
             f.certs.isNotEmpty() && !f.certs.all { it in t.trainingCerts } -> false
+            f.withoutCerts.any { it in t.trainingCerts } -> false
             f.tags.isNotEmpty() && !f.tags.all { hasTag(t, it) } -> false
             else -> matchesQuery(haystack(t), f.q)
         }

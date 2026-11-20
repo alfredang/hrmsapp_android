@@ -1,6 +1,5 @@
 package com.tertiaryinfotech.hrportal.data
 
-import com.tertiaryinfotech.hrportal.ui.screens.filterByGroup
 import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -113,19 +112,6 @@ class AnalyticsTest {
         assertEquals(12, v.financeByMonth.size)
         assertTrue(v.byPerson.isNotEmpty())
         assertEquals(23, v.headNow)
-    }
-
-    @Test
-    fun `team calendar group filter`() {
-        val r = decode<TeamCalendarResponse>(
-            """{"year":2026,"canSeeTypes":true,"entries":[
-                 {"id":"a","employeeName":"A","group":"staff"},{"id":"b","employeeName":"B","group":"intern"},
-                 {"id":"c","employeeName":"C","group":null},{"id":"d","employeeName":"D"}],"holidays":[]}""",
-        )
-        assertEquals(listOf("staff", "intern", null, null), r.entries.map { it.group })
-        assertEquals(4, filterByGroup(r.entries, "all").size)
-        assertEquals(listOf("a"), filterByGroup(r.entries, "staff").map { it.id })
-        assertEquals(listOf("b"), filterByGroup(r.entries, "intern").map { it.id })
     }
 
     @Test

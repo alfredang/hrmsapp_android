@@ -82,7 +82,8 @@ Mirrors the iOS app 1:1:
   (SharedPreferences-backed) and `AuthViewModel.bootstrap()` restores it on launch, so a signed-in
   user stays signed in across app restarts and never has to re-log-in until they sign out.
 - **Dashboard** — welcome header, KPI balance tiles (AL / MC / Expenses YTD / Off-in-Lieu), Quick
-  Actions, Recent Activity, and (admins only) the **Approvals queue** cards.
+  Actions, and (approvers only) one `KpiStrip`: Full-time staff, Interns, Pending approvals (see the
+  1.15 section at the end).
 - **Leave** — balances + full request history + **apply for leave** with a live working-days
   preview. **Medical leave (MC)** is applied here as a leave type, attaching an **MC photo**
   (native camera / gallery via `ActivityResultContracts` → `/api/upload` → attached to the request).
@@ -111,7 +112,8 @@ Mirrors the iOS app 1:1:
   `POST /api/{leave|expenses}/{id}/{approve|reject}`). **Enforced server-side** (403 for staff/interns); the client only shows the UI when
   `summary.isAdmin`. The two account admins (**Tan Soik Ching**, **Alfred Ang Chew Hoe**) hold role
   ADMIN and can action this queue.
-- **Team** — company directory (richer contact fields for supervisory roles). Approvers tap a person
+- **Team** — company directory (richer contact fields for supervisory roles). Approvers get Staff /
+  Interns tabs (1.15) and tap a person
   for `EmployeeRecordsScreen` (`/api/mobile/employees/{id}/records`, approver-or-self): clock-in,
   MC and leave history; the three stat tiles open `team_records_clock/{id}` and
   `team_records_leave/{id}?kind=MC|LEAVE`. Routes start with `team` so the Team tab chrome stays.
@@ -141,7 +143,8 @@ Mirrors the iOS app 1:1:
   is prefixed `mc_` on purpose: tab/title resolution is `startsWith`-based, so `leave_summary` would
   be claimed by the Leave tab.
 - **Calendar** — the **team month grid** of everyone's approved leave (`/api/mobile/team-calendar`)
-  with an Everyone / Only me filter and a per-day detail sheet, mirroring the iOS `TeamCalendarView`.
+  with an Everyone / Only me filter, the approvers' "Leave shown for" person filter (1.15) and a
+  per-day detail sheet, mirroring the iOS `TeamCalendarView`.
   A colleague's leave *type* is masked server-side unless the viewer is that person or an approver.
   The older agenda-style list (public holidays + the user's own events) remains at the
   `calendar_list` route, reachable from **More**.
@@ -246,9 +249,33 @@ Delete the file to go back to the real backend.
   `AnalyticsTest`; the screen only draws. Series colours are fixed: blue `#5B82F0`, teal `#22978B`, amber `#BF8420`
   (Revenue / Expenses = blue / amber; Leave / MC / NPL = blue / teal / amber; Staff / Interns = blue / teal). Text uses
   `Brand` ink tokens, never a series colour. Debug builds fall back to `AnalyticsCalc.sample()`.
-- **Calendar**: the All / Staff / Interns control shows only when the server sent `group` on a leave entry.
+- **Calendar**: the All / Staff / Interns control of 1.14 was replaced in 1.15 by the person filter (below).
 - **Push**: any `@Serializable` request body field the server requires must have NO default value (defaults are not
   encoded). `PushTokenBody.platform` broke registration for every Android phone until 1.14.
 - **Emulator**: use the project's own AVD `HRMS_QA` (`emulator -avd HRMS_QA -port 5596`, always `adb -s emulator-5596`).
   Never send adb commands to another session's emulator. A fresh emulator has no FCM token (AUTHENTICATION_FAILED), so
   push registration needs a real phone to verify.
+
+## 1.15 web parity (Alfred, 20 Nov 2026)
+Every new server field is nullable with a default; a control whose data is absent is hidden, because the app can
+reach phones before the server is deployed. Pure logic is in `data/` and unit-tested in `ParityFeaturesTest`.
+- **Calendar "Leave shown for"** (approvers): `TeamCalendarResponse.people` (`[{id, name, intern}]`, null for
+  non-approvers, absent on an older server). `CalendarPeople.build()` lists every active person, Staff then Interns,
+  with their leave-entry count; leavers are not listed but their leave shows under Everyone. Without `people` an
+  approver (`canSeeTypes`, or any entry with a `group`) gets a list built from the entries; otherwise no filter.
+  Holidays are never filtered.
+- **Analytics workforce breakdown**: `AnalyticsData.breakdown` (`[{intern, gender, ageGroup, ethnicGroup}]`, one row
+  per active person, nullable). `Demographics.view()` counts in fixed orders (age `Under 25, 25–34, 35–44, 45–54,
+  55 and over` with en dashes; ethnic `Chinese, Malay, Indian, Eurasian, Others`), "Not recorded" last in neutral
+  grey (`Brand.TextFaint`). Colours: categorical `#5B82F0 #22978B #BF8420 #8E5FD0 #D9627A`, age ramp
+  `#A9BEF7 #7F9DF3 #5B82F0 #3D63D6 #2A47A8`. Its Staff / Interns / All control is its own (default Staff), not the
+  filter row at the top.
+- **Trainer tiles**: `TrainerSearch.stats(all)` over the unfiltered directory; applicants (`Applicant` / `Contacted`)
+  are never counted. Non-ACLP is `Accreditation.NON_ACLP` → `TrainerQuery.withoutCerts` (device-side only).
+- **Team Staff / Interns**: `Employee.intern` (null for non-approvers); `Directory.split()` returns null when no row
+  has the flag, and the screen keeps one list.
+- **Home**: approvers load `/api/mobile/analytics` alongside the summary for `AnalyticsCalc.activeCounts()` (breakdown,
+  else the last headcount month). Pending approvals = `pendingLeaves + pendingClaims` (the summary has no punch or
+  time-off count, so it can be lower than the web tile). No counts → the old two pending tiles.
+- **Previewing approver screens**: `ui_preview` = admin (debug builds); the mock serves the roster, intern flags,
+  the analytics sample and five trainers.

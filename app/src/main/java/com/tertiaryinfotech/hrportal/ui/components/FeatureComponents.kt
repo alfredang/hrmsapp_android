@@ -168,7 +168,7 @@ fun <T> AsyncContent(
 }
 
 /** One figure in a [KpiStrip]. */
-data class Kpi(val value: String, val label: String, val tint: Color = Brand.Accent)
+data class Kpi(val value: String, val label: String, val tint: Color = Brand.Accent, val onClick: (() -> Unit)? = null)
 
 /** A single compact card of 3–4 headline figures side by side (KPI-first, without four big tiles). */
 @Composable
@@ -178,12 +178,16 @@ fun KpiStrip(items: List<Kpi>, modifier: Modifier = Modifier) {
             items.forEachIndexed { i, k ->
                 if (i > 0) Box(Modifier.padding(vertical = 14.dp).fillMaxHeight().width(1.dp).background(Brand.Border))
                 Column(
-                    modifier = Modifier.weight(1f).padding(vertical = 14.dp, horizontal = 6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .let { m -> k.onClick?.let { m.clickable(onClickLabel = k.label, onClick = it) } ?: m }
+                        .padding(vertical = 14.dp, horizontal = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     Text(k.value, color = k.tint, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
-                    Text(k.label, color = Brand.TextSecondary, fontSize = 11.sp, maxLines = 1, textAlign = TextAlign.Center)
+                    Text(k.label, color = Brand.TextSecondary, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 2, textAlign = TextAlign.Center)
                 }
             }
         }

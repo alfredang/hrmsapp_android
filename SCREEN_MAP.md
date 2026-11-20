@@ -127,6 +127,13 @@ client fetches — data loaded via direct Prisma (`getAdminStats`/`getStaffStats
 **Navigation**: `Link` to `/employees/new`, `/leave`, `/expenses`, `/calendar`, `/leave/request`,
 `/expenses/submit`.
 
+**20 Nov 2026 (web `admin-kpis.tsx`, Android 1.15)**: the admin view is three KPI tiles, Full-time staff,
+Interns and Pending approvals. Android Home shows the same three figures to approvers (`DashboardScreen.kt`,
+counts from `/api/mobile/analytics`). The web `/dashboard/analytics` workforce breakdown (gender / age group /
+ethnic group donuts, Staff default) is on the Android Analytics screen (`breakdown` in `/api/mobile/analytics`).
+The web splits people into Staff Management and Intern Management; Android Team has Staff / Interns tabs
+(`intern` in `/api/mobile/employees`). Trainer Management has Total / ACLP / Non-ACLP tiles on both.
+
 **Loading state**: Shared route-group `(dashboard)/loading.tsx` — `Loader2 spin` + `"Loading…"`,
 centered, `min-h-[60vh]`.
 
@@ -626,6 +633,10 @@ id, title, start/end, allDay, type, color, description. Shown: own MEETING/TRAIN
 all HOLIDAY, and LEAVE (all employees if admin/admin-view, else own approved leave only).
 
 **User actions**: "Add Event" → `/calendar/new`; Previous/Next month; "Today"; click a day cell.
+
+**20 Nov 2026 (Android 1.15)**: approvers have "Leave shown for": Everyone or one person, listing every active
+staff member and intern (grouped, with leave counts); leavers are not listed. Android reads the list from
+`people` in `/api/mobile/team-calendar` (`TeamCalendarScreen.kt`, `data/CalendarPeople.kt`). Holidays always show.
 
 **Navigation**: `Link` → `/calendar/new`, `/calendar/day/{YYYY-MM-DD}` (day cell click).
 
