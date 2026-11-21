@@ -9,11 +9,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres t
 iOS 1.20 parity (builds 36–37 and the More rebuild).
 
 ### Release notes (Play, en-US)
-- A Home screen for each role: interns clock in and out right from Home; staff see annual leave and MC left with Apply buttons; admins see staff, interns and what is waiting for approval; accountants see the finance figures.
-- Admins can switch View As to Staff, Intern or Accountant to check those screens.
-- More now follows the website's menu: My Stuff, People, Processes, Finance, Accounting, Documents and System.
-- Analytics has been removed. Edit Profile always opens your details.
-- When a newer version is available, the app asks you to update before continuing.
+- A Home for each role: interns clock in from Home; staff see AL and MC left with Apply buttons; admins see staff, interns and what is waiting for approval; accountants see the finance figures.
+- Admins can View As Staff, Intern or Accountant.
+- More now follows the website menu: My Stuff, People, Processes, Finance, Accounting, Documents, System.
+- Analytics removed. Edit Profile always opens your details.
+- When a newer version is out, the app asks you to update.
 
 ### Added
 - **Role Homes** (`DashboardScreen`): `HomeClockCard` (today's punch, one-tap Clock in / out, History) for people who must
@@ -41,6 +41,12 @@ iOS 1.20 parity (builds 36–37 and the More rebuild).
 
 ### Removed
 - Analytics (screen, `/api/mobile/analytics` calls, `data/Analytics.kt`, tests), as on iOS 1.20.
+
+### Play submission
+- 2026-11-22 (SGT): uploaded through the Android Publisher API and released to the **production** track as "1.18 (33)",
+  status `completed` (read back after commit; the API does not report Google's review state). Account ownership
+  (corporate, `sales@tertiarycourses.com.sg`) is from the saved transfer note, not re-checked in the console.
+- Force update for Android starts only when the server's Android live version is set to 1.18 (after the release is live).
 
 ## [1.17] — 2026-11-20 · versionCode 32
 
