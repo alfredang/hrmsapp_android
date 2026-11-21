@@ -40,7 +40,7 @@ object MockApi {
                 Log.i("MockApi", "${request.method} $path $body")
             }
             val leaveError = if (request.method == "POST" && path == "/api/leave") leaveRefusal(body.orEmpty(), role) else null
-            val json = leaveError ?: respond(path, request.method, role)
+            val json = leaveError ?: if (path == "/api/public/app-version") appVersion(context) else respond(path, request.method, role, request.url.queryParameter("view"))
             val code = when {
                 leaveError != null -> 400
                 json == null -> 404
@@ -56,11 +56,21 @@ object MockApi {
         })
     }
 
-    private fun respond(path: String, method: String, role: String): String? = when {
+    /**
+     * Force update: no forcing unless `files/force_update` exists, which pretends Play has 99.0 live:
+     *   adb shell run-as com.tertiaryinfotech.hrportal sh -c 'touch files/force_update'
+     */
+    private fun appVersion(context: Context): String {
+        val live = if (File(context.filesDir, "force_update").exists()) "\"99.0\"" else "null"
+        return """{"ios":{"liveVersion":null,"storeUrl":"https://apps.apple.com/app/id6759821144"},""" +
+            """"android":{"liveVersion":$live,"storeUrl":"https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal"}}"""
+    }
+
+    private fun respond(path: String, method: String, role: String, view: String? = null): String? = when {
         path == "/api/auth/session" -> if (role == "signedout") "null" else session(role)
         path.startsWith("/api/auth/") -> "{\"csrfToken\":\"mock\",\"url\":\"\"}"
         method != "GET" -> "{\"url\":\"/api/uploads/mock.jpg\",\"fileName\":\"mock.jpg\",\"id\":\"x\"}"
-        path == "/api/mobile/summary" -> summary(role)
+        path == "/api/mobile/summary" -> summary(role, view)
         path == "/api/mobile/leave" -> LEAVE
         path == "/api/public-holidays" -> HOLIDAYS
         path == "/api/mobile/expenses" -> EXPENSES
@@ -82,8 +92,6 @@ object MockApi {
         path == "/api/attendance/corrections" -> CORRECTIONS
         path == "/api/timesheet/admin" -> OIL
         path == "/api/timesheet" -> TIMESHEET
-        // Approvers only, like the real server (403 there): the same sample the Analytics screen falls back to.
-        path == "/api/mobile/analytics" -> if (role == "admin") HrmsJson.encodeToString(AnalyticsCalc.sample()) else null
         path == "/api/mobile/trainers" -> TRAINERS
         path.startsWith("/api/mobile/trainers/") -> TRAINER
         else -> null
@@ -107,14 +115,23 @@ object MockApi {
 
     private fun session(role: String): String {
         val r = role.uppercase()
-        return """{"user":{"id":"u1","email":"sarah.lim@example.com","name":"Sarah Lim","role":"$r","roles":["$r"],"employeeId":"e1"}}"""
+        // Admin also holds TRAINER_ADMIN (the View As menu then lists Trainer Admin), as Alfred's account does.
+        val roles = if (r == "ADMIN") "\"ADMIN\",\"HR\",\"TRAINER_ADMIN\"" else "\"$r\""
+        return """{"user":{"id":"u1","email":"sarah.lim@example.com","name":"Sarah Lim","role":"$r","roles":[$roles],"employeeId":"e1"}}"""
     }
 
-    private fun summary(role: String) = """{"name":"Sarah Lim","role":"${role.uppercase()}","isAdmin":${role == "admin"},"canManageTrainers":${role == "admin"},
+    /** Accountants and an approver previewing the accountant Home (`?view=accountant`) get the finance tiles. */
+    private const val FINANCE = """{"pendingClaims":2,"pendingClaimsAmount":486.4,"incomeMonth":182400,"incomeYtd":2104900,
+        "expensesMonth":141250,"expensesYtd":1688300,"monthLabel":"Nov","year":2026,"incomeCountMonth":172,"expenseCountMonth":107,
+        "statementImports":33,"statementLatestDate":"2026-11-16","statementLastImportedAt":"2026-11-16T05:21:55.243Z",
+        "reconciliation":{"status":"COMPLETED","periodStart":"2026-10-01","periodEnd":"2026-10-31","matched":268,"toReview":4,
+        "createdAt":"2026-11-02T03:00:00.000Z"}}"""
+
+    private fun summary(role: String, view: String?) = """{"name":"Sarah Lim","role":"${role.uppercase()}","isAdmin":${role == "admin"},"canManageTrainers":${role == "admin"},
         "alAvailable":6,"mcAvailable":12,"otRemaining":1.5,"expenseYtd":428.5,"pendingLeaves":3,"pendingClaims":2,
         "leaveSummary":[{"label":"Paid leave taken","value":"5 days"},{"label":"Annual leave balance","value":"6 days"},
           {"label":"MC taken","value":"2 days"},{"label":"No-pay leave taken","value":"1 day","hint":"11 of 14 left"}],
-        "financeKpis":null,
+        "financeKpis":${if (role == "accountant" || (role == "admin" && view == "accountant")) FINANCE else "null"},
         "trainerKpis":${if (role == "admin") "{\"total\":5,\"aclp\":3,\"nonAclp\":2}" else "null"}}"""
 
     private fun profile(role: String) = """{"employee":{"id":"e1","employeeId":"E0007","name":"Sarah Lim","email":"sarah.lim@example.com",

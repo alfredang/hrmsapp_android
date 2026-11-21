@@ -61,15 +61,15 @@ import com.tertiaryinfotech.hrportal.util.Fmt
 /** My profile (iOS `ProfileView`): the employee record, self-edit and change password. */
 @Composable
 fun ProfileScreen(nav: NavController) {
-    var showEdit by remember { mutableStateOf(false) }
+    // The record the Edit sheet works on, captured when Edit is tapped (iOS: the sheet read the loading state
+    // and came up blank during a refresh).
+    var editing by remember { mutableStateOf<EmployeeProfile?>(null) }
     var showPassword by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableStateOf(0) }
-    var loaded by remember { mutableStateOf<EmployeeProfile?>(null) }
 
     key(reloadKey) {
         AsyncListScreen(fetch = { HrmsApi.profile() }) { data ->
             val e = data.employee
-            loaded = e
             if (e == null) {
                 item { EmptyHint(Icons.Filled.PersonOff, "No profile linked to this account.") }
             } else {
@@ -77,7 +77,7 @@ fun ProfileScreen(nav: NavController) {
                 item { Spacer18() }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ActionButton("Edit profile", Icons.Filled.Edit, Modifier.weight(1f)) { showEdit = true }
+                        ActionButton("Edit profile", Icons.Filled.Edit, Modifier.weight(1f)) { editing = e }
                         ActionButton("Password", Icons.Filled.Lock, Modifier.weight(1f)) { showPassword = true }
                     }
                 }
@@ -114,14 +114,12 @@ fun ProfileScreen(nav: NavController) {
         }
     }
 
-    if (showEdit) {
-        loaded?.let { e ->
-            EditProfileSheet(
-                employee = e,
-                onDismiss = { showEdit = false },
-                onSaved = { showEdit = false; reloadKey++ },
-            )
-        }
+    editing?.let { e ->
+        EditProfileSheet(
+            employee = e,
+            onDismiss = { editing = null },
+            onSaved = { editing = null; reloadKey++ },
+        )
     }
 
     if (showPassword) {

@@ -1,6 +1,9 @@
 package com.tertiaryinfotech.hrportal.ui
 
 import com.tertiaryinfotech.hrportal.data.ViewAsRules
+import com.tertiaryinfotech.hrportal.data.LeaveRules
+import com.tertiaryinfotech.hrportal.data.ShownRole
+import com.tertiaryinfotech.hrportal.data.ViewAsMode
 import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,13 +82,25 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
     val isTrainerView: Boolean
         get() = ViewAsRules.isTrainerView(ViewAs.mode, canManageTrainers, capabilitiesKnown)
 
+    /** Approver roles (web `hasAdminAccess`), whatever the view. */
+    val isApprover: Boolean get() = LeaveRules.isApprover(user?.roles, user?.role)
+
+    /** The views this person may pick (approvers: Admin / Staff / Intern / Accountant; holders: Trainer Admin). */
+    val availableViews: List<ViewAsMode> get() = ViewAsRules.available(isApprover, canManageTrainers)
+
+    /** What the screens show for the current view; forms keep the real roles. */
+    val shown: ShownRole get() = ViewAsRules.shown(ViewAs.mode, user?.roles, user?.role, isTrainerView)
+
+    /** An approver previewing another role (View As): clocking in is off. */
+    val isRolePreview: Boolean get() = shown.preview
+
     fun refreshCapabilities() {
         viewModelScope.launch {
             try {
                 canManageTrainers = HrmsApi.summary().canManageTrainers
                 capabilitiesKnown = true
-                // Lost the role: back to My view.
-                val keep = ViewAsRules.afterCapabilities(ViewAs.mode, canManageTrainers)
+                // A view no longer allowed: back to My view.
+                val keep = ViewAsRules.afterCapabilities(ViewAs.mode, canManageTrainers, isApprover)
                 if (keep != ViewAs.mode) ViewAs.select(keep)
             } catch (_: Exception) { /* keep last-known value on failure */ }
         }

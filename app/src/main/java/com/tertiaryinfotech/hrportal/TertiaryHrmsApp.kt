@@ -16,6 +16,7 @@ class TertiaryHrmsApp : Application() {
         Appearance.init(this) // saved Light / Dark / System, before the first frame
         ViewAs.init(this) // saved My view / Trainer Admin (Trainer Admin holders)
         Net.init(this)
+        com.tertiaryinfotech.hrportal.ui.UpdateGate.init() // force update: 426 answers block the app
         Push.createChannel(this)
     }
 }

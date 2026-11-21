@@ -4,6 +4,44 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.18] — 2026-11-22 · versionCode 33
+
+iOS 1.20 parity (builds 36–37 and the More rebuild).
+
+### Release notes (Play, en-US)
+- A Home screen for each role: interns clock in and out right from Home; staff see annual leave and MC left with Apply buttons; admins see staff, interns and what is waiting for approval; accountants see the finance figures.
+- Admins can switch View As to Staff, Intern or Accountant to check those screens.
+- More now follows the website's menu: My Stuff, People, Processes, Finance, Accounting, Documents and System.
+- Analytics has been removed. Edit Profile always opens your details.
+- When a newer version is available, the app asks you to update before continuing.
+
+### Added
+- **Role Homes** (`DashboardScreen`): `HomeClockCard` (today's punch, one-tap Clock in / out, History) for people who must
+  clock in; `BalanceCard` (Annual leave left / MC left, interns "No pay", Apply for leave / Apply for MC → the form preset to
+  AL / MC); admin Overview (active staff / interns from `/api/mobile/employees`, Pending = sum of the new **Waiting for
+  approval** card: Leave, MC, Time off, Expense claims → Approvals; Missed punches → admin Timesheet; `PendingApprovals`);
+  accountant Home = clock card + Finance card only. Per-role quick actions (admin, intern, staff); none for accountants.
+  Welcome card: chevron beside "Welcome back", name on one line across the full width (shrinks to fit), opens My Profile.
+- **View As for approvers** (`ViewAsMode` STAFF / INTERN / ACCOUNTANT; `ViewAsRules.available / shown / summaryView`;
+  `ViewAsMenu` on Home and More, options tagged `viewAs.<key>`). Previews fetch `/api/mobile/summary?view=…`; forms keep
+  the real roles; clocking in is disabled (Home card and the Clock screen) while previewing.
+- **Finance card**: credit / debit counts, Bank statements (imports, covered up to) and Bank reconciliation (latest run,
+  lines to review, or "Not run") from the optional `financeKpis` fields of web e46f631 (`HomeTiles.finance`).
+- **More = the web sidebar** (`data/MoreMenu.kt`): My Stuff, People, Processes, Finance, Accounting (web links + the Drive
+  Bank Statements folder), Documents → SOP, System → Settings; rows tagged `more.row.<id>` / `more.apply.<AL|MC>`.
+- **Force update**: every HRMS request sends `X-App-Platform: android`, `X-App-Version`, `X-App-Build`; at launch and on
+  resume `GET /api/public/app-version` (Play's live version) and any HTTP 426 show the blocking "Update required" screen
+  (`ui/UpdateGate.kt`, `AppVersion`). A failed check never blocks.
+- Unit tests: `HomeRolesTest`, new `ViewAsTest` cases.
+
+### Changed
+- Admin Leave tab = Leave & MC management (no Apply, no own balances). Accountants have no Leave tab and no leave, MC or
+  time off anywhere (`LeaveRules.isAccountant`). Clock In/Out is never shown to admins or staff.
+- Edit Profile captures the record when tapped (never opens blank).
+
+### Removed
+- Analytics (screen, `/api/mobile/analytics` calls, `data/Analytics.kt`, tests), as on iOS 1.20.
+
 ## [1.17] — 2026-11-20 · versionCode 32
 
 ### Release notes (Play, en-US)

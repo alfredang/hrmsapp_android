@@ -34,6 +34,33 @@ object Net {
 
     val json: Json = HrmsJson
 
+    /**
+     * Force update (22 Nov 2026): called with the store URL when the server answers 426 Upgrade Required
+     * (this version is older than the one live on Play). Set by `UpdateGate`.
+     */
+    @Volatile var onUpgradeRequired: ((String?) -> Unit)? = null
+
+    /** Every HRMS request says which app and version sent it, so the server can turn away an old version. */
+    private val appVersionHeaders = okhttp3.Interceptor { chain ->
+        val req = chain.request()
+        val tagged = if (req.url.host == BASE_URL.removePrefix("https://")) {
+            req.newBuilder()
+                .header("X-App-Platform", "android")
+                .header("X-App-Version", com.tertiaryinfotech.hrportal.BuildConfig.VERSION_NAME)
+                .header("X-App-Build", com.tertiaryinfotech.hrportal.BuildConfig.VERSION_CODE.toString())
+                .build()
+        } else req
+        val resp = chain.proceed(tagged)
+        if (resp.code == 426) {
+            val url = try {
+                (json.parseToJsonElement(resp.peekBody(64 * 1024).string()) as? kotlinx.serialization.json.JsonObject)
+                    ?.get("storeUrl")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+            } catch (_: Exception) { null }
+            onUpgradeRequired?.invoke(url)
+        }
+        resp
+    }
+
     fun init(context: Context) {
         if (::client.isInitialized) return
         cookieJar = PersistentCookieJar(context.applicationContext)
@@ -42,6 +69,7 @@ object Net {
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(90, TimeUnit.SECONDS) // receipt uploads on slow mobile data
+            .addInterceptor(appVersionHeaders)
             .also { MockApi.install(it, context.applicationContext) }
             .build()
         retrofit = Retrofit.Builder()

@@ -10,6 +10,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.tertiaryinfotech.hrportal.push.Push
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.RootScreen
+import com.tertiaryinfotech.hrportal.ui.UpdateGate
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.tertiaryinfotech.hrportal.ui.theme.Appearance
 import com.tertiaryinfotech.hrportal.ui.theme.TertiaryHRMSTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -32,6 +35,12 @@ class MainActivity : ComponentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         Appearance.readSystem(newConfig) // "System" follows the device
+    }
+
+    /** Force update: on every return to the app, check which version is live on Play. */
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { UpdateGate.check() }
     }
 
     override fun onNewIntent(intent: Intent) {

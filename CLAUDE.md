@@ -245,18 +245,37 @@ adb shell am force-stop com.tertiaryinfotech.hrportal
 Use admin, staff, intern or signedout. Writes are logged under the `MockApi` logcat tag, not sent.
 Delete the file to go back to the real backend.
 
-## Analytics, calendar group filter, push registration (Alfred, 20 Nov 2026)
-- **Analytics** = More → Manage → Analytics, approvers only (`isApprover`). Data: `GET /api/mobile/analytics` (403 for
-  others). All filtering and totals are in `AnalyticsCalc.view()` (`data/Analytics.kt`), unit-tested in
-  `AnalyticsTest`; the screen only draws. Series colours are fixed: blue `#5B82F0`, teal `#22978B`, amber `#BF8420`
-  (Revenue / Expenses = blue / amber; Leave / MC / NPL = blue / teal / amber; Staff / Interns = blue / teal). Text uses
-  `Brand` ink tokens, never a series colour. Debug builds fall back to `AnalyticsCalc.sample()`.
+## Calendar group filter, push registration (Alfred, 20 Nov 2026)
+- **Analytics was removed in 1.18** (iOS 1.20, Alfred: "too confusing"); do not bring it back. The web keeps its page.
 - **Calendar**: the All / Staff / Interns control of 1.14 was replaced in 1.15 by the person filter (below).
 - **Push**: any `@Serializable` request body field the server requires must have NO default value (defaults are not
   encoded). `PushTokenBody.platform` broke registration for every Android phone until 1.14.
 - **Emulator**: use the project's own AVD `HRMS_QA` (`emulator -avd HRMS_QA -port 5596`, always `adb -s emulator-5596`).
   Never send adb commands to another session's emulator. A fresh emulator has no FCM token (AUTHENTICATION_FAILED), so
-  push registration needs a real phone to verify.
+  push registration needs a real phone to verify. Gradle needs `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
+  (without it `./gradlew -q` fails silently).
+
+## 1.18 = iOS 1.20 parity (Alfred, 22 Nov 2026)
+- **Role Homes** (`DashboardScreen`), from `auth.shown` (`ShownRole`, View As aware): must clock in → `HomeClockCard` first;
+  not admin / not accountant → `BalanceCard` (AL / MC left + Apply), "My leave this year", OT / Expenses YTD; admin →
+  Overview (active staff / interns from `/api/mobile/employees` via `Directory.split`, Pending = `PendingApprovals.total`)
+  + **Waiting for approval** (approvals + `/api/time-off` + pending corrections); accountant → clock card + Finance card
+  only, no quick actions. No trainer tiles or own balances on the admin Home.
+- **View As** (`data/ViewAs.kt`): approvers pick Admin / Staff / Intern / Accountant (+ Trainer Admin for holders);
+  non-approver holders keep the two-way control in More. `ViewAsRules.shown` drives screens; forms keep the real roles;
+  previews send `?view=staff|intern|accountant` (web 54a461f: leave tiles for staff / intern, finance for accountant);
+  `TimesheetScreen(preview)` and the Home card cannot punch while previewing. Switching a view opens Home (Trainer Admin →
+  Trainers).
+- **Tabs**: Trainer view Home / Trainers / Calendar / More; accountants Home / Calendar / Team / More (no Leave);
+  everyone else five tabs. The admin Leave tab is `LeaveSummaryScreen` (no Apply action in the top bar).
+- **More** = web sidebar, `MoreMenu.sections(shown, trainerView, canManageTrainers)` (pure, `HomeRolesTest`). Keep it in
+  step with iOS `MoreView.sections` and web `sidebar.tsx`.
+- **Force update**: `Net` adds `X-App-Platform/Version/Build` to HRMS requests and reports HTTP 426 to `UpdateGate`;
+  `UpdateGate.check()` (launch via `MainActivity.onResume`) reads `/api/public/app-version` `android.liveVersion` and
+  blocks when it is newer than `VERSION_NAME`. The server sets the Android live version after a Play release is live.
+  Debug preview: `touch files/force_update` (run-as) makes the mock report 99.0.
+- Debug preview roles: `ui_preview` = admin (ADMIN, HR, TRAINER_ADMIN), staff, intern, accountant; View As via
+  `shared_prefs/hrms_view_as.xml` `mode` = mine | staff | intern | accountant | trainer.
 
 ## 1.15 web parity (Alfred, 20 Nov 2026)
 Every new server field is nullable with a default; a control whose data is absent is hidden, because the app can
@@ -266,7 +285,7 @@ reach phones before the server is deployed. Pure logic is in `data/` and unit-te
   with their leave-entry count; leavers are not listed but their leave shows under Everyone. Without `people` an
   approver (`canSeeTypes`, or any entry with a `group`) gets a list built from the entries; otherwise no filter.
   Holidays are never filtered.
-- **Analytics workforce breakdown**: `AnalyticsData.breakdown` (`[{intern, gender, ageGroup, ethnicGroup}]`, one row
+- ~~**Analytics workforce breakdown**~~ (removed in 1.18): `AnalyticsData.breakdown` (`[{intern, gender, ageGroup, ethnicGroup}]`, one row
   per active person, nullable). `Demographics.view()` counts in fixed orders (age `Under 25, 25–34, 35–44, 45–54,
   55 and over` with en dashes; ethnic `Chinese, Malay, Indian, Eurasian, Others`), "Not recorded" last in neutral
   grey (`Brand.TextFaint`). Colours: categorical `#5B82F0 #22978B #BF8420 #8E5FD0 #D9627A`, age ramp
@@ -280,9 +299,7 @@ reach phones before the server is deployed. Pure logic is in `data/` and unit-te
   to All so the load call and other callers are not narrowed.
 - **Team Staff / Interns**: `Employee.intern` (null for non-approvers); `Directory.split()` returns null when no row
   has the flag, and the screen keeps one list.
-- **Home**: approvers load `/api/mobile/analytics` alongside the summary for `AnalyticsCalc.activeCounts()` (breakdown,
-  else the last headcount month). Pending approvals = `pendingLeaves + pendingClaims` (the summary has no punch or
-  time-off count, so it can be lower than the web tile). No counts → the old two pending tiles.
+- **Home** (superseded in 1.18): active counts now come from the employee list, Pending from the Waiting card.
 - **Previewing approver screens**: `ui_preview` = admin (debug builds); the mock serves the roster, intern flags,
   the analytics sample and five trainers.
 
@@ -308,7 +325,7 @@ All new fields are nullable or defaulted; pure logic is in `data/CalendarLogic.k
 - **Who clocks in**: `LeaveRules.mustClockIn(roles, role)` / `SessionUser.mustClockIn` = web `mustClockIn`
   (`src/lib/attendance-policy.ts`): roles exactly `["INTERN"]`, or `ACCOUNTANT` with none of ADMIN / HR / MANAGER,
   case-insensitive. Keep the two identical. `/api/attendance/missed` already answers `isIntern: true` for them.
-- **More**: group **Attendance** (Time In/Out) for interns, `mustClockIn` users and approvers. Applications: interns get
+- **More** (superseded in 1.18 by the web-sidebar More): group **Attendance** (Time In/Out) for interns, `mustClockIn` users and approvers. Applications: interns get
   **Timesheet** (`my_timesheet`, `MyTimesheetScreen` = iOS `MyTimesheetView`), accountants who clock in get Timesheet
   AND Off In Lieu (`timesheet_week`), everyone else Off In Lieu. Push: `/timesheet` → `my_timesheet` when `mustClockIn`
   (`routeForLink(…, mustClockIn)`), else `timesheet_week`; `/attendance` → the clock screen.

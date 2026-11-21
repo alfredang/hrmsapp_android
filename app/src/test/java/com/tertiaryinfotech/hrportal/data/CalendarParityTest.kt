@@ -365,7 +365,7 @@ class CalendarParityTest {
         assertEquals("2", tiles[0].value)
         assertEquals("${Fmt.money(412.5)} waiting for approval", tiles[0].hint)
         assertEquals("Income, November", tiles[1].label)
-        assertEquals("${Fmt.money(150000.0)} in 2026 so far", tiles[1].hint)
+        assertEquals("${Fmt.money(150000.0)} in 2026", tiles[1].hint) // iOS 1.20 wording; counts prefix when sent
         assertEquals("Expenses, November", tiles[2].label)
         assertEquals(Fmt.money(8000.0), tiles[2].value)
         assertEquals("Nothing waiting", HomeTiles.finance(f.copy(pendingClaims = 0))[0].hint)

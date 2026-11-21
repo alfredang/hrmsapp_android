@@ -23,7 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContactPage
 import androidx.compose.material.icons.filled.School
@@ -48,14 +47,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.BuildConfig
+import com.tertiaryinfotech.hrportal.data.MoreMenu
 import com.tertiaryinfotech.hrportal.data.ViewAsMode
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Balance
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Settings
 import com.tertiaryinfotech.hrportal.ui.ViewAs
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.Card
 import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
-/** More tab: entry points to the remaining modules plus sign out (iOS `MoreView`). */
+/**
+ * More tab = the web sidebar (iOS `MoreView`, Alfred 22 Nov 2026): View As, then My Stuff, People, Processes,
+ * Finance, Accounting, Documents and System for the current view ([MoreMenu]), then sign out and the legal links.
+ */
 @Composable
 fun MoreScreen(auth: AuthViewModel, nav: NavController) {
     Column(
@@ -76,108 +90,49 @@ fun MoreScreen(auth: AuthViewModel, nav: NavController) {
             }
         }
 
-        val approver = isApprover(auth)
-        val intern = auth.user?.isIntern == true
-        // Interns and accountants without an approver role clock in every workday (web `mustClockIn`).
-        val clocksIn = auth.user?.mustClockIn == true
-
-        // View As (Trainer Admin holders only; web 1a394c4): My view or the Trainer Admin view.
-        val trainerView = auth.isTrainerView
-        if (auth.canManageTrainers || trainerView) {
+        // View As: approvers get the menu (Admin / Staff / Intern / Accountant / Trainer Admin); Trainer Admin
+        // holders who are not approvers keep the two-way control (My view / Trainer Admin).
+        if (auth.availableViews.size > 1) {
             GroupLabel("View As")
-            SegmentedPicker(
-                options = ViewAsMode.entries.map { it.name to it.label },
-                selected = (if (trainerView) ViewAsMode.TRAINER else ViewAsMode.MINE).name,
-                onSelect = { ViewAs.select(ViewAsMode.valueOf(it)) },
-            )
+            if (auth.isApprover) {
+                ViewAsMenu(auth, tag = "more.viewAs")
+            } else {
+                SegmentedPicker(
+                    options = auth.availableViews.map { it.name to it.label },
+                    selected = (if (auth.isTrainerView) ViewAsMode.TRAINER else ViewAsMode.MINE).name,
+                    onSelect = { ViewAs.select(ViewAsMode.valueOf(it)) },
+                )
+            }
         }
 
-        if (trainerView) {
-            // Trainer Admin view: only the trainer pages, as the web sidebar in that view.
-            GroupLabel("Trainer Admin")
+        // The web sidebar, section by section, for the current view (data/MoreMenu.kt).
+        val context = LocalContext.current
+        MoreMenu.sections(auth.shown, auth.isTrainerView, auth.canManageTrainers).forEach { section ->
+            GroupLabel(section.title)
             Card(padding = 6) {
-                MenuLink("My Profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
-                MenuDivider()
-                MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
-                MenuDivider()
-                MenuLink("Trainer Admin", Icons.Filled.ContactPage, Brand.Gold600) {
-                    nav.navigate("trainers") {
-                        popUpTo(nav.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                section.rows.forEachIndexed { i, row ->
+                    if (i > 0) MenuDivider()
+                    val (icon, tint) = rowIcon(row.icon)
+                    val tag = when (row.target) {
+                        is MoreMenu.Target.Apply -> "more.apply.${row.id}"
+                        else -> "more.row.${row.id}"
+                    }
+                    MenuLink(row.title, icon, tint, tag, external = row.target is MoreMenu.Target.Web) {
+                        when (val t = row.target) {
+                            is MoreMenu.Target.Route ->
+                                if (t.route == "trainers" && auth.isTrainerView) {
+                                    nav.navigate("trainers") {
+                                        popUpTo(nav.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                } else nav.navigate(t.route)
+                            is MoreMenu.Target.Apply -> nav.navigate("leave_request/${t.code}")
+                            is MoreMenu.Target.Web -> openWeb(context, MoreMenu.url(t.path))
+                        }
                     }
                 }
             }
-        } else {
-            GroupLabel("Applications")
-            Card(padding = 6) {
-                MenuLink("MC", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("leave_request/MC") }
-                MenuDivider()
-                MenuLink("Leave", Icons.AutoMirrored.Filled.EventNote, Brand.Accent) { nav.navigate("leave_request/AL") }
-                MenuDivider()
-                MenuLink("Time Off", Icons.Filled.HourglassBottom, Brand.Purple) { nav.navigate("time_off") }
-                MenuDivider()
-                MenuLink("Expense Claims", Icons.Filled.CreditCard, Brand.Orange) { nav.navigate("expenses") }
-                // Interns: their own Timesheet. Accountants who clock in: Timesheet and Off In Lieu.
-                // Everyone else logs weekend / PH work under Off In Lieu.
-                if (clocksIn) {
-                    MenuDivider()
-                    MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("my_timesheet") }
-                }
-                if (!intern) {
-                    MenuDivider()
-                    MenuLink("Off In Lieu", Icons.Filled.EventAvailable, Brand.Mint) { nav.navigate("timesheet_week") }
-                }
-            }
-
-            GroupLabel("Staff")
-            Card(padding = 6) {
-                MenuLink("Calendar", Icons.Filled.CalendarMonth, Brand.Accent) { nav.navigate("calendar_list") }
-                MenuDivider()
-                MenuLink("Payslips", Icons.Filled.Description, Brand.Green) { nav.navigate("payslips") }
-                MenuDivider()
-                MenuLink("My Profile", Icons.Filled.AccountCircle, Brand.Azure) { nav.navigate("profile") }
-                MenuDivider()
-                // Every staff member and intern can look up and contact a trainer.
-                MenuLink("Trainers", Icons.Filled.School, Brand.Gold600) { nav.navigate("trainer_contacts") }
-            }
-
-            // Interns and accountants must clock in and out every workday; admins see it too. Hidden for plain staff.
-            if (intern || clocksIn || approver) {
-                GroupLabel("Attendance")
-                Card(padding = 6) {
-                    MenuLink("Time In/Out", Icons.Filled.AccessTimeFilled, Brand.Amber) { nav.navigate("timesheet") }
-                }
-            }
-
-            // Debug builds only: reach Analytics (on sample data) without an approver login, to check the layout.
-            if (BuildConfig.DEBUG && !approver) {
-                GroupLabel("Debug")
-                Card(padding = 6) { MenuLink("Analytics (sample data)", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") } }
-            }
-
-            if (approver || auth.canManageTrainers) {
-                GroupLabel("Manage")
-                Card(padding = 6) {
-                    if (approver) {
-                        MenuLink("Approvals", Icons.Filled.CheckCircle, Brand.Green) { nav.navigate("approvals") }
-                        MenuDivider()
-                        // Admin: one Timesheet for interns (days, hours, missing punches, Off In Lieu).
-                        MenuLink("Timesheet", Icons.Filled.TableChart, Brand.Mint) { nav.navigate("timesheet_admin") }
-                        MenuDivider()
-                        MenuLink("Leave & MC Summary", Icons.Filled.MedicalServices, Brand.Pink) { nav.navigate("mc_leave_summary") }
-                        MenuDivider()
-                        // 12 months of revenue / expenses, leave and MC per person, headcount (web /dashboard/analytics).
-                        MenuLink("Analytics", Icons.Filled.BarChart, Brand.Accent) { nav.navigate("analytics") }
-                    }
-                    if (approver && auth.canManageTrainers) MenuDivider()
-                    // Full directory with NRIC and admin notes — TRAINER_ADMIN only (server enforces 403).
-                    if (auth.canManageTrainers) {
-                        MenuLink("Trainer Admin", Icons.Filled.ContactPage, Brand.Gold600) { nav.navigate("trainers") }
-                    }
-                }
-            }
-
         }
 
         SignOutButton(auth)
@@ -213,24 +168,58 @@ private fun LegalLinks() {
 }
 
 /** Approver roles (mirrors the web's `hasAdminAccess`) see the admin Timesheet and the leave & MC roll-up. */
-fun isApprover(auth: AuthViewModel): Boolean =
-    auth.user?.primaryRole?.uppercase() in setOf("ADMIN", "HR", "MANAGER")
+fun isApprover(auth: AuthViewModel): Boolean = auth.isApprover
+
+/** Icon and tint of a More row, by its [MoreMenu.Row.icon] key. */
+private fun rowIcon(key: String): Pair<ImageVector, Color> = when (key) {
+    "profile" -> Icons.Filled.AccountCircle to Brand.Azure
+    "calendar" -> Icons.Filled.CalendarMonth to Brand.Accent
+    "staff" -> Icons.Filled.Groups to Brand.Accent
+    "interns" -> Icons.Filled.PersonAdd to Brand.Accent
+    "trainers" -> Icons.Filled.ContactPage to Brand.Gold600
+    "trainercontacts" -> Icons.Filled.School to Brand.Gold600
+    "approvals" -> Icons.Filled.CheckCircle to Brand.Green
+    "leave", "annual" -> Icons.AutoMirrored.Filled.EventNote to Brand.Accent
+    "medical" -> Icons.Filled.MedicalServices to Brand.Pink
+    "timeoff" -> Icons.Filled.HourglassBottom to Brand.Orange
+    "timesheet_admin", "mytimesheet" -> Icons.Filled.TableChart to Brand.Mint
+    "clock" -> Icons.Filled.AccessTimeFilled to Brand.Amber
+    "offinlieu" -> Icons.Filled.EventAvailable to Brand.Mint
+    "payslips" -> Icons.Filled.Description to Brand.Green
+    "claims" -> Icons.Filled.CreditCard to Brand.Orange
+    "expensetracking" -> Icons.AutoMirrored.Filled.TrendingDown to Brand.Red
+    "incometracking" -> Icons.AutoMirrored.Filled.TrendingUp to Brand.Green
+    "reconciliation" -> Icons.Filled.Balance to Brand.Gold600
+    "statements" -> Icons.Filled.Folder to Brand.Accent
+    "sop" -> Icons.AutoMirrored.Filled.MenuBook to Brand.Accent
+    "settings" -> Icons.Filled.Settings to Brand.TextSecondary
+    else -> Icons.Filled.Description to Brand.Accent
+}
+
+/** A web row opens the page in the browser (the HRMS web app keeps its own session there). */
+private fun openWeb(context: android.content.Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (_: ActivityNotFoundException) { /* no browser installed */ }
+}
 
 @Composable
-private fun MenuLink(title: String, icon: ImageVector, tint: Color, onClick: () -> Unit) {
+private fun MenuLink(title: String, icon: ImageVector, tint: Color, tag: String, external: Boolean = false, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Brand.SmallCorner.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 15.dp),
+            .padding(horizontal = 12.dp, vertical = 15.dp)
+            .semantics { testTag = tag },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
         Text(title, color = Brand.TextPrimary, fontSize = 16.sp, modifier = Modifier.padding(start = 14.dp).weight(1f))
         Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
-            tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(20.dp),
+            if (external) Icons.AutoMirrored.Filled.OpenInNew else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = if (external) "Opens the web page" else null,
+            tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.size(if (external) 16.dp else 20.dp),
         )
     }
 }

@@ -122,6 +122,19 @@ object LeaveRules {
 
     private val CLOCK_EXEMPT_ROLES = setOf("ADMIN", "HR", "MANAGER")
 
+    /** Approver roles (web `hasAdminAccess`): the primary role (session `role`, else the first) is ADMIN, HR or MANAGER. */
+    fun isApprover(roles: List<String>?, role: String? = null): Boolean =
+        (role ?: roles?.firstOrNull() ?: "STAFF").trim().uppercase() in CLOCK_EXEMPT_ROLES
+
+    /**
+     * Accountants without an approver role (web view "accountant"): finance only, no leave, MC or time off
+     * (web sidebar `noAccountant`; Alfred, 22 Nov 2026).
+     */
+    fun isAccountant(roles: List<String>?, role: String? = null): Boolean {
+        val r = (roles ?: listOfNotNull(role)).map { it.trim().uppercase() }
+        return "ACCOUNTANT" in r && r.none { it in CLOCK_EXEMPT_ROLES }
+    }
+
     fun isMedical(code: String?): Boolean = code != null && code.uppercase() in MEDICAL_CODES
 
     /** The reason an intern's sick leave carries once it goes in as No Pay Leave (as the web form does). */

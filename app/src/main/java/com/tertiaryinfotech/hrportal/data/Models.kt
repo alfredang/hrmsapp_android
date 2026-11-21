@@ -91,6 +91,25 @@ data class FinanceKpis(
     /** "November". */
     val monthLabel: String = "",
     val year: Int = 0,
+    /** Bank credits / debits this month, statement imports and the latest reconciliation (web e46f631, 22 Nov 2026). */
+    val incomeCountMonth: Int? = null,
+    val expenseCountMonth: Int? = null,
+    val statementImports: Int? = null,
+    /** yyyy-MM-dd: the last bank date the imported statements cover. */
+    val statementLatestDate: String? = null,
+    val statementLastImportedAt: String? = null,
+    val reconciliation: FinanceReconciliation? = null,
+)
+
+/** The latest bank reconciliation run (DBS against QuickBooks); [toReview] = unreviewed lines that are not a match. */
+@Serializable
+data class FinanceReconciliation(
+    val status: String = "",
+    val periodStart: String = "",
+    val periodEnd: String = "",
+    val matched: Int = 0,
+    val toReview: Int = 0,
+    val createdAt: String = "",
 )
 
 /** Web `TrainerKpis`: every trainer on record (applicants excluded), with and without the ACLP. */

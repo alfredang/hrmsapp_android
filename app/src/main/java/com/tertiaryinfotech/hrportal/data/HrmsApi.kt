@@ -40,7 +40,7 @@ object HrmsApi {
 
     /** Unauthenticated — safe to call before sign-in to drive the login card's logo/name. */
 
-    suspend fun summary() = unwrap { service.summary() }
+    suspend fun summary(view: String? = null) = unwrap { service.summary(view) }
 
     // MARK: - Approvals (admin only; server returns 403 for non-admins)
     suspend fun approvals() = unwrap { service.approvals() }
@@ -73,8 +73,6 @@ object HrmsApi {
     suspend fun attendanceSummary(month: String) = unwrap { service.attendanceSummary(month) }
     /** Admin roll-up: every active staff member's and intern's leave + MC for the month. */
     suspend fun leaveSummary(month: String) = unwrap { service.leaveSummary(month) }
-    /** Approvers: the data behind the Analytics screen. */
-    suspend fun analytics() = unwrap(defaultError = "Could not load analytics.") { service.analytics() }
     suspend fun notifications() = unwrap { service.notifications() }
     suspend fun timesheet(weekStart: String? = null) = unwrap { service.timesheet(weekStart) }
 

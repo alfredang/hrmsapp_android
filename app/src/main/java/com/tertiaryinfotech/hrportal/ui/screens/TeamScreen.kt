@@ -46,10 +46,10 @@ import com.tertiaryinfotech.hrportal.ui.theme.Brand
  * bottom nav (a BrandScaffold here would stack a second, back-arrow app bar on top).
  */
 @Composable
-fun TeamScreen(nav: NavController) {
+fun TeamScreen(nav: NavController, initialGroup: String = "staff") {
     var query by remember { mutableStateOf("") }
     // Approvers: Staff or Interns (the web has Staff Management and Intern Management).
-    var group by rememberSaveable { mutableStateOf("staff") }
+    var group by rememberSaveable { mutableStateOf(initialGroup) }
 
     Column {
         AsyncListScreen(fetch = { HrmsApi.employees() }) { data ->

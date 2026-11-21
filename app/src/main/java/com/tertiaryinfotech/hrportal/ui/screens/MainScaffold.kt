@@ -49,6 +49,7 @@ import androidx.navigation.compose.rememberNavController
 import com.tertiaryinfotech.hrportal.push.Push
 import com.tertiaryinfotech.hrportal.push.routeForLink
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
+import com.tertiaryinfotech.hrportal.ui.ViewAs
 import com.tertiaryinfotech.hrportal.ui.components.BrandBarTitle
 import com.tertiaryinfotech.hrportal.ui.components.NotificationBell
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
@@ -75,7 +76,6 @@ private val FORM_TITLES = mapOf(
     "calendar_new" to "Add event",
     "payslip_pdf" to "Payslip",
     "notifications" to "Notifications",
-    "analytics" to "Analytics",
 )
 
 /**
@@ -92,17 +92,24 @@ fun MainScaffold(auth: AuthViewModel) {
     // A nested screen stays under whichever tab it was opened from, so the Clock screen highlights
     // Home when reached from Home's quick action and More when reached from the More menu.
     val trainerView = auth.isTrainerView
-    val tabs = if (trainerView) TRAINER_TABS else NORMAL_TABS
+    val shown = auth.shown
+    // Accountants have no leave, MC or time off (Alfred, 22 Nov 2026): no Leave tab.
+    val tabs = when {
+        trainerView -> TRAINER_TABS
+        shown.accountant && !shown.admin -> ACCOUNTANT_TABS
+        else -> NORMAL_TABS
+    }
     val rootTab = tabs.firstOrNull { it.route == route }
     var activeTabName by rememberSaveable { mutableStateOf(Tab.HOME.name) }
     LaunchedEffect(rootTab) { rootTab?.let { activeTabName = it.name } }
     val activeTab = rootTab ?: Tab.valueOf(activeTabName)
 
-    // Switching View As: Trainer Admin opens the Trainers tab, My view goes back to Home.
-    var shownView by rememberSaveable { mutableStateOf(trainerView) }
-    LaunchedEffect(trainerView) {
-        if (trainerView == shownView) return@LaunchedEffect
-        shownView = trainerView
+    // Switching View As: Trainer Admin opens the Trainers tab, any other view goes back to Home.
+    val viewKey = "${ViewAs.mode.key}:$trainerView"
+    var shownView by rememberSaveable { mutableStateOf(viewKey) }
+    LaunchedEffect(viewKey) {
+        if (viewKey == shownView) return@LaunchedEffect
+        shownView = viewKey
         val target = if (trainerView) Tab.TRAINERS else Tab.HOME
         activeTabName = target.name
         switchTab(nav, target.route)
@@ -164,7 +171,7 @@ fun MainScaffold(auth: AuthViewModel) {
                 actions = {
                     when (route) {
                         Tab.HOME.route -> NotificationBell(auth.unreadNotifications) { nav.navigate("notifications") }
-                        Tab.LEAVE.route -> AddAction("Apply for leave") { nav.navigate("leave_request/AL") }
+                        Tab.LEAVE.route -> if (!shown.admin) AddAction("Apply for leave") { nav.navigate("leave_request/AL") }
                         "expenses" -> AddAction("New claim") { nav.navigate("expense_new") }
                     }
                 },
@@ -201,7 +208,8 @@ fun MainScaffold(auth: AuthViewModel) {
             modifier = Modifier.padding(inner).consumeWindowInsets(inner).imePadding(),
         ) {
             composable(Tab.HOME.route) { DashboardScreen(auth, nav) }
-            composable(Tab.LEAVE.route) { LeaveScreen(nav) }
+            // Admins do not apply for leave or MC: their Leave tab is leave management (everyone's leave and MC).
+            composable(Tab.LEAVE.route) { if (shown.admin) LeaveSummaryScreen(nav) else LeaveScreen(nav) }
             composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
             composable(Tab.TEAM.route) { TeamScreen(nav) }
             composable(Tab.MORE.route) { MoreScreen(auth, nav) }
@@ -226,6 +234,7 @@ fun MainScaffold(auth: AuthViewModel) {
                 val kind = RecordsLeaveKind.entries.firstOrNull { it.name == e.arguments?.getString("kind") }
                 RecordsLeaveScreen(e.arguments?.getString("id").orEmpty(), kind ?: RecordsLeaveKind.LEAVE)
             }
+            composable("team_group/{group}") { e -> TeamScreen(nav, initialGroup = e.arguments?.getString("group") ?: "staff") }
             composable("expenses") { ExpensesScreen(nav) }
             composable("expense_new") { NewClaimScreen(nav) }
             composable("payslips") { PayslipsScreen(nav) }
@@ -240,14 +249,14 @@ fun MainScaffold(auth: AuthViewModel) {
             composable("calendar_new/{date}") { e ->
                 AddCalendarEventScreen(nav, e.arguments?.getString("date")?.takeIf { it != "none" })
             }
-            composable("timesheet") { TimesheetScreen(nav) }
+            // An approver previewing another role (View As) must not create a real punch.
+            composable("timesheet") { TimesheetScreen(nav, preview = auth.isRolePreview) }
             composable("timesheet_week") { WeeklyTimesheetScreen(nav) }
             // Interns and accountants who clock in: their own days and hours by month (iOS MyTimesheetView).
             composable("my_timesheet") { MyTimesheetScreen(nav) }
             composable("time_off") { TimeOffScreen(nav, auth) }
             composable("time_off_request") { RequestTimeOffScreen(nav) }
             composable("approvals") { ApprovalsScreen(nav) }
-            composable("analytics") { AnalyticsScreen() }
             // One admin Timesheet (interns' days + hours, missing punches, Off In Lieu). The old
             // "intern_attendance" route is kept as an alias for links that still point at it.
             composable("timesheet_admin") { AdminTimesheetScreen(nav) }
@@ -284,6 +293,7 @@ private fun AddAction(description: String, onClick: () -> Unit) {
 
 private val NORMAL_TABS = listOf(Tab.HOME, Tab.LEAVE, Tab.CALENDAR, Tab.TEAM, Tab.MORE)
 private val TRAINER_TABS = listOf(Tab.HOME, Tab.TRAINERS, Tab.CALENDAR, Tab.MORE)
+private val ACCOUNTANT_TABS = listOf(Tab.HOME, Tab.CALENDAR, Tab.TEAM, Tab.MORE)
 
 private fun switchTab(nav: NavHostController, route: String) {
     nav.navigate(route) {

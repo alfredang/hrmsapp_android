@@ -89,8 +89,9 @@ data class CreateCalendarEventBody(
  */
 interface HrmsApiService {
 
+    /** `view` (staff | intern | accountant): an approver previewing that role's Home (View As). */
     @GET("api/mobile/summary")
-    suspend fun summary(): Response<DashboardSummary>
+    suspend fun summary(@Query("view") view: String? = null): Response<DashboardSummary>
 
     // MARK: - Approvals (admin only — MANAGER/HR/ADMIN, enforced server-side with 403)
     @GET("api/mobile/approvals")
@@ -160,9 +161,6 @@ interface HrmsApiService {
     suspend fun attendanceSummary(@Query("month") month: String): Response<AttendanceSummary>
 
     /** Admin only — monthly leave + MC summary of all staff and interns (403 for everyone else). */
-    /** Approvers only — 12 months of revenue / expenses, leave per person and headcount (403 otherwise). */
-    @GET("api/mobile/analytics")
-    suspend fun analytics(): Response<AnalyticsData>
 
     @GET("api/mobile/leave-summary")
     suspend fun leaveSummary(@Query("month") month: String): Response<LeaveSummary>

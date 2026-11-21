@@ -35,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -67,7 +68,7 @@ import java.util.Locale
  * work hours are derived from clock in/out; there is no separate weekly OT grid here.)
  */
 @Composable
-fun TimesheetScreen(nav: NavController) {
+fun TimesheetScreen(nav: NavController, preview: Boolean = false) {
     var state by remember { mutableStateOf<LoadState<AttendanceResponse>>(LoadState.Idle) }
     var punching by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -103,7 +104,7 @@ fun TimesheetScreen(nav: NavController) {
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncContent(state = state, load = { load() }) { data ->
             RefreshableColumn(scope, { load() }, Arrangement.spacedBy(16.dp)) {
-                TodayCard(data, punching) { clockIn -> scope.launch { punch(clockIn) } }
+                TodayCard(data, punching, preview) { clockIn -> scope.launch { punch(clockIn) } }
                 error?.let { StatusBanner(isError = true, text = it) }
                 AttendanceHistorySection(
                     month = historyMonth, onMonthChange = { historyMonth = it }, reloadToken = punchCount,
@@ -135,7 +136,7 @@ private fun phaseOf(data: AttendanceResponse): Phase {
 }
 
 @Composable
-private fun TodayCard(data: AttendanceResponse, punching: Boolean, onPunch: (Boolean) -> Unit) {
+private fun TodayCard(data: AttendanceResponse, punching: Boolean, preview: Boolean, onPunch: (Boolean) -> Unit) {
     Card(padding = 24) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -149,11 +150,11 @@ private fun TodayCard(data: AttendanceResponse, punching: Boolean, onPunch: (Boo
                         title = "Not clocked in yet",
                         subtitle = "Tap below when you start work — your time is logged to HR automatically.",
                     )
-                    PunchButton("Clock in", Icons.AutoMirrored.Filled.Login, Brand.AccentGradient, punching) { onPunch(true) }
+                    PunchButton("Clock in", Icons.AutoMirrored.Filled.Login, Brand.AccentGradient, punching, enabled = !preview) { onPunch(true) }
                 }
                 is Phase.Working -> {
                     LiveTimer(p.sinceMs)
-                    PunchButton("Clock out", Icons.AutoMirrored.Filled.Logout, ClockOutGradient, punching) { onPunch(false) }
+                    PunchButton("Clock out", Icons.AutoMirrored.Filled.Logout, ClockOutGradient, punching, enabled = !preview) { onPunch(false) }
                 }
                 is Phase.Done -> {
                     StatusHeader(
@@ -201,7 +202,7 @@ private fun LiveTimer(sinceMs: Long) {
 }
 
 @Composable
-private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Brush, loading: Boolean, onClick: () -> Unit) {
+private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Brush, loading: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val shape = RoundedCornerShape(Brand.Corner.dp)
     Row(
         modifier = Modifier
@@ -209,8 +210,9 @@ private fun PunchButton(title: String, icon: androidx.compose.ui.graphics.vector
             .height(64.dp)
             .shadow(8.dp, shape)
             .clip(shape)
+            .alpha(if (enabled) 1f else 0.45f)
             .background(tint)
-            .then(if (loading) Modifier else Modifier.clickable(onClick = onClick)),
+            .then(if (loading || !enabled) Modifier else Modifier.clickable(onClick = onClick)),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
