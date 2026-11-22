@@ -61,7 +61,16 @@ object GoogleSignInService {
      * Launch the consent screen. Suspends until [onRedirect] delivers the callback (or the user
      * backs out and [onCancelled] fires), then completes the exchange and returns the HRMS user.
      */
-    suspend fun signIn(context: Context): SessionUser {
+    const val COMPANY_DOMAIN = "tertiaryinfotech.com"
+    fun isCompanyEmail(email: String?): Boolean =
+        email?.trim()?.lowercase()?.endsWith("@$COMPANY_DOMAIN") == true
+
+    /**
+     * [hint]: the company address to sign in as (the typed email, or the one last used here). With a
+     * hint Google goes straight to that account (no chooser, no typing), so a returning user signs in
+     * with one tap. The Custom Tab shares Chrome's Google sign-in.
+     */
+    suspend fun signIn(context: Context, hint: String? = null): SessionUser {
         if (!isConfigured) {
             throw GoogleAuthException(GoogleAuthException.Kind.NOT_CONFIGURED,
                 "Google sign-in isn't configured in this build.")
@@ -74,7 +83,7 @@ object GoogleSignInService {
         expectedState = state
 
         try {
-            val authUrl = Uri.parse("https://accounts.google.com/o/oauth2/v2/auth").buildUpon()
+            val builder = Uri.parse("https://accounts.google.com/o/oauth2/v2/auth").buildUpon()
                 .appendQueryParameter("client_id", clientId)
                 .appendQueryParameter("redirect_uri", redirectUri)
                 .appendQueryParameter("response_type", "code")
@@ -82,11 +91,12 @@ object GoogleSignInService {
                 .appendQueryParameter("code_challenge", codeChallenge(verifier))
                 .appendQueryParameter("code_challenge_method", "S256")
                 .appendQueryParameter("state", state)
-                // Company workspace accounts first; personal accounts still resolve against the
-                // employee directory server-side.
-                .appendQueryParameter("hd", "tertiaryinfotech.com")
-                .appendQueryParameter("prompt", "select_account")
-                .build()
+                // Staff sign in with the company account (22 Nov 2026): Google lists only
+                // tertiaryinfotech.com accounts. The server still checks every address.
+                .appendQueryParameter("hd", COMPANY_DOMAIN)
+            if (isCompanyEmail(hint)) builder.appendQueryParameter("login_hint", hint!!.trim().lowercase())
+            else builder.appendQueryParameter("prompt", "select_account")
+            val authUrl = builder.build()
 
             try {
                 CustomTabsIntent.Builder().build().apply {

@@ -183,6 +183,11 @@ private fun GoogleOption(auth: AuthViewModel) {
     GoogleSignInButton(loading = auth.isWorking, enabled = !auth.isWorking) {
         auth.signInWithGoogle(context)
     }
+    Text(
+        "Use your @tertiaryinfotech.com Google account. Part-time staff and interns can sign in with their email instead.",
+        color = Brand.TextSecondary, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

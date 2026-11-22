@@ -214,7 +214,11 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         isWorking = true
         viewModelScope.launch {
             try {
-                finishSignIn(GoogleSignInService.signIn(context))
+                // The typed company email, else the one last used with Google here (one-tap hint).
+                val hint = email.takeIf { GoogleSignInService.isCompanyEmail(it) } ?: sessionPrefs.googleCompanyEmail()
+                val user = GoogleSignInService.signIn(context, hint)
+                user.email?.takeIf { GoogleSignInService.isCompanyEmail(it) }?.let { sessionPrefs.setGoogleCompanyEmail(it.lowercase()) }
+                finishSignIn(user)
             } catch (e: GoogleAuthException) {
                 // A user who backed out of the consent screen isn't an error worth a banner —
                 // same judgement the iOS service makes for .cancelled.

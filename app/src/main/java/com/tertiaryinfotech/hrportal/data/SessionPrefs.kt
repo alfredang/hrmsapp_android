@@ -19,6 +19,14 @@ class SessionPrefs @Inject constructor(private val dataStore: DataStore<Preferen
 
     private val rememberFlagKey = booleanPreferencesKey("hrms_remember_email")
     private val rememberedEmailKey = stringPreferencesKey("hrms_remembered_email")
+    /** The company address last signed in with Google here: the one-tap login hint (22 Nov 2026). */
+    private val googleCompanyEmailKey = stringPreferencesKey("hrms_google_company_email")
+
+    suspend fun googleCompanyEmail(): String? = dataStore.data.first()[googleCompanyEmailKey]
+
+    suspend fun setGoogleCompanyEmail(email: String) {
+        dataStore.edit { it[googleCompanyEmailKey] = email }
+    }
 
     suspend fun rememberFlag(): Boolean = dataStore.data.first()[rememberFlagKey] ?: false
 
