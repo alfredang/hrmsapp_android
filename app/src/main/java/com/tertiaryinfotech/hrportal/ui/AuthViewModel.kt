@@ -2,6 +2,7 @@ package com.tertiaryinfotech.hrportal.ui
 
 import com.tertiaryinfotech.hrportal.data.ViewAsRules
 import com.tertiaryinfotech.hrportal.data.LeaveRules
+import com.tertiaryinfotech.hrportal.data.LoginDefaults
 import com.tertiaryinfotech.hrportal.data.ShownRole
 import com.tertiaryinfotech.hrportal.data.ViewAsMode
 import com.tertiaryinfotech.hrportal.ui.theme.Appearance
@@ -145,7 +146,27 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
 
     // MARK: - Step transitions
 
-    fun continueFromEmail() {
+    /**
+     * The default sign-in for this email (Alfred, 22 Nov 2026; iOS `usesGoogleByDefault`): a company address signs in
+     * with Google (when this build has a Google client id), any other address (interns, part-time staff) gets a
+     * one-time code. Password is a link.
+     */
+    val usesGoogleByDefault: Boolean get() = LoginDefaults.usesGoogle(email, googleSignInAvailable)
+
+    /** The first screen's primary action (and its keyboard action): Google for a company email, else a code. */
+    fun continueFromEmail(context: Context) {
+        errorMessage = null; infoMessage = null
+        if (!isValidEmail(email)) { errorMessage = "Enter a valid email address."; return }
+        if (usesGoogleByDefault) {
+            viewModelScope.launch { persistRememberFlag(); persistRememberedEmail() }
+            signInWithGoogle(context)
+        } else {
+            sendOTP()
+        }
+    }
+
+    /** "Use password instead" from the first screen. */
+    fun usePassword() {
         errorMessage = null; infoMessage = null
         if (!isValidEmail(email)) { errorMessage = "Enter a valid email address."; return }
         viewModelScope.launch {

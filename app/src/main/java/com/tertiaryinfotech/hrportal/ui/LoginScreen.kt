@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -29,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.tertiaryinfotech.hrportal.data.LoginDefaults
 import com.tertiaryinfotech.hrportal.ui.components.BannerKind
 import com.tertiaryinfotech.hrportal.ui.components.BrandHeader
 import com.tertiaryinfotech.hrportal.ui.components.GoogleSignInButton
@@ -48,8 +52,8 @@ import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * The login frontend (iOS `LoginView`): a progressive email, then password or one-time-code flow on
- * the Premier Blue backdrop. Authenticates real employees against the Coolify-hosted HRMS backend.
+ * The login frontend (iOS `LoginView`): one email screen whose primary action follows the email (Google for
+ * company addresses, a one-time code for everyone else), then the code or password step, on the Premier Blue backdrop. Authenticates real employees against the Coolify-hosted HRMS backend.
  */
 @Composable
 fun LoginScreen(auth: AuthViewModel) {
@@ -95,22 +99,53 @@ fun LoginScreen(auth: AuthViewModel) {
     }
 }
 
+/**
+ * One screen, one tap (Alfred, 22 Nov 2026; iOS `emailStep`): a company email signs in with Google, any other email
+ * (interns, part-time staff) is emailed a one-time code. Under the primary action, company emails get "Email me a
+ * code instead"; a password is the last option for everyone.
+ */
 @Composable
 private fun EmailStep(auth: AuthViewModel) {
-    SectionTitle("Sign in", "Enter your work email to continue.")
+    val context = LocalContext.current
+    SectionTitle(LoginDefaults.title(auth.email), LoginDefaults.SUBTITLE)
     PremierField(
-        title = "Work email", icon = Icons.Filled.Email,
+        title = "Email", icon = Icons.Filled.Email,
         value = auth.email, onValueChange = { auth.email = it },
-        keyboardType = KeyboardType.Email, imeAction = ImeAction.Next,
-        onSubmit = { auth.continueFromEmail() },
+        keyboardType = KeyboardType.Email, imeAction = ImeAction.Go,
+        onSubmit = { auth.continueFromEmail(context) },
     )
     RememberRow(auth)
-    PremierButton(
-        title = "Continue", icon = Icons.AutoMirrored.Filled.ArrowForward,
-        enabled = auth.email.isNotEmpty(),
-        onClick = { auth.continueFromEmail() },
+    if (auth.usesGoogleByDefault) {
+        GoogleDismissWatcher(auth)
+        Box(Modifier.semantics { testTag = "login.google" }) {
+            GoogleSignInButton(loading = auth.isWorking, enabled = !auth.isWorking) { auth.signInWithGoogle(context) }
+        }
+        Text(
+            "Signs in with your company Google account.",
+            color = Brand.TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "Email me a code instead", color = Brand.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().clickable(enabled = !auth.isWorking) { auth.sendOTP() }
+                .padding(vertical = 4.dp).semantics { testTag = "login.sendCodeInstead" },
+        )
+    } else {
+        Box(Modifier.semantics { testTag = "login.sendCode" }) {
+            PremierButton(
+                title = "Email me a sign-in code", icon = Icons.Filled.MarkEmailUnread,
+                loading = auth.isWorking, enabled = auth.email.isNotEmpty(),
+                onClick = { auth.sendOTP() },
+            )
+        }
+    }
+    // Password is the last option (Alfred, 22 Nov 2026).
+    Text(
+        "Sign in with a password", color = Brand.TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().clickable { auth.usePassword() }.padding(vertical = 4.dp)
+            .semantics { testTag = "login.usePassword" },
     )
-    GoogleOption(auth)
 }
 
 @Composable
@@ -127,7 +162,8 @@ private fun PasswordStep(auth: AuthViewModel) {
         loading = auth.isWorking, enabled = auth.password.isNotEmpty(),
         onClick = { auth.signInWithPassword() },
     )
-    GoogleOption(auth)
+    // Google only for company emails.
+    if (auth.usesGoogleByDefault) GoogleOption(auth)
     LinkRow(
         "Use a one-time code" to { auth.switchToOTP() },
         "Change email" to { auth.backToEmail() },
@@ -160,16 +196,11 @@ private fun OtpStep(auth: AuthViewModel) {
 }
 
 /**
- * Google sign-in, offered alongside password and OTP. Hidden entirely when the build carries no
- * Google client id, so it can never dead-end the user.
+ * The Custom Tab is a separate task: if the user dismisses it without completing consent, no redirect ever arrives,
+ * so release the suspended sign-in when we come back to the front.
  */
 @Composable
-private fun GoogleOption(auth: AuthViewModel) {
-    if (!auth.googleSignInAvailable) return
-    val context = LocalContext.current
-
-    // The Custom Tab is a separate task: if the user dismisses it without completing consent,
-    // no redirect ever arrives, so release the suspended sign-in when we come back to the front.
+private fun GoogleDismissWatcher(auth: AuthViewModel) {
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -178,15 +209,22 @@ private fun GoogleOption(auth: AuthViewModel) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+}
 
+/** Google sign-in on the password step (company emails only; hidden when the build has no Google client id). */
+@Composable
+private fun GoogleOption(auth: AuthViewModel) {
+    if (!auth.googleSignInAvailable) return
+    val context = LocalContext.current
+    GoogleDismissWatcher(auth)
     OrDivider()
     GoogleSignInButton(loading = auth.isWorking, enabled = !auth.isWorking) {
         auth.signInWithGoogle(context)
     }
     Text(
-        "Use your @tertiaryinfotech.com Google account. Part-time staff and interns can sign in with their email instead.",
-        color = Brand.TextSecondary, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
+        "Use your @tertiaryinfotech.com Google account.",
+        color = Brand.TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().semantics { testTag = "login.googleHint" },
     )
 }
 
