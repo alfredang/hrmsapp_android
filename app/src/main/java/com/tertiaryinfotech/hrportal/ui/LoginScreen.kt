@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +21,8 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -27,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -101,8 +105,8 @@ fun LoginScreen(auth: AuthViewModel) {
 
 /**
  * One screen, one tap (Alfred, 22 Nov 2026; iOS `emailStep`): a company email signs in with Google, any other email
- * (interns, part-time staff) is emailed a one-time code. Under the primary action, company emails get "Email me a
- * code instead"; a password is the last option for everyone.
+ * (interns, part-time staff) is emailed a one-time code. Company emails also get a secondary "Email me a sign-in code"
+ * button; every email gets the interns / part-time caption; a password is the last option for everyone.
  */
 @Composable
 private fun EmailStep(auth: AuthViewModel) {
@@ -125,12 +129,8 @@ private fun EmailStep(auth: AuthViewModel) {
             color = Brand.TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text(
-            "Email me a code instead", color = Brand.Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().clickable(enabled = !auth.isWorking) { auth.sendOTP() }
-                .padding(vertical = 4.dp).semantics { testTag = "login.sendCodeInstead" },
-        )
+        // The code sign-in as a full-width button (Alfred, 22 Nov 2026: "make the OTP button more visible").
+        CodeInsteadButton(enabled = !auth.isWorking) { auth.sendOTP() }
     } else {
         Box(Modifier.semantics { testTag = "login.sendCode" }) {
             PremierButton(
@@ -140,12 +140,51 @@ private fun EmailStep(auth: AuthViewModel) {
             )
         }
     }
+    // Every email: who signs in with a code (Alfred, 22 Nov 2026: "indicate that interns can sign in using OTP").
+    Row(
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { testTag = "login.internHint" },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.School, contentDescription = null, tint = Brand.TextSecondary, modifier = Modifier.size(16.dp))
+        Text(
+            "Interns and part-time staff: sign in with a code sent to your email.",
+            color = Brand.TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.padding(start = 6.dp),
+        )
+    }
     // Password is the last option (Alfred, 22 Nov 2026).
     Text(
         "Sign in with a password", color = Brand.TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().clickable { auth.usePassword() }.padding(vertical = 4.dp)
             .semantics { testTag = "login.usePassword" },
     )
+}
+
+/**
+ * "Email me a sign-in code" as a secondary button under Continue with Google: the same height and corners as the
+ * other buttons, a light-blue chip fill, accent text and a thin accent border (iOS `login.codeInstead`).
+ */
+@Composable
+private fun CodeInsteadButton(enabled: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Brand.Corner.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(Brand.ControlHeight.dp)
+            .alpha(if (enabled) 1f else 0.55f)
+            .clip(shape)
+            .background(Brand.SurfaceStrong)
+            .border(1.dp, Brand.Accent.copy(alpha = 0.35f), shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { testTag = "login.codeInstead" },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.MarkEmailUnread, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(20.dp))
+        Text("Email me a sign-in code", color = Brand.Accent, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+            modifier = Modifier.padding(start = 10.dp))
+    }
 }
 
 @Composable

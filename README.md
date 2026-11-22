@@ -224,3 +224,5 @@ If you find this project useful, please consider giving it a ⭐
 > **1.21 (versionCode 38, 22 Nov 2026):** calendar privacy. Staff and interns see only their own leave, MC, No Pay Leave, time off and the holidays (no Everyone / Only me). Accountants: tabs Home / **Income** / Expenses / More, no calendar. Trainer Admin view: Home / Trainers / More, no calendar.
 >
 > **1.21 (versionCode 39, 22 Nov 2026):** one login screen whose primary action follows the email: a @tertiaryinfotech.com address gets **Continue with Google** (with "Email me a code instead" under it), any other address **Email me a sign-in code**; "Sign in with a password" is the last option, and the password step offers Google only for company emails. (Google stays hidden in builds without `GOOGLE_ANDROID_CLIENT_ID`, so every address then gets the code.)
+>
+> **1.21 (versionCode 40, 22 Nov 2026):** company emails get "Email me a sign-in code" as a full-width secondary button under Continue with Google, and every email shows "Interns and part-time staff: sign in with a code sent to your email."
