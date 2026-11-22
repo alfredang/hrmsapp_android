@@ -255,9 +255,8 @@ object MockApi {
       "ownWorkdays":[1,2,3,4,5],
       "holidays":[{"id":"h1","title":"\uD83E\uDE94 Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
 
-    /** Everyone else: leave types of colleagues masked, no `group`, `people` null. */
+    /** Everyone else: only their own leave, MC, NPL and time off plus the holidays (server, 22 Nov 2026); `people` null. */
     private const val TEAM_CALENDAR_STAFF = """{"year":2026,"canSeeTypes":false,"entries":[
-        {"id":"t1","employeeId":"e2","employeeName":"Daniel Tan","startDate":"2026-11-10","endDate":"2026-11-12","days":3,"leaveType":null,"group":null},
         {"id":"t2","employeeId":"e1","employeeName":"Sarah Lim","startDate":"2026-11-19","endDate":"2026-11-19","days":1,"leaveType":"Annual Leave","category":"ANNUAL_LEAVE","isSelf":true,"group":null}],
       "people":null,
       "timeOff":[{"id":"to6","employeeId":"e1","employeeName":"Sarah Lim","date":"2026-11-25","startTime":"14:00","endTime":"16:00","hours":2,"offDay":false,"isSelf":true,"group":null}],
