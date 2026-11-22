@@ -85,7 +85,12 @@ class HomeRolesTest {
         assertEquals("a preview hides the Trainer Admin directory", listOf("trainercontacts"), accountant["People"])
 
         val trainer = ids(MoreMenu.sections(ShownRole(false, false, false, false, false), trainerView = true, canManageTrainers = true))
-        assertEquals(mapOf("My Stuff" to listOf("profile", "calendar"), "People" to listOf("trainers"), "Documents" to listOf("sop")), trainer)
+        assertEquals(mapOf("My Stuff" to listOf("profile"), "People" to listOf("trainers"), "Documents" to listOf("sop")), trainer)
+        // Calendar in My Stuff for admins, staff and interns; never for accountants or the Trainer Admin view.
+        assertEquals(listOf("profile", "calendar"), admin["My Stuff"])
+        assertEquals(listOf("profile", "calendar"), staff["My Stuff"])
+        assertEquals(listOf("profile", "calendar"), intern["My Stuff"])
+        assertEquals(listOf("profile"), accountant["My Stuff"])
         assertEquals(MoreMenu.BANK_STATEMENTS_FOLDER, MoreMenu.url(MoreMenu.BANK_STATEMENTS_FOLDER))
         assertEquals("https://hrms.tertiaryinfotech.com/sop", MoreMenu.url("sop"))
     }

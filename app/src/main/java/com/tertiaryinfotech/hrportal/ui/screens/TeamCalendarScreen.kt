@@ -40,6 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -103,8 +104,13 @@ private val HolidayTint = Color(0xFFEF4444)
 private val SelfTint = Brand.Premier
 private val GridLine: Color get() = Brand.Border
 
+/**
+ * [admin]: what the screens show (View As aware). Only admins get Everyone / Only me; everyone else sees their own
+ * leave, MC, No Pay Leave, time off and the holidays (the server returns only those since 22 Nov 2026), captioned
+ * "My leave and holidays".
+ */
 @Composable
-fun TeamCalendarScreen() {
+fun TeamCalendarScreen(admin: Boolean = true) {
     val today = startOfDay(Date())
     // `monthAnchor` is always the first day of the shown month; the API is year-scoped.
     var monthAnchor by remember { mutableStateOf(startOfMonth(today)) }
@@ -151,7 +157,14 @@ fun TeamCalendarScreen() {
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 TwoWay("Month", "List", second = listMode) { listMode = it }
-                TwoWay("Everyone", "Only me", second = mineOnly) { mineOnly = it }
+                if (admin) {
+                    TwoWay("Everyone", "Only me", second = mineOnly) { mineOnly = it }
+                } else {
+                    Text(
+                        "My leave and holidays", color = Brand.TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 4.dp).semantics { testTag = "calendar.scope" },
+                    )
+                }
                 if (people != null && !mineOnly) {
                     PersonFilter(people, person) { personId = it }
                 }

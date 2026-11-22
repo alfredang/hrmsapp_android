@@ -75,8 +75,10 @@ class SopTest {
         // tansc@ (ADMIN + ACCOUNTANT) in her own view is shown as an admin.
         assertEquals(listOf("home", "leave", "calendar", "team", "more"), MainTabs.routes(trainerView = false, admin = true, accountant = true))
         assertEquals(listOf("home", "leave", "calendar", "sops", "more"), MainTabs.routes(trainerView = false, admin = false, accountant = false))
-        assertEquals(listOf("home", "calendar", "finance_expenses", "more"), MainTabs.routes(trainerView = false, admin = false, accountant = true))
-        assertEquals(listOf("home", "trainers", "calendar", "more"), MainTabs.routes(trainerView = true, admin = false, accountant = false))
+        // Accountants: Income in Calendar's place, Expenses in Team's place.
+        assertEquals(listOf("home", "finance_income", "finance_expenses", "more"), MainTabs.routes(trainerView = false, admin = false, accountant = true))
+        // Trainer Admin view: no calendar.
+        assertEquals(listOf("home", "trainers", "more"), MainTabs.routes(trainerView = true, admin = false, accountant = false))
     }
 
     @Test

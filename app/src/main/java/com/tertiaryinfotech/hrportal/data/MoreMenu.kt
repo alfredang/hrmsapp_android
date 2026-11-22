@@ -7,19 +7,21 @@ package com.tertiaryinfotech.hrportal.data
  * accounting, SOP and settings open the web page. Departures from the web, by product decision:
  * Clock In/Out only for people who must clock in (never admins or staff), Approvals as its own row
  * for admins, no Woods Square, no NPL Payback. The Trainer Admin view shows My Stuff, People →
- * Trainers and Documents only (web TRAINER_VIEW_HREFS). Pure, unit-tested in `MoreMenuTest`.
+ * Trainers and Documents only (web TRAINER_VIEW_HREFS); it and accountants have no Calendar row. Pure, unit-tested in `MoreMenuTest`.
  */
 /**
  * The bottom-tab routes (iOS `MainTabView`): the Team tab is for admins only (the full team list; the server answers
- * 403 to anyone else); staff, interns, accountants and role previews get SOP in its place. Accountants have no Leave
- * tab. The Trainer Admin view keeps its own tabs.
+ * 403 to anyone else); staff, interns and role previews get SOP in its place. Accountants: Home / Income / Expenses /
+ * More. The Trainer Admin view: Home / Trainers / More. A link to a tab that is not shown opens as a pushed screen.
  */
 object MainTabs {
     fun routes(trainerView: Boolean, admin: Boolean, accountant: Boolean): List<String> = when {
-        trainerView -> listOf("home", "trainers", "calendar", "more")
+        // Trainer Admin view: no calendar (Alfred, 22 Nov 2026).
+        trainerView -> listOf("home", "trainers", "more")
         admin -> listOf("home", "leave", "calendar", "team", "more")
-        // Accountants: the month's bank expenses in Team's place (Alfred, 22 Nov 2026); SOP stays in More.
-        accountant -> listOf("home", "calendar", "finance_expenses", "more")
+        // Accountants: the month's bank income in Calendar's place and the expenses in Team's place
+        // (Alfred, 22 Nov 2026); SOP stays in More, the calendar opens only from a link.
+        accountant -> listOf("home", "finance_income", "finance_expenses", "more")
         else -> listOf("home", "leave", "calendar", "sops", "more")
     }
 }
@@ -46,10 +48,12 @@ object MoreMenu {
 
     /** The sections, as the web sidebar shows them for the current view; empty sections are dropped. */
     fun sections(shown: ShownRole, trainerView: Boolean, canManageTrainers: Boolean): List<Section> {
-        val myStuff = Section("My Stuff", listOf(
-            route("profile", "My Profile", "profile", "profile"),
-            route("calendar", "Calendar", "calendar", "calendar_list"),
-        ))
+        // No calendar in the Trainer Admin view or for accountants (Alfred, 22 Nov 2026).
+        val noCalendar = trainerView || (shown.accountant && !shown.admin)
+        val myStuff = Section("My Stuff", buildList {
+            add(route("profile", "My Profile", "profile", "profile"))
+            if (!noCalendar) add(route("calendar", "Calendar", "calendar", "calendar_list"))
+        })
         // Native SOP screens (the web /sop needs a browser sign-in; Alfred, 22 Nov 2026).
         val documents = Section("Documents", listOf(route("sop", "SOP", "sop", "sop_list")))
         if (trainerView) {
