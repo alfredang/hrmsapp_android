@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -232,6 +233,16 @@ private fun OtpStep(auth: AuthViewModel) {
         (if (auth.isResending) "Resending\u2026" else "Resend code") to { if (!auth.isResending) auth.resendOTP() },
         "Use password" to { auth.switchToPassword() },
     )
+    // Back to the first sign-in screen (Alfred, 22 Nov 2026), the same as Change email.
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { auth.backToEmail() }.padding(vertical = 4.dp)
+            .semantics(mergeDescendants = true) { testTag = "login.backToSignIn" },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(18.dp))
+        Text("Back to sign in", color = Brand.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
 }
 
 /**

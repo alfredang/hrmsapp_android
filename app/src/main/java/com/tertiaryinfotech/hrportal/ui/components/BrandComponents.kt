@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
@@ -37,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,38 +47,33 @@ import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.ui.theme.Spacing
 
 /**
- * The brand mark from the iOS `BrandHeader`: a frosted rounded badge with the people glyph, plus the
- * wordmark. Used on the login screen and the launch splash.
+ * The iOS `BrandHeader` (22 Nov 2026): the Tertiary Infotech Academy logo (the same image as the top bar), circle-
+ * clipped with a soft shadow, then "Tertiary Infotech Academy" and "HRMS". Used on the login screen and the launch
+ * splash.
  */
 @Composable
 fun BrandHeader(compact: Boolean = false) {
-    val tile = if (compact) 76.dp else 92.dp
-    val shape = RoundedCornerShape(Brand.LogoCorner.dp)
+    val logo = if (compact) 76.dp else 96.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp),
     ) {
-        Box(
+        Image(
+            painterResource(R.drawable.company_logo), contentDescription = "Tertiary Infotech Academy logo",
+            contentScale = ContentScale.Fit,
             modifier = Modifier
-                .size(tile)
-                .clip(shape)
-                .background(Brand.SurfaceStrong)
-                .border(1.dp, Brand.BorderLight, shape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Filled.Groups, contentDescription = null, tint = Brand.TextPrimary,
-                modifier = Modifier.size(if (compact) 40.dp else 50.dp),
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                .size(logo)
+                .shadow(16.dp, CircleShape, ambientColor = Brand.Navy800.copy(alpha = 0.22f), spotColor = Brand.Navy800.copy(alpha = 0.22f))
+                .clip(CircleShape),
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                "TIA HRMS", color = Brand.TextPrimary, fontWeight = FontWeight.Bold,
-                fontSize = if (compact) 24.sp else 30.sp,
+                "Tertiary Infotech Academy", color = Brand.TextPrimary, fontWeight = FontWeight.Bold,
+                fontSize = if (compact) 21.sp else 25.sp, textAlign = TextAlign.Center,
             )
             Text(
-                "Human Resource Management", color = Brand.TextPrimary.copy(alpha = 0.75f),
-                fontSize = 15.sp,
+                "HRMS", color = Brand.Accent, fontWeight = FontWeight.SemiBold,
+                fontSize = if (compact) 17.sp else 20.sp,
             )
         }
     }
