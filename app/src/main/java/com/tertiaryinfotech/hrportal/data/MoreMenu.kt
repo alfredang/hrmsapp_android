@@ -9,6 +9,20 @@ package com.tertiaryinfotech.hrportal.data
  * for admins, no Woods Square, no NPL Payback. The Trainer Admin view shows My Stuff, People →
  * Trainers and Documents only (web TRAINER_VIEW_HREFS). Pure, unit-tested in `MoreMenuTest`.
  */
+/**
+ * The bottom-tab routes (iOS `MainTabView`): the Team tab is for admins only (the full team list; the server answers
+ * 403 to anyone else); staff, interns, accountants and role previews get SOP in its place. Accountants have no Leave
+ * tab. The Trainer Admin view keeps its own tabs.
+ */
+object MainTabs {
+    fun routes(trainerView: Boolean, admin: Boolean, accountant: Boolean): List<String> = when {
+        trainerView -> listOf("home", "trainers", "calendar", "more")
+        admin -> listOf("home", "leave", "calendar", "team", "more")
+        accountant -> listOf("home", "calendar", "sops", "more")
+        else -> listOf("home", "leave", "calendar", "sops", "more")
+    }
+}
+
 object MoreMenu {
     sealed interface Target {
         /** A screen in the app (a NavHost route). */
@@ -35,7 +49,8 @@ object MoreMenu {
             route("profile", "My Profile", "profile", "profile"),
             route("calendar", "Calendar", "calendar", "calendar_list"),
         ))
-        val documents = Section("Documents", listOf(web("sop", "SOP", "sop", "sop")))
+        // Native SOP screens (the web /sop needs a browser sign-in; Alfred, 22 Nov 2026).
+        val documents = Section("Documents", listOf(route("sop", "SOP", "sop", "sop_list")))
         if (trainerView) {
             return listOf(
                 myStuff,

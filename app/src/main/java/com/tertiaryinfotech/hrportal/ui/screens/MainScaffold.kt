@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Groups
@@ -47,6 +48,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.tertiaryinfotech.hrportal.data.BankDirection
+import com.tertiaryinfotech.hrportal.data.MainTabs
 import com.tertiaryinfotech.hrportal.push.Push
 import com.tertiaryinfotech.hrportal.push.routeForLink
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
@@ -56,14 +58,17 @@ import com.tertiaryinfotech.hrportal.ui.components.NotificationBell
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * The bottom tabs, matching the iOS `MainTabView` 1:1: Home / Leave / Calendar / Team / More, or in the
- * Trainer Admin view (More → View As) Home / Trainers / Calendar / More ([TRAINER_TABS]).
+ * The bottom tabs, matching the iOS `MainTabView` 1:1: Home / Leave / Calendar / Team / More for admins, with SOP in
+ * Team's place for everyone else (the full team list is admin-only; `/api/mobile/employees` answers 403 otherwise),
+ * or in the Trainer Admin view (More → View As) Home / Trainers / Calendar / More ([TRAINER_TABS]).
  */
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "Home", Icons.Filled.Home),
     LEAVE("leave", "Leave", Icons.AutoMirrored.Filled.EventNote),
     CALENDAR("calendar", "Calendar", Icons.Filled.CalendarMonth),
     TEAM("team", "Team", Icons.Filled.Groups),
+    // Everyone but admins: the Standard Operating Procedures in Team's place (Alfred, 22 Nov 2026).
+    SOP("sops", "SOP", Icons.AutoMirrored.Filled.MenuBook),
     // Trainer Admin view only: the trainer directory as a tab (the same "trainers" route More opens).
     TRAINERS("trainers", "Trainers", Icons.Filled.School),
     MORE("more", "More", Icons.Filled.Pending),
@@ -95,11 +100,7 @@ fun MainScaffold(auth: AuthViewModel) {
     val trainerView = auth.isTrainerView
     val shown = auth.shown
     // Accountants have no leave, MC or time off (Alfred, 22 Nov 2026): no Leave tab.
-    val tabs = when {
-        trainerView -> TRAINER_TABS
-        shown.accountant && !shown.admin -> ACCOUNTANT_TABS
-        else -> NORMAL_TABS
-    }
+    val tabs = tabsFor(trainerView, admin = shown.admin, accountant = shown.accountant)
     val rootTab = tabs.firstOrNull { it.route == route }
     var activeTabName by rememberSaveable { mutableStateOf(Tab.HOME.name) }
     LaunchedEffect(rootTab) { rootTab?.let { activeTabName = it.name } }
@@ -145,7 +146,9 @@ fun MainScaffold(auth: AuthViewModel) {
     LaunchedEffect(pendingLink) {
         val link = pendingLink ?: return@LaunchedEffect
         Push.pendingLink = null
-        val target = routeForLink(link, isApprover = isApprover(auth), mustClockIn = auth.user?.mustClockIn == true) ?: "notifications"
+        val linked = routeForLink(link, isApprover = isApprover(auth), mustClockIn = auth.user?.mustClockIn == true) ?: "notifications"
+        // The Team tab is admin-only: anyone else lands on the SOPs in its place (iOS `.tab(3)`).
+        val target = if (linked == Tab.TEAM.route && !shown.admin) Tab.SOP.route else linked
         val tab = tabs.firstOrNull { it.route == target }
         if (tab != null) { activeTabName = tab.name; switchTab(nav, target) } else nav.navigate(target)
     }
@@ -171,7 +174,8 @@ fun MainScaffold(auth: AuthViewModel) {
                 },
                 actions = {
                     when (route) {
-                        Tab.HOME.route -> NotificationBell(auth.unreadNotifications) { nav.navigate("notifications") }
+                        // The SOP tab carries the bell too, as on iOS (`brandBar(bell: true)`).
+                        Tab.HOME.route, Tab.SOP.route -> NotificationBell(auth.unreadNotifications) { nav.navigate("notifications") }
                         Tab.LEAVE.route -> if (!shown.admin) AddAction("Apply for leave") { nav.navigate("leave_request/AL") }
                         "expenses" -> AddAction("New claim") { nav.navigate("expense_new") }
                     }
@@ -213,6 +217,10 @@ fun MainScaffold(auth: AuthViewModel) {
             composable(Tab.LEAVE.route) { if (shown.admin) LeaveSummaryScreen(nav) else LeaveScreen(nav) }
             composable(Tab.CALENDAR.route) { TeamCalendarScreen() }
             composable(Tab.TEAM.route) { TeamScreen(nav) }
+            // Standard Operating Procedures: the SOP tab (non-admins), More → Documents → SOP, and one SOP.
+            composable(Tab.SOP.route) { SopListScreen(nav) }
+            composable("sop_list") { SopListScreen(nav) }
+            composable("sop/{slug}") { e -> SopDetailScreen(e.arguments?.getString("slug").orEmpty()) }
             composable(Tab.MORE.route) { MoreScreen(auth, nav) }
             // Trainer Admin directory (TRAINER_ADMIN only) — More → Manage, or the Trainers tab of the Trainer Admin view.
             composable(Tab.TRAINERS.route) { TrainersScreen(nav) }
@@ -297,9 +305,11 @@ private fun AddAction(description: String, onClick: () -> Unit) {
     }
 }
 
-private val NORMAL_TABS = listOf(Tab.HOME, Tab.LEAVE, Tab.CALENDAR, Tab.TEAM, Tab.MORE)
 private val TRAINER_TABS = listOf(Tab.HOME, Tab.TRAINERS, Tab.CALENDAR, Tab.MORE)
-private val ACCOUNTANT_TABS = listOf(Tab.HOME, Tab.CALENDAR, Tab.TEAM, Tab.MORE)
+
+/** The bottom tabs for the current view; [admin] / [accountant] are what the screens show (View As aware). */
+private fun tabsFor(trainerView: Boolean, admin: Boolean, accountant: Boolean): List<Tab> =
+    MainTabs.routes(trainerView, admin, accountant).map { r -> Tab.entries.first { it.route == r } }
 
 private fun switchTab(nav: NavHostController, route: String) {
     nav.navigate(route) {

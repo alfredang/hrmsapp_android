@@ -43,6 +43,7 @@ object MockApi {
             val json = leaveError ?: if (path == "/api/public/app-version") appVersion(context) else respond(path, request.method, role, request.url.queryParameter("view")) { request.url.queryParameter(it) }
             val code = when {
                 leaveError != null -> 400
+                path == "/api/mobile/employees" && role != "admin" -> 403
                 json == null -> 404
                 else -> 200
             }
@@ -51,7 +52,7 @@ object MockApi {
                 .protocol(Protocol.HTTP_1_1)
                 .code(code)
                 .message(if (code == 200) "OK" else "Error")
-                .body((json ?: "{\"error\":\"Not mocked\"}").toResponseBody("application/json".toMediaType()))
+                .body((json ?: if (code == 403) "{\"error\":\"Forbidden\"}" else "{\"error\":\"Not mocked\"}").toResponseBody("application/json".toMediaType()))
                 .build()
         })
     }
@@ -77,6 +78,9 @@ object MockApi {
         path == "/api/mobile/payslips" -> PAYSLIPS
         path == "/api/mobile/approvals" -> APPROVALS
         // `intern` goes to approvers only, as on the real server.
+        // Admins only since 22 Nov 2026 (403 for everyone else, as on the server).
+        path == "/api/mobile/employees" && role != "admin" -> null
+        path == "/api/mobile/sops" -> SOPS
         path == "/api/mobile/employees" -> EMPLOYEES.replace("ISADMIN", (role == "admin").toString())
             .let { if (role == "admin") it else it.replace(Regex(",\"intern\":(true|false)"), "") }
         path.startsWith("/api/mobile/employees/") -> RECORDS
@@ -276,6 +280,31 @@ object MockApi {
         {"date":"2026-11-02","dayName":"Mon","hours":0,"isNonWorkDay":false,"isSubmittable":false},
         {"date":"2026-11-07","dayName":"Sat","hours":8,"status":"PENDING","isNonWorkDay":true,"isSubmittable":true},
         {"date":"2026-11-08","dayName":"Sun","hours":0,"isNonWorkDay":true,"isSubmittable":true,"isPublicHoliday":true,"phName":"Deepavali"}]}"""
+
+    /** The Standard Operating Procedures (iOS PreviewData `sops`). */
+    private const val SOPS = """{"sops":[
+        {"slug":"apply-leave","title":"Applying for leave","category":"Human Resources",
+         "summary":"How staff and interns apply for annual leave, MC and other leave in the HRMS.",
+         "purpose":"Keep leave fair, recorded and approved before it is taken.","scope":"All staff and interns.","owner":"HR",
+         "triggers":["You plan to take leave","You are unwell (MC)"],
+         "steps":[{"title":"Check your balance","detail":"Open Leave and check the days left.","owner":"Employee"},
+                  {"title":"Apply in the HRMS","detail":"Pick the type and dates; attach the MC for medical leave.",
+                   "items":["Annual leave at least 3 days ahead","MC on the day"],"owner":"Employee","timing":"Before the leave",
+                   "links":[{"label":"Open Leave on the web","href":"/leave"}]},
+                  {"title":"Approval","detail":"Your approver decides in the HRMS; you get a notification.","owner":"Approver",
+                   "timing":"Within 2 working days","note":"Leave is not approved until the status says Approved."}],
+         "references":[{"label":"HR mailbox","value":"hr@tertiaryinfotech.com","href":"mailto:hr@tertiaryinfotech.com"},
+                       {"label":"Policy","value":"Employee handbook, section 4"}],
+         "source":"HR policy as the HRMS enforces it","updatedAt":"2026-11-22"},
+        {"slug":"class-setup","title":"Setting up a class","category":"Operations",
+         "summary":"Create the class run, assign the trainer and publish it for registration.","owner":"Operations",
+         "steps":[{"title":"Create the class run","detail":"Enter dates, venue and trainer in the TMS.","owner":"Course administrator"},
+                  {"title":"Publish","detail":"Open the run for registration.","owner":"Course administrator"}],
+         "source":"POM section 3.1"},
+        {"slug":"assessment-appeal","title":"Handling an assessment appeal","category":"Assessment",
+         "summary":"Receive, review and decide on a learner's appeal against an assessment result.","owner":"Assessment manager",
+         "steps":[{"title":"Receive the appeal","detail":"Log it within 1 working day.","timing":"Within 1 working day"}],
+         "source":"POM section 5.4"}]}"""
 
     private const val INCOME = """{"month":"2026-11","direction":"CREDIT","count":3,"total":18240.5,"transactions":[
         {"id":"bt1","paymentDate":"2026-11-14","title":"SKILLSFUTURE SINGAPORE","amount":12500,"direction":"CREDIT","type":"Grant","paymentType":"GIRO","paymentRef":"SSG-88123","invoiceNo":"INV-2026-1102","status":"RECORDED","rawDescription":"GIRO SKILLSFUTURE SINGAPORE\nTGS-2023012345 CLAIM","statementRef":"DBS Nov 2026"},

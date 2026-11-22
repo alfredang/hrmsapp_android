@@ -57,6 +57,7 @@ object HrmsApi {
         }
     suspend fun leave() = unwrap { service.leave() }
     suspend fun publicHolidays(year: Int) = unwrap { service.publicHolidays(year) }
+    /** Admins only (ADMIN / HR / MANAGER): the server answers 403 to everyone else since 22 Nov 2026. */
     suspend fun employees() = unwrap { service.employees() }
     /** Team drill-down (approvers): one person's clock-ins, MC and leave. */
     suspend fun employeeRecords(id: String) = unwrap { service.employeeRecords(id) }
@@ -177,6 +178,10 @@ object HrmsApi {
     /** Trainer contact list for every signed-in user (name, email, phone, certs, courses). */
     suspend fun trainerContacts(q: String? = null): TrainerContactsResponse =
         unwrap(defaultError = "Could not load the trainer contacts.") { service.trainerContacts(q?.trim()?.takeIf { it.isNotEmpty() }) }
+
+    /** The Standard Operating Procedures (every signed-in employee); also kept in [SopCache] for the detail screen. */
+    suspend fun sops(): List<Sop> =
+        unwrap(defaultError = "Could not load the SOPs.") { service.sops() }.sops.also { SopCache.all = it }
 
     // MARK: - Finance details (admin / accountant; the server refuses anyone else)
 

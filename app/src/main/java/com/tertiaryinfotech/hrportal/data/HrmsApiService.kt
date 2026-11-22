@@ -262,6 +262,10 @@ interface HrmsApiService {
     @GET("api/mobile/trainers/contacts")
     suspend fun trainerContacts(@Query("q") q: String?): Response<TrainerContactsResponse>
 
+    /** The Standard Operating Procedures (every signed-in employee). */
+    @GET("api/mobile/sops")
+    suspend fun sops(): Response<SopsResponse>
+
     // MARK: - Finance details (admin / accountant; the accountant Home's Finance card)
 
     /** One month of bank credits (CREDIT, income) or debits (DEBIT, expenses); `month` is yyyy-MM. */
