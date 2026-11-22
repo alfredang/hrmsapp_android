@@ -199,7 +199,26 @@ data class Employee(
     val startDate: String? = null,
     /** Approvers only: true for an intern. Null for everyone else and from an older server. */
     val intern: Boolean? = null,
-)
+) {
+    /** "Full time" / "Part time" / "Contract" / "Intern" (approvers only; null when not sent). iOS `employmentLabel`. */
+    val employmentLabel: String?
+        get() = when (employmentType?.uppercase()) {
+            "FULL_TIME" -> "Full time"
+            "PART_TIME" -> "Part time"
+            "CONTRACT" -> "Contract"
+            "INTERN" -> "Intern"
+            else -> null
+        }
+
+    val isPartTime: Boolean get() = employmentType.equals("PART_TIME", ignoreCase = true)
+
+    /** Team search: name, position, department, email and employment type (case-insensitive). */
+    fun matches(query: String): Boolean {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return true
+        return listOfNotNull(name, position, department, email, employmentLabel).any { it.lowercase().contains(q) }
+    }
+}
 
 /** The directory split into staff and interns for approvers. */
 data class DirectoryGroups(val staff: List<Employee>, val interns: List<Employee>)

@@ -94,6 +94,12 @@ object AttendanceMonth {
         return SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).apply { timeZone = utc }.format(d)
     }
 
+    /** "8 Oct" for a `yyyy-MM-dd` (or an ISO date-time; only the date part is read). iOS `shortLabel`. */
+    fun shortDay(date: String): String {
+        val d = runCatching { ymd(date.take(10)) }.getOrNull() ?: return date
+        return SimpleDateFormat("d MMM", Locale.getDefault()).apply { timeZone = utc }.format(d)
+    }
+
     /** Today's `yyyy-MM-dd` in Singapore time. */
     fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = sgt }.format(java.util.Date())
 

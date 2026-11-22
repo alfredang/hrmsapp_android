@@ -152,6 +152,12 @@ enum class AclpFilter(val label: String) {
     fun count(stats: TrainerStats): Int = when (this) { ACLP -> stats.aclp; NON_ACLP -> stats.nonAclp; ALL -> stats.total }
 }
 
+/**
+ * How the directory opens when another screen sends you there: a Home tile (its ACLP filter), or the Trainer Admin
+ * Home search (the typed [query] or one picked skill / certification [tag], on All). iOS `TrainersView(aclp:query:tags:)`.
+ */
+data class DirectoryRequest(val aclp: AclpFilter, val query: String = "", val tag: String? = null)
+
 enum class TrainerStatusFilter(val param: String, val label: String) {
     TRAINERS("trainers", "Trainers"),
     APPLICANTS("applicants", "Applicants"),

@@ -84,7 +84,7 @@ fun BrandHeader(compact: Boolean = false) {
     }
 }
 
-/** The company lockup (logo + name) shown as the top-bar title on every screen, as on iOS. */
+/** The app lockup (logo + "TIA HRMS") shown as the top-bar title on every screen, as on iOS. */
 @Composable
 fun BrandBarTitle() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -93,8 +93,9 @@ fun BrandBarTitle() {
             contentScale = ContentScale.Fit,
             modifier = Modifier.size(30.dp).clip(CircleShape),
         )
+        // App name, not the company name (Alfred, 22 Nov 2026).
         Text(
-            "Tertiary Infotech Academy", color = Brand.OnBar, fontWeight = FontWeight.Bold,
+            "TIA HRMS", color = Brand.OnBar, fontWeight = FontWeight.Bold,
             fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
     }

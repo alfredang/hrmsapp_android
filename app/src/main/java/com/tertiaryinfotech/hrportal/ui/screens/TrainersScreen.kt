@@ -34,6 +34,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import com.tertiaryinfotech.hrportal.data.Accreditation
 import com.tertiaryinfotech.hrportal.data.AclpFilter
+import com.tertiaryinfotech.hrportal.data.DirectoryRequest
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import com.tertiaryinfotech.hrportal.ui.components.FilterTabs
 import com.tertiaryinfotech.hrportal.data.TagCount
 import com.tertiaryinfotech.hrportal.data.TrainerSearch
@@ -133,14 +137,15 @@ fun TrainersScreen(nav: NavController) {
     var aclp by rememberSaveable { mutableStateOf(AclpFilter.ACLP.name) }
     var contact by remember { mutableStateOf<TrainerListItem?>(null) }
 
-    // A Home tile (Trainers / ACLP / Non-ACLP) opens the directory on its filter, like the tiles below.
-    val pending = ViewAs.pendingDirectoryFilter
+    // A Home tile (Trainers / ACLP / Non-ACLP) opens the directory on its filter, like the tiles below; the Home
+    // trainer search opens it on All with the typed text or the picked skill / certification.
+    val pending = ViewAs.pendingDirectory
     LaunchedEffect(pending) {
-        val f = pending ?: return@LaunchedEffect
-        search = ""; tags = emptyList(); accreditation = Accreditation.ANY.name
+        val r = pending ?: return@LaunchedEffect
+        search = r.query; tags = listOfNotNull(r.tag); accreditation = Accreditation.ANY.name
         status = TrainerStatusFilter.TRAINERS.name
-        aclp = f.name
-        ViewAs.pendingDirectoryFilter = null
+        aclp = r.aclp.name
+        ViewAs.pendingDirectory = null
     }
 
     AsyncListScreen(
@@ -466,6 +471,140 @@ private fun copy(context: Context, label: String, value: String) {
     // Android 13+ shows its own clipboard confirmation.
     if (android.os.Build.VERSION.SDK_INT < 33) {
         android.widget.Toast.makeText(context, "$label copied", android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
+
+// MARK: - Home search (Trainer Admin)
+
+/** The directory list the Home search loaded this session, so scrolling Home does not refetch it. */
+private object TrainerHomeCache {
+    @Volatile var all: List<TrainerListItem>? = null
+}
+
+/**
+ * The Trainer Admin Home's search field (Alfred, 22 Nov 2026: "add a search field for trainers, skills etc";
+ * iOS `TrainerHomeSearch`). Searches every trainer (ACLP or not) by name, skill, certification, course or contact as
+ * you type: matching skill / certification chips, the first [PREVIEW] trainers and "See all N trainers", which opens
+ * the directory with the same search on All. Empty, it offers the most common skills. A chip opens the directory
+ * filtered to that tag. [onOpen] opens the directory with a [DirectoryRequest]; [onProfile] a trainer's profile.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TrainerHomeSearch(onOpen: (DirectoryRequest) -> Unit, onProfile: (String) -> Unit) {
+    var all by remember { mutableStateOf(TrainerHomeCache.all) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var text by rememberSaveable { mutableStateOf("") }
+    var contact by remember { mutableStateOf<TrainerListItem?>(null) }
+    val focus = LocalFocusManager.current
+
+    LaunchedEffect(Unit) {
+        if (all != null) return@LaunchedEffect
+        try {
+            val list = HrmsApi.trainers(TrainerQuery(status = TrainerStatusFilter.ALL)).trainers
+            TrainerHomeCache.all = list
+            all = list
+            loadError = null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            loadError = e.message ?: "Could not load trainers."
+        } catch (e: Exception) {
+            loadError = "Could not load trainers."
+        }
+    }
+
+    val q = text.trim()
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.semantics { testTag = "home.trainerSearch.field" }) {
+            SearchBar(
+                value = text,
+                onChange = { text = it },
+                placeholder = "Search trainers, skills, certifications",
+                onSearch = { if (q.isNotEmpty()) { focus.clearFocus(); onOpen(DirectoryRequest(AclpFilter.ALL, query = q)) } },
+            )
+        }
+        val list = all
+        when {
+            list != null && q.isEmpty() -> {
+                val tags = TrainerSearch.suggestions(TrainerSearch.vocabulary(list), "", emptyList(), limit = 8)
+                if (tags.isNotEmpty()) {
+                    Text("Popular skills", color = Brand.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 6.dp))
+                    TagChips(tags) { onOpen(DirectoryRequest(AclpFilter.ALL, tag = it.tag)) }
+                }
+            }
+            list != null -> {
+                val matches = TrainerSearch.directory(list, TrainerQuery(q = q, status = TrainerStatusFilter.TRAINERS))
+                val tags = TrainerSearch.suggestions(TrainerSearch.vocabulary(list), q, emptyList(), limit = 4)
+                if (tags.isNotEmpty()) TagChips(tags) { onOpen(DirectoryRequest(AclpFilter.ALL, tag = it.tag)) }
+                if (matches.isEmpty()) {
+                    Text("No trainers match “$q”.", color = Brand.TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
+                } else {
+                    Card(padding = 0, modifier = Modifier.semantics { testTag = "home.trainerSearch.results" }) {
+                        matches.take(TRAINER_HOME_PREVIEW).forEachIndexed { i, t ->
+                            if (i > 0) RowDivider()
+                            TrainerRow(t, listOf(q), onContact = { contact = t }) { onProfile(t.id) }
+                        }
+                        if (matches.size > TRAINER_HOME_PREVIEW) {
+                            RowDivider()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { focus.clearFocus(); onOpen(DirectoryRequest(AclpFilter.ALL, query = q)) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    .semantics { testTag = "home.trainerSearch.all" },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("See all ${matches.size} trainers", color = Brand.Accent, fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp, modifier = Modifier.weight(1f))
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Brand.Accent,
+                                    modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            loadError != null -> Text(loadError.orEmpty(), color = Brand.TextSecondary, fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 6.dp))
+        }
+    }
+
+    contact?.let { t ->
+        ContactSheet(
+            name = t.name, phone = t.phone, email = t.email,
+            onProfile = { contact = null; onProfile(t.id) },
+            onDismiss = { contact = null },
+        )
+    }
+}
+
+private const val TRAINER_HOME_PREVIEW = 5
+
+/** Skill / certification chips that wrap onto as many lines as they need, each with its trainer count. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TagChips(tags: List<TagCount>, onPick: (TagCount) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        tags.forEach { t ->
+            Row(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Brand.SurfaceStrong)
+                    .clickable(onClickLabel = "${t.tag}, ${t.count} trainers") { onPick(t) }
+                    .padding(horizontal = 10.dp, vertical = 7.dp)
+                    .semantics { testTag = "home.trainerSearch.tag.${t.tag}" },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(
+                    if (t.kind == TagCount.Kind.SKILL) Icons.Filled.Build else Icons.Filled.WorkspacePremium,
+                    contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(13.dp),
+                )
+                Text(t.tag, color = Brand.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp))
+                Text("${t.count}", color = Brand.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 

@@ -40,7 +40,7 @@ object MockApi {
                 Log.i("MockApi", "${request.method} $path $body")
             }
             val leaveError = if (request.method == "POST" && path == "/api/leave") leaveRefusal(body.orEmpty(), role) else null
-            val json = leaveError ?: if (path == "/api/public/app-version") appVersion(context) else respond(path, request.method, role, request.url.queryParameter("view"))
+            val json = leaveError ?: if (path == "/api/public/app-version") appVersion(context) else respond(path, request.method, role, request.url.queryParameter("view")) { request.url.queryParameter(it) }
             val code = when {
                 leaveError != null -> 400
                 json == null -> 404
@@ -66,7 +66,7 @@ object MockApi {
             """"android":{"liveVersion":$live,"storeUrl":"https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal"}}"""
     }
 
-    private fun respond(path: String, method: String, role: String, view: String? = null): String? = when {
+    private fun respond(path: String, method: String, role: String, view: String? = null, query: (String) -> String? = { null }): String? = when {
         path == "/api/auth/session" -> if (role == "signedout") "null" else session(role)
         path.startsWith("/api/auth/") -> "{\"csrfToken\":\"mock\",\"url\":\"\"}"
         method != "GET" -> "{\"url\":\"/api/uploads/mock.jpg\",\"fileName\":\"mock.jpg\",\"id\":\"x\"}"
@@ -94,6 +94,11 @@ object MockApi {
         path == "/api/timesheet" -> TIMESHEET
         path == "/api/mobile/trainers" -> TRAINERS
         path.startsWith("/api/mobile/trainers/") -> TRAINER
+        // Finance details (the accountant Home's Finance card). Reconciliation amounts are Decimal strings, as on the server.
+        path == "/api/mobile/finance/transactions" -> if (query("direction") == "CREDIT") INCOME else EXPENSES_BANK
+        path == "/api/mobile/finance/statements" -> STATEMENTS
+        path == "/api/accounting/reconciliation" -> RECON_RUNS
+        path.startsWith("/api/accounting/reconciliation/") -> RECON_DETAIL
         else -> null
     }
 
@@ -117,7 +122,9 @@ object MockApi {
         val r = role.uppercase()
         // Admin also holds TRAINER_ADMIN (the View As menu then lists Trainer Admin), as Alfred's account does.
         val roles = if (r == "ADMIN") "\"ADMIN\",\"HR\",\"TRAINER_ADMIN\"" else "\"$r\""
-        return """{"user":{"id":"u1","email":"sarah.lim@example.com","name":"Sarah Lim","role":"$r","roles":[$roles],"employeeId":"e1"}}"""
+        // The admin preview signs in as Alfred's address: role previews (View As Staff / Intern / Accountant) are his only.
+        val email = if (r == "ADMIN") "angch@tertiaryinfotech.com" else "sarah.lim@example.com"
+        return """{"user":{"id":"u1","email":"$email","name":"Sarah Lim","role":"$r","roles":[$roles],"employeeId":"e1"}}"""
     }
 
     /** Accountants and an approver previewing the accountant Home (`?view=accountant`) get the finance tiles. */
@@ -185,11 +192,11 @@ object MockApi {
       "claims":[{"id":"c1","employee":"Amanda Halim","category":"Travel","description":"Grab to venue for the Python class at Woods Square","amount":18.4,"expenseDate":"2026-11-03","createdAt":"2026-11-04T01:00:00.000Z"}]}"""
 
     private const val EMPLOYEES = """{"isAdmin":ISADMIN,"employees":[
-        {"id":"e1","name":"Sarah Lim","position":"Training Executive","department":"Operations","email":"sarah.lim@example.com","phone":"+65 9123 4567","intern":false},
-        {"id":"e2","name":"Daniel Tan","position":"Developer","department":"Technology","email":"daniel.tan@example.com","intern":false},
-        {"id":"e3","name":"Priya Nair","position":"Course Consultant","department":"Sales","email":"priya.nair@example.com","intern":false},
-        {"id":"e5","name":"Amanda Halim","position":"Intern","department":"Technology","email":"amanda.halim@example.com","intern":true},
-        {"id":"e6","name":"Kenneth Wang","position":"Intern","department":"Operations","email":"kenneth.wang@example.com","intern":true}]}"""
+        {"id":"e1","employeeId":"E0007","name":"Sarah Lim","position":"Training Executive","department":"Operations","email":"sarah.lim@example.com","phone":"+65 9123 4567","employmentType":"FULL_TIME","intern":false},
+        {"id":"e2","employeeId":"E0012","name":"Daniel Tan","position":"Developer","department":"Technology","email":"daniel.tan@example.com","employmentType":"PART_TIME","intern":false},
+        {"id":"e3","employeeId":"E0015","name":"Priya Nair Binte Abdul Rahman Krishnamurthy","position":"Course Consultant","department":null,"email":"priya.nair@example.com","employmentType":"CONTRACT","intern":false},
+        {"id":"e5","employeeId":"I0002","name":"Amanda Halim","position":"Intern","department":"Technology","email":"amanda.halim@example.com","employmentType":"INTERN","intern":true},
+        {"id":"e6","employeeId":"I0012","name":"Kenneth Wang","position":"Intern","department":"Operations","email":"kenneth.wang@example.com","employmentType":"INTERN","intern":true}]}"""
 
     private const val RECORDS = """{"employee":{"id":"e2","employeeCode":"E0012","name":"Daniel Tan","position":"Developer","department":"Technology","employmentType":"FULL_TIME"},
       "attendance":{"days":[{"id":"d1","date":"2026-11-05","clockIn":"2026-11-05T01:05:00.000Z","clockOut":"2026-11-05T10:02:00.000Z","hours":8.95}],"totalHours":8.95,"daysWorked":1},
@@ -269,6 +276,32 @@ object MockApi {
         {"date":"2026-11-02","dayName":"Mon","hours":0,"isNonWorkDay":false,"isSubmittable":false},
         {"date":"2026-11-07","dayName":"Sat","hours":8,"status":"PENDING","isNonWorkDay":true,"isSubmittable":true},
         {"date":"2026-11-08","dayName":"Sun","hours":0,"isNonWorkDay":true,"isSubmittable":true,"isPublicHoliday":true,"phName":"Deepavali"}]}"""
+
+    private const val INCOME = """{"month":"2026-11","direction":"CREDIT","count":3,"total":18240.5,"transactions":[
+        {"id":"bt1","paymentDate":"2026-11-14","title":"SKILLSFUTURE SINGAPORE","amount":12500,"direction":"CREDIT","type":"Grant","paymentType":"GIRO","paymentRef":"SSG-88123","invoiceNo":"INV-2026-1102","status":"RECORDED","rawDescription":"GIRO SKILLSFUTURE SINGAPORE\nTGS-2023012345 CLAIM","statementRef":"DBS Nov 2026"},
+        {"id":"bt2","paymentDate":"2026-11-10","title":"","amount":"5240.50","direction":"CREDIT","type":"Course fee","status":"UNRECORDED","rawDescription":"FAST PAYMENT ACME PTE LTD\nPython for Finance","remarks":"Match to INV-2026-1088"},
+        {"id":"bt3","paymentDate":"2026-11-03","title":"INTEREST","amount":500,"direction":"CREDIT","type":"Interest","status":"RECORDED"}]}"""
+
+    private const val EXPENSES_BANK = """{"month":"2026-11","direction":"DEBIT","count":2,"total":3410,"transactions":[
+        {"id":"bt4","paymentDate":"2026-11-12","title":"WOODS SQUARE RENT","amount":3200,"direction":"DEBIT","type":"Rent","paymentType":"GIRO","status":"RECORDED"},
+        {"id":"bt5","paymentDate":"2026-11-05","title":"GOOGLE WORKSPACE","amount":210,"direction":"DEBIT","type":"Software","status":"UNRECORDED"}]}"""
+
+    private const val STATEMENTS = """{"imports":[
+        {"batchId":"b2","importedAt":"2026-11-16T05:21:55.243Z","from":"2026-11-01","to":"2026-11-16","credits":96,"debits":61,"creditTotal":104200.4,"debitTotal":"81200.10","statementRef":"DBS 072-xxxx Nov 2026"},
+        {"batchId":"b1","importedAt":"2026-11-02T03:00:00.000Z","from":"2026-10-01","to":"2026-10-31","credits":176,"debits":110,"creditTotal":182400,"debitTotal":141250}]}"""
+
+    private const val RECON_RUN = """{"id":"rr1","periodStart":"2026-10-01","periodEnd":"2026-10-31","status":"COMPLETED","bankCount":272,"qbCount":270,
+        "matchedCount":268,"mismatchCount":1,"unmatchedBankCount":2,"unmatchedQbCount":1,"reviewedCount":0,"matchRate":"98.5","createdAt":"2026-11-02T03:00:00.000Z"}"""
+
+    private val RECON_RUNS = """{"runs":[$RECON_RUN,
+        {"id":"rr0","periodStart":"2026-09-01","periodEnd":"2026-09-30","status":"COMPLETED","bankCount":250,"qbCount":250,"matchedCount":250,"mismatchCount":0,
+         "unmatchedBankCount":0,"unmatchedQbCount":0,"reviewedCount":0,"matchRate":100,"createdAt":"2026-10-02T03:00:00.000Z"}]}"""
+
+    private val RECON_DETAIL = """{"run":$RECON_RUN,"items":[
+        {"id":"ri1","status":"AMOUNT_MISMATCH","bankDate":"2026-10-14","bankAmount":"1250.00","bankDirection":"CREDIT","bankDescription":"FAST PAYMENT ACME PTE LTD","qbTxnType":"Payment","qbDate":"2026-10-14","qbAmount":"1200.00","qbDirection":"CREDIT","qbDocNumber":"1088","qbPayee":"Acme Pte Ltd","amountDifference":"50.00","dayDifference":0,"reviewed":false},
+        {"id":"ri2","status":"UNMATCHED_BANK","bankDate":"2026-10-20","bankAmount":"88.20","bankDirection":"DEBIT","bankDescription":"NETS GRAB 1234","reviewed":false},
+        {"id":"ri3","status":"UNMATCHED_QB","qbTxnType":"Expense","qbDate":"2026-10-28","qbAmount":"45.00","qbDirection":"DEBIT","qbDocNumber":"E-77","qbPayee":"Stationery Co","reviewed":true,"reviewNote":"Paid in cash"},
+        {"id":"ri4","status":"MATCHED","bankDate":"2026-10-05","bankAmount":"3200.00","bankDirection":"DEBIT","bankDescription":"WOODS SQUARE RENT","qbTxnType":"Bill Payment","qbDate":"2026-10-05","qbAmount":"3200.00","qbDirection":"DEBIT","qbPayee":"Woods Square","reviewed":false}]}"""
 
     private const val TRAINERS = """{"count":5,"trainers":[
         {"id":"tr1","name":"TAN WEI MING","nickname":"Wei Ming","phone":"+65 9123 4567","email":"weiming.tan@example.com","trainerType":"ACLP","status":"Active","inTms":true,

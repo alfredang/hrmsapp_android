@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.tertiaryinfotech.hrportal.data.AclpFilter
+import com.tertiaryinfotech.hrportal.data.DirectoryRequest
 import com.tertiaryinfotech.hrportal.data.ViewAsMode
 
 /**
@@ -21,8 +21,8 @@ object ViewAs {
     var mode by mutableStateOf(ViewAsMode.MINE)
         private set
 
-    /** A directory filter set by a Home tile, applied (and cleared) by the trainer directory when it shows. */
-    var pendingDirectoryFilter by mutableStateOf<AclpFilter?>(null)
+    /** How a Home tile or the Home trainer search opens the directory; applied (and cleared) by the directory when it shows. */
+    var pendingDirectory by mutableStateOf<DirectoryRequest?>(null)
 
     fun init(context: Context) {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

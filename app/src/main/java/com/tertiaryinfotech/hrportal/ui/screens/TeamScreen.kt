@@ -1,6 +1,14 @@
 package com.tertiaryinfotech.hrportal.ui.screens
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,7 +46,7 @@ import com.tertiaryinfotech.hrportal.ui.components.InitialsAvatar
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * Team tab — the company directory with a name/role search. Approvers see it as two lists,
+ * Team tab — the company directory, searchable by name, position, department, email and employment type. Approvers see it as two lists,
  * Staff and Interns (when the server sends `intern`), and tap a person for their clock-in, MC and
  * leave history ([EmployeeRecordsScreen]).
  *
@@ -57,7 +65,7 @@ fun TeamScreen(nav: NavController, initialGroup: String = "staff") {
                 TextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search name or role", color = Brand.TextMuted) },
+                    placeholder = { Text("Name, department, email or role", color = Brand.TextMuted) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Brand.TextSecondary) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -104,29 +112,39 @@ fun TeamScreen(nav: NavController, initialGroup: String = "staff") {
     }
 }
 
-private fun filterEmployees(list: List<Employee>, query: String): List<Employee> {
-    if (query.isBlank()) return list
-    val q = query.lowercase()
-    return list.filter {
-        it.name.lowercase().contains(q) ||
-            (it.position ?: "").lowercase().contains(q) ||
-            (it.department ?: "").lowercase().contains(q)
-    }
-}
+private fun filterEmployees(list: List<Employee>, query: String): List<Employee> =
+    if (query.isBlank()) list else list.filter { it.matches(query) }
 
+/** Full name (wraps), department with the employment pill, and the email for approvers (Alfred, 22 Nov 2026). */
 @Composable
 private fun EmployeeRow(e: Employee, isAdmin: Boolean, onOpen: () -> Unit) {
     Card(onClick = if (isAdmin) onOpen else null) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             InitialsAvatar(initials(e.name), 46, avatarUrl = e.avatarUrl)
-            Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
+            Column(modifier = Modifier.padding(start = 14.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(e.name, color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text(
-                    listOfNotNull(e.position, e.department).joinToString(" · "),
-                    color = Brand.TextSecondary, fontSize = 12.sp,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        e.department?.takeIf { it.isNotBlank() } ?: "No department",
+                        color = Brand.TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    e.employmentLabel?.let { type ->
+                        // Part time in gold with navy text (a fixed fill, so navy in both appearances).
+                        val part = e.isPartTime
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(if (part) Brand.Gold.copy(alpha = 0.55f) else Brand.SurfaceStrong)
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                                .semantics { testTag = "team.type.${e.employeeId.ifEmpty { e.id }}" },
+                        ) {
+                            Text(type, color = if (part) Brand.Navy else Brand.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        }
+                    }
+                }
                 if (isAdmin && !e.email.isNullOrEmpty()) {
-                    Text(e.email, color = Brand.Accent, fontSize = 11.sp)
+                    Text(e.email, color = Brand.Accent, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (isAdmin) {

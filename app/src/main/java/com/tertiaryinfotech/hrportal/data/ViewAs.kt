@@ -1,8 +1,8 @@
 package com.tertiaryinfotech.hrportal.data
 
 /**
- * View As (web view modes, 20–22 Nov 2026; iOS `ViewAs`). Approvers (ADMIN / HR / MANAGER) can preview the
- * Staff, Intern and Accountant screens; Trainer Admin holders can switch to the Trainer Admin view. MINE is the
+ * View As (web view modes, 20–22 Nov 2026; iOS `ViewAs`). Approvers (ADMIN / HR / MANAGER) on the View As list
+ * ([ViewAsRules.VIEW_AS_EMAILS], Alfred only since 22 Nov 2026) can preview the Staff, Intern and Accountant screens; Trainer Admin holders can switch to the Trainer Admin view. MINE is the
  * person's own view ("Admin" for approvers). Only what is SHOWN changes: forms, approvals and every API call
  * still act as the signed-in person, and the server enforces RBAC.
  */
@@ -39,12 +39,29 @@ data class ShownRole(
 
 /** Pure View As rules, unit-tested in `ViewAsTest`. */
 object ViewAsRules {
-    /** The views this person may pick: their own, the role previews for approvers, Trainer Admin for holders. */
-    fun available(isApprover: Boolean, canManageTrainers: Boolean): List<ViewAsMode> = buildList {
+    /**
+     * Previewing other roles (Staff / Intern / Accountant) is Alfred's only (22 Nov 2026; web
+     * `src/lib/view-as-policy.ts`, iOS `AuthViewModel.viewAsEmails`). Trainer Admins (Deepa, Tan Soik Ching)
+     * keep the My view / Trainer Admin switch.
+     */
+    val VIEW_AS_EMAILS = listOf("angch@tertiaryinfotech.com")
+
+    /** Whether this signed-in email may preview other roles. */
+    fun canViewAs(email: String?): Boolean = (email ?: "").trim().lowercase() in VIEW_AS_EMAILS
+
+    /**
+     * The views this person may pick: their own, the role previews for approvers allowed to preview
+     * ([canViewAs]), Trainer Admin for holders.
+     */
+    fun available(isApprover: Boolean, canManageTrainers: Boolean, canViewAs: Boolean): List<ViewAsMode> = buildList {
         add(ViewAsMode.MINE)
-        if (isApprover) addAll(listOf(ViewAsMode.STAFF, ViewAsMode.INTERN, ViewAsMode.ACCOUNTANT))
+        if (canViewAs && isApprover) addAll(listOf(ViewAsMode.STAFF, ViewAsMode.INTERN, ViewAsMode.ACCOUNTANT))
         if (canManageTrainers) add(ViewAsMode.TRAINER)
     }
+
+    /** An approver allowed to preview ([canViewAs]) previewing another role (Staff / Intern / Accountant). */
+    fun isRolePreview(saved: ViewAsMode, isApprover: Boolean, canViewAs: Boolean): Boolean =
+        canViewAs && isApprover && saved.isRolePreview
 
     /**
      * Whether the Trainer Admin view is in force. A saved Trainer Admin choice is trusted until
@@ -55,13 +72,16 @@ object ViewAsRules {
         saved == ViewAsMode.TRAINER && (canManageTrainers || !capabilitiesKnown)
 
     /** The saved choice to keep after the summary answered: a choice no longer allowed goes back to My view. */
-    fun afterCapabilities(saved: ViewAsMode, canManageTrainers: Boolean, isApprover: Boolean): ViewAsMode =
-        if (saved in available(isApprover, canManageTrainers)) saved else ViewAsMode.MINE
+    fun afterCapabilities(saved: ViewAsMode, canManageTrainers: Boolean, isApprover: Boolean, canViewAs: Boolean): ViewAsMode =
+        if (saved in available(isApprover, canManageTrainers, canViewAs)) saved else ViewAsMode.MINE
 
-    /** What the screens show. [roles] / [role] are the signed-in person's real roles. */
-    fun shown(saved: ViewAsMode, roles: List<String>?, role: String?, trainerView: Boolean): ShownRole {
+    /**
+     * What the screens show. [roles] / [role] are the signed-in person's real roles. A saved role preview is
+     * ignored unless the person may preview ([canViewAs]).
+     */
+    fun shown(saved: ViewAsMode, roles: List<String>?, role: String?, trainerView: Boolean, canViewAs: Boolean): ShownRole {
         val approver = LeaveRules.isApprover(roles, role)
-        val preview = approver && saved.isRolePreview
+        val preview = isRolePreview(saved, approver, canViewAs)
         return if (preview) {
             ShownRole(
                 admin = false,
@@ -82,8 +102,8 @@ object ViewAsRules {
     }
 
     /** The `?view=` of `/api/mobile/summary`: the previewed role, so the server adds its tiles. */
-    fun summaryView(saved: ViewAsMode, isApprover: Boolean): String? =
-        if (isApprover && saved.isRolePreview) saved.key else null
+    fun summaryView(saved: ViewAsMode, isApprover: Boolean, canViewAs: Boolean): String? =
+        if (isRolePreview(saved, isApprover, canViewAs)) saved.key else null
 
     /** Home tiles of the Trainer Admin view, each with the directory filter it opens. */
     fun trainerTiles(t: TrainerKpis): List<Pair<HomeTile, AclpFilter>> =

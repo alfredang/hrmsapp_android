@@ -5,8 +5,11 @@ package com.tertiaryinfotech.hrportal.push
  * Notifications list and by a tapped push alert. Approval requests open Approvals for admins.
  * [mustClockIn] (interns and accountants, `SessionUser.mustClockIn`): a "/timesheet" link opens their
  * own Timesheet (`my_timesheet`); "/attendance" always opens the clock screen.
+ * A query (`?request=<id>`, which the server appends to approval-request links) or a `#fragment` is
+ * dropped before matching, as iOS `PushRoute` does.
  */
-fun routeForLink(link: String?, type: String? = null, isApprover: Boolean = false, mustClockIn: Boolean = false): String? {
+fun routeForLink(rawLink: String?, type: String? = null, isApprover: Boolean = false, mustClockIn: Boolean = false): String? {
+    val link = rawLink?.substringBefore('?')?.substringBefore('#')
     if (isApprover && (type?.endsWith("_SUBMITTED") == true || link?.startsWith("/approvals") == true)) return "approvals"
     return when {
         link == null -> null

@@ -71,6 +71,7 @@ import androidx.navigation.NavController
 import com.tertiaryinfotech.hrportal.data.AttendancePunch
 import com.tertiaryinfotech.hrportal.data.DashboardSummary
 import com.tertiaryinfotech.hrportal.data.Directory
+import com.tertiaryinfotech.hrportal.data.DirectoryRequest
 import com.tertiaryinfotech.hrportal.data.FinanceKpis
 import com.tertiaryinfotech.hrportal.data.HomeTiles
 import com.tertiaryinfotech.hrportal.data.HrmsApi
@@ -107,7 +108,7 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
     }
     val mode = ViewAs.mode
     val shown = auth.shown
-    val view = ViewAsRules.summaryView(mode, auth.isApprover)
+    val view = ViewAsRules.summaryView(mode, auth.isApprover, auth.canViewAs)
     AsyncListScreen(key = mode, fetch = {
         coroutineScope {
             val s = HrmsApi.summary(view)
@@ -159,7 +160,7 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
         s.financeKpis?.let { f ->
             item { SectionTitle("Finance") }
             item { Spacer12() }
-            item { FinanceCard(f) }
+            item { FinanceCard(f, canApprove = s.isAdmin, nav = nav) }
             item { Spacer18() }
         }
 
@@ -174,10 +175,18 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
             s.trainerKpis?.let { t ->
                 item { SectionTitle("Trainer Admin") }
                 item { Spacer12() }
+                // Search every trainer by name, skill, certification or course (Alfred, 22 Nov 2026).
+                item {
+                    TrainerHomeSearch(
+                        onOpen = { ViewAs.pendingDirectory = it; nav.navigate("trainers") },
+                        onProfile = { nav.navigate("trainer_profile/$it") },
+                    )
+                }
+                item { Spacer12() }
                 item {
                     KpiStrip(ViewAsRules.trainerTiles(t).map { (tile, filter) ->
                         Kpi(tile.value, tile.label, Brand.TextPrimary) {
-                            ViewAs.pendingDirectoryFilter = filter
+                            ViewAs.pendingDirectory = DirectoryRequest(filter)
                             nav.navigate("trainers")
                         }
                     })
@@ -461,9 +470,12 @@ private fun PendingCard(p: PendingApprovals, nav: NavController) {
 
 private data class PendingRow(val id: String, val label: String, val icon: ImageVector, val tint: Color, val count: Int, val route: String)
 
-/** Accountants: pending claims, income / expenses this month, bank statements, bank reconciliation. */
+/**
+ * Accountants: pending claims, income / expenses this month, bank statements, bank reconciliation. Every row opens
+ * its detail (Alfred, 22 Nov 2026); pending claims open Approvals for approvers only (the server refuses anyone else).
+ */
 @Composable
-private fun FinanceCard(f: FinanceKpis) {
+private fun FinanceCard(f: FinanceKpis, canApprove: Boolean, nav: NavController) {
     val tiles = HomeTiles.finance(f)
     Card(padding = 0) {
         tiles.forEachIndexed { i, t ->
@@ -479,9 +491,11 @@ private fun FinanceCard(f: FinanceKpis) {
                     else -> Brand.Green
                 }
             }
+            val route = financeRoute(t.id, canApprove)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(if (route != null) Modifier.clickable { nav.navigate(route) } else Modifier)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
                     .semantics { testTag = "home.finance.${t.id}" },
                 verticalAlignment = Alignment.CenterVertically,
@@ -493,6 +507,10 @@ private fun FinanceCard(f: FinanceKpis) {
                 }
                 Text(t.value, color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1,
                     modifier = Modifier.padding(start = 8.dp))
+                if (route != null) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+                        tint = Brand.TextPrimary.copy(alpha = 0.4f), modifier = Modifier.padding(start = 4.dp).size(18.dp))
+                }
             }
         }
     }
@@ -612,21 +630,40 @@ private fun elapsed(from: Long, now: Long): String? {
 }
 
 /**
- * Home in the Trainer Admin view (web view mode "trainer"): the heading, the three trainer counts (each opening
- * the directory on its filter), a link to the directory and the View As switch.
+ * Home in the Trainer Admin view (web view mode "trainer"; iOS `trainerAdminHome`): the title card with the name, the
+ * View As switch right under it (Alfred, 22 Nov 2026, as on the other Homes), the trainer search, the three trainer
+ * counts (each opening the directory on its filter) and a link to the directory.
  */
 @Composable
 private fun TrainerAdminHome(auth: AuthViewModel, nav: NavController) {
     AsyncListScreen(fetch = { HrmsApi.summary() }) { s ->
         item {
-            Text("Trainer Admin", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
+            Card(modifier = Modifier.semantics { testTag = "home.trainerAdmin.title" }) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Trainer Admin", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
+                    val name = s.name ?: auth.user?.displayName
+                    if (!name.isNullOrBlank()) Text(name, color = Brand.TextSecondary, fontSize = 15.sp)
+                }
+            }
+        }
+        if (auth.availableViews.size > 1) {
+            item { Spacer18() }
+            item { ViewAsRow(auth) }
+        }
+        item { Spacer18() }
+        // Search every trainer by name, skill, certification or course (Alfred, 22 Nov 2026).
+        item {
+            TrainerHomeSearch(
+                onOpen = { ViewAs.pendingDirectory = it; openTab(nav, "trainers") },
+                onProfile = { nav.navigate("trainer_profile/$it") },
+            )
         }
         item { Spacer18() }
         s.trainerKpis?.let { t ->
             item {
                 KpiStrip(ViewAsRules.trainerTiles(t).map { (tile, filter) ->
                     Kpi(tile.value, tile.label, Brand.TextPrimary) {
-                        ViewAs.pendingDirectoryFilter = filter
+                        ViewAs.pendingDirectory = DirectoryRequest(filter)
                         openTab(nav, "trainers")
                     }
                 })
@@ -647,10 +684,6 @@ private fun TrainerAdminHome(auth: AuthViewModel, nav: NavController) {
                     )
                 }
             }
-        }
-        if (auth.availableViews.size > 1) {
-            item { Spacer18() }
-            item { ViewAsRow(auth) }
         }
     }
 }

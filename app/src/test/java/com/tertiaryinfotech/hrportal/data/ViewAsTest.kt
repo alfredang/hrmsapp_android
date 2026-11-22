@@ -20,12 +20,13 @@ class ViewAsTest {
 
     @Test
     fun losingTheRoleFallsBackToMyView() {
-        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.TRAINER, canManageTrainers = false, isApprover = true))
-        assertEquals(ViewAsMode.TRAINER, ViewAsRules.afterCapabilities(ViewAsMode.TRAINER, canManageTrainers = true, isApprover = false))
-        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.MINE, canManageTrainers = true, isApprover = false))
-        // Role previews are for approvers only.
-        assertEquals(ViewAsMode.STAFF, ViewAsRules.afterCapabilities(ViewAsMode.STAFF, canManageTrainers = false, isApprover = true))
-        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.ACCOUNTANT, canManageTrainers = true, isApprover = false))
+        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.TRAINER, canManageTrainers = false, isApprover = true, canViewAs = true))
+        assertEquals(ViewAsMode.TRAINER, ViewAsRules.afterCapabilities(ViewAsMode.TRAINER, canManageTrainers = true, isApprover = false, canViewAs = false))
+        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.MINE, canManageTrainers = true, isApprover = false, canViewAs = false))
+        // Role previews are for approvers on the View As list only.
+        assertEquals(ViewAsMode.STAFF, ViewAsRules.afterCapabilities(ViewAsMode.STAFF, canManageTrainers = false, isApprover = true, canViewAs = true))
+        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.STAFF, canManageTrainers = false, isApprover = true, canViewAs = false))
+        assertEquals(ViewAsMode.MINE, ViewAsRules.afterCapabilities(ViewAsMode.ACCOUNTANT, canManageTrainers = true, isApprover = false, canViewAs = true))
     }
 
     @Test
@@ -39,44 +40,63 @@ class ViewAsTest {
     }
 
     @Test
-    fun approversPreviewEveryRoleTrainerAdminsOnlyTheirView() {
+    fun onlyAlfredPreviewsRolesTrainerAdminsOnlyTheirView() {
         assertEquals(
             listOf(ViewAsMode.MINE, ViewAsMode.STAFF, ViewAsMode.INTERN, ViewAsMode.ACCOUNTANT, ViewAsMode.TRAINER),
-            ViewAsRules.available(isApprover = true, canManageTrainers = true),
+            ViewAsRules.available(isApprover = true, canManageTrainers = true, canViewAs = true),
         )
-        assertEquals(listOf(ViewAsMode.MINE, ViewAsMode.TRAINER), ViewAsRules.available(isApprover = false, canManageTrainers = true))
-        assertEquals(listOf(ViewAsMode.MINE), ViewAsRules.available(isApprover = false, canManageTrainers = false))
+        // tansc@ (ADMIN + TRAINER_ADMIN, not on the list): My view / Trainer Admin only.
+        assertEquals(listOf(ViewAsMode.MINE, ViewAsMode.TRAINER), ViewAsRules.available(isApprover = true, canManageTrainers = true, canViewAs = false))
+        // Another approver: no switch at all.
+        assertEquals(listOf(ViewAsMode.MINE), ViewAsRules.available(isApprover = true, canManageTrainers = false, canViewAs = false))
+        assertEquals(listOf(ViewAsMode.MINE, ViewAsMode.TRAINER), ViewAsRules.available(isApprover = false, canManageTrainers = true, canViewAs = false))
+        assertEquals(listOf(ViewAsMode.MINE), ViewAsRules.available(isApprover = false, canManageTrainers = false, canViewAs = false))
+        // The list is matched on the trimmed, lower-cased email.
+        assertTrue(ViewAsRules.canViewAs(" AngCH@TertiaryInfotech.com "))
+        assertFalse(ViewAsRules.canViewAs("tansc@tertiaryinfotech.com"))
+        assertFalse(ViewAsRules.canViewAs(null))
+    }
+
+    @Test
+    fun aSavedPreviewIsIgnoredOffTheList() {
+        val roles = listOf("ADMIN", "ACCOUNTANT", "TRAINER_ADMIN")
+        val shown = ViewAsRules.shown(ViewAsMode.STAFF, roles, "ADMIN", trainerView = false, canViewAs = false)
+        assertFalse(shown.preview)
+        assertTrue(shown.admin)
+        assertFalse(ViewAsRules.isRolePreview(ViewAsMode.INTERN, isApprover = true, canViewAs = false))
+        assertTrue(ViewAsRules.isRolePreview(ViewAsMode.INTERN, isApprover = true, canViewAs = true))
+        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.ACCOUNTANT, isApprover = true, canViewAs = false))
     }
 
     @Test
     fun shownRoleFollowsThePreviewWhileFormsKeepTheRealRoles() {
         val all = listOf("STAFF", "MANAGER", "HR", "ADMIN", "INTERN", "ACCOUNTANT", "TRAINER_ADMIN")
-        val own = ViewAsRules.shown(ViewAsMode.MINE, all, "ADMIN", trainerView = false)
+        val own = ViewAsRules.shown(ViewAsMode.MINE, all, "ADMIN", trainerView = false, canViewAs = true)
         assertEquals(ShownRole(admin = true, intern = false, mustClockIn = false, accountant = false, preview = false), own)
         assertEquals(ShownRole(false, intern = true, mustClockIn = true, accountant = false, preview = true),
-            ViewAsRules.shown(ViewAsMode.INTERN, all, "ADMIN", trainerView = false))
+            ViewAsRules.shown(ViewAsMode.INTERN, all, "ADMIN", trainerView = false, canViewAs = true))
         assertEquals(ShownRole(false, intern = false, mustClockIn = true, accountant = true, preview = true),
-            ViewAsRules.shown(ViewAsMode.ACCOUNTANT, all, "ADMIN", trainerView = false))
+            ViewAsRules.shown(ViewAsMode.ACCOUNTANT, all, "ADMIN", trainerView = false, canViewAs = true))
         assertEquals(ShownRole(false, false, false, false, preview = true),
-            ViewAsRules.shown(ViewAsMode.STAFF, all, "ADMIN", trainerView = false))
+            ViewAsRules.shown(ViewAsMode.STAFF, all, "ADMIN", trainerView = false, canViewAs = true))
         // A real accountant (no approver role): accountant screens, clocks in, no preview.
         assertEquals(ShownRole(false, false, mustClockIn = true, accountant = true, preview = false),
-            ViewAsRules.shown(ViewAsMode.MINE, listOf("STAFF", "ACCOUNTANT"), "STAFF", trainerView = false))
+            ViewAsRules.shown(ViewAsMode.MINE, listOf("STAFF", "ACCOUNTANT"), "STAFF", trainerView = false, canViewAs = true))
         // A non-approver cannot preview: a stale saved STAFF choice shows their own screens.
         assertEquals(ShownRole(false, intern = true, mustClockIn = true, accountant = false, preview = false),
-            ViewAsRules.shown(ViewAsMode.STAFF, listOf("INTERN"), "INTERN", trainerView = false))
+            ViewAsRules.shown(ViewAsMode.STAFF, listOf("INTERN"), "INTERN", trainerView = false, canViewAs = true))
         // tansc@ (ADMIN, ACCOUNTANT, TRAINER_ADMIN) in her own view: admin screens.
-        assertTrue(ViewAsRules.shown(ViewAsMode.MINE, listOf("ADMIN", "ACCOUNTANT", "TRAINER_ADMIN"), "ADMIN", false).admin)
+        assertTrue(ViewAsRules.shown(ViewAsMode.MINE, listOf("ADMIN", "ACCOUNTANT", "TRAINER_ADMIN"), "ADMIN", false, canViewAs = false).admin)
     }
 
     @Test
     fun previewsFetchTheSummaryForTheirRole() {
-        assertEquals("staff", ViewAsRules.summaryView(ViewAsMode.STAFF, isApprover = true))
-        assertEquals("intern", ViewAsRules.summaryView(ViewAsMode.INTERN, isApprover = true))
-        assertEquals("accountant", ViewAsRules.summaryView(ViewAsMode.ACCOUNTANT, isApprover = true))
-        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.MINE, isApprover = true))
-        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.TRAINER, isApprover = true))
-        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.STAFF, isApprover = false))
+        assertEquals("staff", ViewAsRules.summaryView(ViewAsMode.STAFF, isApprover = true, canViewAs = true))
+        assertEquals("intern", ViewAsRules.summaryView(ViewAsMode.INTERN, isApprover = true, canViewAs = true))
+        assertEquals("accountant", ViewAsRules.summaryView(ViewAsMode.ACCOUNTANT, isApprover = true, canViewAs = true))
+        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.MINE, isApprover = true, canViewAs = true))
+        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.TRAINER, isApprover = true, canViewAs = true))
+        assertEquals(null, ViewAsRules.summaryView(ViewAsMode.STAFF, isApprover = false, canViewAs = true))
     }
 
     @Test

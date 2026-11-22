@@ -262,6 +262,27 @@ interface HrmsApiService {
     @GET("api/mobile/trainers/contacts")
     suspend fun trainerContacts(@Query("q") q: String?): Response<TrainerContactsResponse>
 
+    // MARK: - Finance details (admin / accountant; the accountant Home's Finance card)
+
+    /** One month of bank credits (CREDIT, income) or debits (DEBIT, expenses); `month` is yyyy-MM. */
+    @GET("api/mobile/finance/transactions")
+    suspend fun bankTransactions(
+        @Query("direction") direction: String,
+        @Query("month") month: String,
+    ): Response<BankTransactionsMonth>
+
+    /** Every bank statement import, newest first. */
+    @GET("api/mobile/finance/statements")
+    suspend fun statementImports(): Response<StatementImportsResponse>
+
+    /** Bank reconciliation runs (the web's Accounting → Reconciliation), newest first. */
+    @GET("api/accounting/reconciliation")
+    suspend fun reconciliationRuns(): Response<ReconciliationRunsResponse>
+
+    /** One reconciliation run with every line. */
+    @GET("api/accounting/reconciliation/{id}")
+    suspend fun reconciliation(@Path("id") id: String): Response<ReconciliationDetail>
+
     @POST("api/mobile/push-token")
     suspend fun registerPushToken(@Body body: PushTokenBody): Response<ResponseBody>
 

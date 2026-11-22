@@ -178,6 +178,20 @@ object HrmsApi {
     suspend fun trainerContacts(q: String? = null): TrainerContactsResponse =
         unwrap(defaultError = "Could not load the trainer contacts.") { service.trainerContacts(q?.trim()?.takeIf { it.isNotEmpty() }) }
 
+    // MARK: - Finance details (admin / accountant; the server refuses anyone else)
+
+    suspend fun bankTransactions(direction: BankDirection, month: String) =
+        unwrap(defaultError = "Could not load the bank ${direction.noun}s.") { service.bankTransactions(direction.param, month) }
+
+    suspend fun statementImports(): List<StatementImport> =
+        unwrap(defaultError = "Could not load the bank statements.") { service.statementImports() }.imports
+
+    suspend fun reconciliationRuns(): List<ReconciliationRun> =
+        unwrap(defaultError = "Could not load the reconciliation.") { service.reconciliationRuns() }.runs
+
+    suspend fun reconciliation(id: String) =
+        unwrap(defaultError = "Could not load this run.") { service.reconciliation(id) }
+
     // MARK: - Push notifications (FCM token for this device)
 
     suspend fun registerPushToken(token: String): Unit =

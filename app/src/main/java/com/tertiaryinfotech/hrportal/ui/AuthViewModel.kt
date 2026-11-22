@@ -85,14 +85,20 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
     /** Approver roles (web `hasAdminAccess`), whatever the view. */
     val isApprover: Boolean get() = LeaveRules.isApprover(user?.roles, user?.role)
 
-    /** The views this person may pick (approvers: Admin / Staff / Intern / Accountant; holders: Trainer Admin). */
-    val availableViews: List<ViewAsMode> get() = ViewAsRules.available(isApprover, canManageTrainers)
+    /** Previewing other roles is Alfred's only (iOS `canViewAs`, web view-as-policy). */
+    val canViewAs: Boolean get() = ViewAsRules.canViewAs(user?.email)
+
+    /**
+     * The views this person may pick: My view; Staff / Intern / Accountant for an approver allowed to preview;
+     * Trainer Admin for holders. Anyone else gets only My view (no switch).
+     */
+    val availableViews: List<ViewAsMode> get() = ViewAsRules.available(isApprover, canManageTrainers, canViewAs)
 
     /** What the screens show for the current view; forms keep the real roles. */
-    val shown: ShownRole get() = ViewAsRules.shown(ViewAs.mode, user?.roles, user?.role, isTrainerView)
+    val shown: ShownRole get() = ViewAsRules.shown(ViewAs.mode, user?.roles, user?.role, isTrainerView, canViewAs)
 
     /** An approver previewing another role (View As): clocking in is off. */
-    val isRolePreview: Boolean get() = shown.preview
+    val isRolePreview: Boolean get() = ViewAsRules.isRolePreview(ViewAs.mode, isApprover, canViewAs)
 
     fun refreshCapabilities() {
         viewModelScope.launch {
@@ -100,7 +106,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
                 canManageTrainers = HrmsApi.summary().canManageTrainers
                 capabilitiesKnown = true
                 // A view no longer allowed: back to My view.
-                val keep = ViewAsRules.afterCapabilities(ViewAs.mode, canManageTrainers, isApprover)
+                val keep = ViewAsRules.afterCapabilities(ViewAs.mode, canManageTrainers, isApprover, canViewAs)
                 if (keep != ViewAs.mode) ViewAs.select(keep)
             } catch (_: Exception) { /* keep last-known value on failure */ }
         }

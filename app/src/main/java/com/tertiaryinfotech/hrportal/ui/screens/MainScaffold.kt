@@ -46,6 +46,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.tertiaryinfotech.hrportal.data.BankDirection
 import com.tertiaryinfotech.hrportal.push.Push
 import com.tertiaryinfotech.hrportal.push.routeForLink
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
@@ -68,7 +69,7 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
     MORE("more", "More", Icons.Filled.Pending),
 }
 
-/** Form screens show a plain title. Every other screen shows the company lockup, as on iOS. */
+/** Form screens show a plain title. Every other screen shows the app lockup ("TIA HRMS"), as on iOS. */
 private val FORM_TITLES = mapOf(
     "leave_request" to "Apply for leave",
     "expense_new" to "New claim",
@@ -278,6 +279,11 @@ fun MainScaffold(auth: AuthViewModel) {
                     month = a?.getString("month") ?: AttendanceMonth.current(),
                 )
             }
+            // The accountant Home's Finance card rows (admin / accountant; the server refuses anyone else).
+            composable("finance_income") { BankTransactionsScreen(BankDirection.CREDIT) }
+            composable("finance_expenses") { BankTransactionsScreen(BankDirection.DEBIT) }
+            composable("finance_statements") { BankStatementsScreen() }
+            composable("finance_reconciliation") { ReconciliationScreen() }
             composable("notifications") { NotificationsScreen(auth, nav) }
             composable("payslip_pdf") { PayslipPdfScreen(nav) }
         }
