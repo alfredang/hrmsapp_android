@@ -85,6 +85,8 @@ fun LeaveSummaryScreen(nav: NavController) {
         val t = data.totals
         val al = t.byLeaveType.firstOrNull { it.code == "AL" }
         val pending = t.byLeaveType.sumOf { it.pendingDays }
+        // Tiles say what is counted and for which month ("AL days" alone was not understood, 22 Nov 2026).
+        val mon = AttendanceMonth.shortName(month)
         val rows = data.employees.filter { it.isIntern == interns }
 
         RefreshableColumn(scope, { load() }) {
@@ -95,24 +97,24 @@ fun LeaveSummaryScreen(nav: NavController) {
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
-                    value = "${t.headcount.total}", label = "People",
+                    value = "${t.headcount.total}", label = "Staff and interns",
                     icon = Icons.Outlined.Groups, tint = Brand.Accent,
                     modifier = Modifier.weight(1f),
                 )
                 StatTile(
-                    value = days(t.mc.approvedDays), label = "MC days · ${t.mc.employeesOnMc} on MC",
+                    value = days(t.mc.approvedDays), label = "MC days taken in $mon · ${t.mc.employeesOnMc} ${if (t.mc.employeesOnMc == 1) "person" else "people"}",
                     icon = Icons.Outlined.MedicalServices, tint = Brand.Pink,
                     modifier = Modifier.weight(1f),
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
-                    value = days(al?.approvedDays ?: 0.0), label = "AL days",
+                    value = days(al?.approvedDays ?: 0.0), label = "Annual leave days taken in $mon",
                     icon = Icons.Outlined.BeachAccess, tint = Brand.Orange,
                     modifier = Modifier.weight(1f),
                 )
                 StatTile(
-                    value = days(pending), label = "Pending days",
+                    value = days(pending), label = "Leave days waiting for approval",
                     icon = Icons.Outlined.HourglassTop, tint = Brand.Amber,
                     modifier = Modifier.weight(1f),
                 )
@@ -160,7 +162,7 @@ private fun SummaryRow(e: LeaveSummaryEmployee, onClick: () -> Unit) {
                     color = Brand.TextSecondary, fontSize = 12.sp)
                 val parts = buildList {
                     add("MC ${days(e.approved("MC"))}")
-                    add("AL ${days(e.approved("AL"))}")
+                    add("Annual leave ${days(e.approved("AL"))}")
                     if (e.otherApproved > 0) add("Other ${days(e.otherApproved)}")
                     e.timeOff?.let { if (it.approvedHours > 0) add("Time-off ${days(it.approvedHours)} h") }
                 }
@@ -207,7 +209,7 @@ fun LeaveSummaryDetailScreen(employeeId: String, month: String) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 fun available(code: String) = e.balances.firstOrNull { it.code == code }?.let { days(it.available) } ?: "\u2014"
-                StatTile(available("AL"), "AL available", Modifier.weight(1f), Icons.Outlined.BeachAccess, Brand.Orange)
+                StatTile(available("AL"), "Annual leave available", Modifier.weight(1f), Icons.Outlined.BeachAccess, Brand.Orange)
                 StatTile(available("MC"), "MC available", Modifier.weight(1f), Icons.Outlined.MedicalServices, Brand.Pink)
             }
 

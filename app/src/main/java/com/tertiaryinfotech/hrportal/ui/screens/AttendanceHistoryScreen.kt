@@ -82,6 +82,12 @@ object AttendanceMonth {
         return SimpleDateFormat("LLLL yyyy", Locale.getDefault()).apply { timeZone = utc }.format(d)
     }
 
+    /** "Nov" (short month name, for tile labels). */
+    fun shortName(month: String): String {
+        val d = runCatching { ymd("$month-01") }.getOrNull() ?: return month
+        return SimpleDateFormat("LLL", Locale.getDefault()).apply { timeZone = utc }.format(d)
+    }
+
     /** "Wed, 8 Oct 2026" for a plain `yyyy-MM-dd`. */
     fun dayLabel(date: String): String {
         val d = runCatching { ymd(date) }.getOrNull() ?: return date
