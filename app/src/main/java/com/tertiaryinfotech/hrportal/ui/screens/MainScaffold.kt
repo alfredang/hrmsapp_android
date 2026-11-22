@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pending
@@ -69,6 +70,8 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
     TEAM("team", "Team", Icons.Filled.Groups),
     // Everyone but admins: the Standard Operating Procedures in Team's place (Alfred, 22 Nov 2026).
     SOP("sops", "SOP", Icons.AutoMirrored.Filled.MenuBook),
+    // Accountants: the month's bank expenses (the same screen as Home → Finance → Expenses).
+    EXPENSES("finance_expenses", "Expenses", Icons.Filled.CreditCard),
     // Trainer Admin view only: the trainer directory as a tab (the same "trainers" route More opens).
     TRAINERS("trainers", "Trainers", Icons.Filled.School),
     MORE("more", "More", Icons.Filled.Pending),
@@ -148,7 +151,9 @@ fun MainScaffold(auth: AuthViewModel) {
         Push.pendingLink = null
         val linked = routeForLink(link, isApprover = isApprover(auth), mustClockIn = auth.user?.mustClockIn == true) ?: "notifications"
         // The Team tab is admin-only: anyone else lands on the SOPs in its place (iOS `.tab(3)`).
-        val target = if (linked == Tab.TEAM.route && !shown.admin) Tab.SOP.route else linked
+        val target = if (linked == Tab.TEAM.route && !shown.admin) {
+            if (shown.accountant) Tab.EXPENSES.route else Tab.SOP.route
+        } else linked
         val tab = tabs.firstOrNull { it.route == target }
         if (tab != null) { activeTabName = tab.name; switchTab(nav, target) } else nav.navigate(target)
     }

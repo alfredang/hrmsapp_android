@@ -18,7 +18,8 @@ object MainTabs {
     fun routes(trainerView: Boolean, admin: Boolean, accountant: Boolean): List<String> = when {
         trainerView -> listOf("home", "trainers", "calendar", "more")
         admin -> listOf("home", "leave", "calendar", "team", "more")
-        accountant -> listOf("home", "calendar", "sops", "more")
+        // Accountants: the month's bank expenses in Team's place (Alfred, 22 Nov 2026); SOP stays in More.
+        accountant -> listOf("home", "calendar", "finance_expenses", "more")
         else -> listOf("home", "leave", "calendar", "sops", "more")
     }
 }

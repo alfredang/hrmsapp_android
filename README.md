@@ -218,3 +218,5 @@ If you find this project useful, please consider giving it a ⭐
 </div>
 
 > **1.21 (versionCode 36, 22 Nov 2026):** Continue with Google opens the company account directly: `hd=tertiaryinfotech.com`, `login_hint` with the last company email used with Google (DataStore `hrms_google_company_email`), else the account chooser; a caption under the button points part-timers and interns to email sign-in.
+
+> **1.21 (versionCode 37, 22 Nov 2026):** accountants get an **Expenses** tab (the month's bank debits, route `finance_expenses`) in place of SOP; SOP stays in More.
