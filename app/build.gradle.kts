@@ -27,8 +27,8 @@ android {
         targetSdk = 36
         // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
         // review, so each new release must increment from there.
-        versionCode = 42
-        versionName = "1.21"
+        versionCode = 43
+        versionName = "1.22"
         vectorDrawables { useSupportLibrary = true }
 
         // Google Sign-In (native, Custom Tabs + PKCE) — mirrors the iOS app's GIDClientID.

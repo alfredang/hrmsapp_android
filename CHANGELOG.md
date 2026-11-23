@@ -4,6 +4,16 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.22] — 2026-11-23 (versionCode 43)
+
+iOS 1.22 (49) parity.
+
+### Fixed
+- Continue with Google always opens Google's account chooser (`prompt=select_account` on every sign-in; `login_hint` only prefills). `hd` removed: it hid personal accounts, which part-time staff and interns may use, and opened a type-your-email page.
+
+### Release notes (Play, en-US)
+- Continue with Google now always lets you choose which Google account to use.
+
 ## [1.21] — 2026-11-23 · versionCode 42
 
 iOS 1.21 parity (builds 41–48). versionCodes 34–40 shipped 1.21 earlier; 41 was never uploaded and is included here.

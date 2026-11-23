@@ -66,9 +66,9 @@ object GoogleSignInService {
         email?.trim()?.lowercase()?.endsWith("@$COMPANY_DOMAIN") == true
 
     /**
-     * [hint]: the company address to sign in as (the typed email, or the one last used here). With a
-     * hint Google goes straight to that account (no chooser, no typing), so a returning user signs in
-     * with one tap. The Custom Tab shares Chrome's Google sign-in.
+     * [hint]: the typed company email, or the one last used here. Google still shows its account
+     * chooser (`prompt=select_account`); the hint only prefills it. The Custom Tab shares Chrome's
+     * Google accounts, so the chooser lists them.
      */
     suspend fun signIn(context: Context, hint: String? = null): SessionUser {
         if (!isConfigured) {
@@ -91,11 +91,13 @@ object GoogleSignInService {
                 .appendQueryParameter("code_challenge", codeChallenge(verifier))
                 .appendQueryParameter("code_challenge_method", "S256")
                 .appendQueryParameter("state", state)
-                // Staff sign in with the company account (22 Nov 2026): Google lists only
-                // tertiaryinfotech.com accounts. The server still checks every address.
-                .appendQueryParameter("hd", COMPANY_DOMAIN)
+                // Always Google's account chooser (user rule, 23 Nov 2026): every account on this
+                // phone is listed, plus "Use another account", so the person picks one. No `hd`: it hid
+                // personal accounts (part-time staff and interns may use them; the server checks every
+                // address) and opened a type-your-email page instead of the chooser.
+                .appendQueryParameter("prompt", "select_account")
+            // The hint only prefills / marks the expected account in the chooser.
             if (isCompanyEmail(hint)) builder.appendQueryParameter("login_hint", hint!!.trim().lowercase())
-            else builder.appendQueryParameter("prompt", "select_account")
             val authUrl = builder.build()
 
             try {
