@@ -4,6 +4,16 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.25] — 2026-11-23 (versionCode 46)
+
+iOS 1.22 (53) parity.
+
+### Changed
+- **SOP areas are collapsible** and all start collapsed, each with its SOP count; searching opens every area with a match.
+
+### Release notes (Play, en-US)
+- SOP areas now open and close with a tap, so the list is shorter.
+
 ## [1.24] — 2026-11-23 (versionCode 45)
 
 iOS 1.22 (52) parity.

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -41,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -69,6 +72,8 @@ import com.tertiaryinfotech.hrportal.ui.theme.Brand
 @Composable
 fun SopListScreen(nav: NavController) {
     var query by rememberSaveable { mutableStateOf("") }
+    // Every area starts collapsed (Alfred, 23 Nov 2026); while searching, every area with a match is open.
+    var open by rememberSaveable { mutableStateOf(listOf<String>()) }
     AsyncListScreen(fetch = { HrmsApi.sops() }) { all ->
         val shown = all.filter { it.matches(query) }
         val areas = all.map { it.category }.distinct().size
@@ -106,18 +111,51 @@ fun SopListScreen(nav: NavController) {
             item { EmptyHint(Icons.Filled.Search, if (query.isBlank()) "No SOPs yet." else "No SOP matches “$query”.") }
         }
         SopRules.orderedCategories(shown).forEach { cat ->
-            item { SectionTitle(cat) }
-            item { Spacer12() }
+            val items = shown.filter { it.category == cat }
+            val expanded = query.isNotBlank() || cat in open
             item {
-                Card(padding = 0) {
-                    shown.filter { it.category == cat }.forEachIndexed { i, sop ->
-                        if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 14.dp).height(1.dp).background(Brand.TextPrimary.copy(alpha = 0.08f)))
-                        SopRow(sop) { nav.navigate("sop/${Uri.encode(sop.slug)}") }
+                AreaHeader(cat, items.size, expanded) {
+                    open = if (cat in open) open - cat else open + cat
+                }
+            }
+            if (expanded) {
+                item { Spacer12() }
+                item {
+                    Card(padding = 0) {
+                        items.forEachIndexed { i, sop ->
+                            if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 14.dp).height(1.dp).background(Brand.TextPrimary.copy(alpha = 0.08f)))
+                            SopRow(sop) { nav.navigate("sop/${Uri.encode(sop.slug)}") }
+                        }
                     }
                 }
             }
-            item { Spacer18() }
+            item { Spacer12() }
         }
+    }
+}
+
+/** An SOP area: tap to open or close it (iOS `SopListView.areaHeader`). */
+@Composable
+private fun AreaHeader(cat: String, count: Int, expanded: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clickable(onClick = onToggle)
+            .semantics { testTag = "sop.area.$cat" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        SectionTitle(cat)
+        Text(
+            "$count", color = Brand.Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+            modifier = Modifier.clip(CircleShape).background(Brand.Accent.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+        Box(Modifier.weight(1f))
+        Icon(
+            Icons.Filled.KeyboardArrowDown, contentDescription = if (expanded) "Collapse" else "Expand",
+            tint = Brand.TextSecondary, modifier = Modifier.size(22.dp).rotate(if (expanded) 0f else -90f),
+        )
     }
 }
 
