@@ -53,11 +53,12 @@ import kotlinx.coroutines.launch
  * per request — name, status, type, dates, days, applied, reason (truncated). Tapping a line opens a
  * bottom sheet with the full reason and the Approve / Reject buttons.
  */
-private enum class ApprovalTab { LEAVE, MC, CLAIMS }
+private enum class ApprovalTab { LEAVE, MC, CLAIMS, PAYBACK }
 
 private data class Selected(val kind: HrmsApi.ApprovalKind, val row: RecordRow)
 
 private val CLAIM_HEADERS = RecordHeaders(type = "Category", dates = "Expense date", amount = "Amount", reason = "Description")
+private val PAYBACK_HEADERS = RecordHeaders(type = "No Pay Leave", dates = "Worked on", amount = "Days", reason = "Note")
 
 @Composable
 fun ApprovalsScreen(nav: NavController) {
@@ -102,6 +103,7 @@ fun ApprovalsScreen(nav: NavController) {
                         ApprovalTab.LEAVE.name to "Leave · ${leave.size}",
                         ApprovalTab.MC.name to "MC · ${mc.size}",
                         ApprovalTab.CLAIMS.name to "Claims · ${a.claims.size}",
+                        ApprovalTab.PAYBACK.name to "Payback · ${a.paybacks.size}",
                     ),
                     selected = tab,
                     onSelect = { tab = it },
@@ -121,6 +123,12 @@ fun ApprovalsScreen(nav: NavController) {
                             selected = Selected(HrmsApi.ApprovalKind.CLAIM, it)
                         })
                     }
+                    ApprovalTab.PAYBACK -> {
+                        if (a.paybacks.isEmpty()) ApprovalEmptyCard("No paybacks waiting.")
+                        else RecordTable(a.paybacks.map(::paybackRow), headers = PAYBACK_HEADERS, onOpen = {
+                            selected = Selected(HrmsApi.ApprovalKind.PAYBACK, it)
+                        })
+                    }
                 }
                 Text("Tap a request for the full reason and to approve or reject.", color = Brand.TextMuted, fontSize = 12.sp)
             }
@@ -131,7 +139,11 @@ fun ApprovalsScreen(nav: NavController) {
         RecordDetailSheet(
             row = s.row,
             onDismiss = { selected = null },
-            headers = if (s.kind == HrmsApi.ApprovalKind.CLAIM) CLAIM_HEADERS else RecordHeaders(),
+            headers = when (s.kind) {
+                HrmsApi.ApprovalKind.CLAIM -> CLAIM_HEADERS
+                HrmsApi.ApprovalKind.PAYBACK -> PAYBACK_HEADERS
+                else -> RecordHeaders()
+            },
         ) {
             DecisionButtons(
                 busy = actingId == s.row.id,
@@ -183,6 +195,19 @@ private fun claimRow(c: PendingClaim) = RecordRow(
     applied = c.createdAt?.let { Fmt.date(it) },
     reason = c.description,
     details = buildList { if (!c.receiptUrl.isNullOrBlank()) add("Receipt" to "Attached") },
+)
+
+/** No Pay Leave payback (23 Nov 2026): the NPL day, the off day worked and the punch that day. */
+private fun paybackRow(p: com.tertiaryinfotech.hrportal.data.PendingPayback) = RecordRow(
+    id = p.id,
+    name = p.employee,
+    status = "PENDING",
+    type = Fmt.date(p.nplDate),
+    dates = Fmt.date(p.workDate),
+    amount = if (p.days == 0.5) "Half" else Fmt.num(p.days),
+    applied = p.createdAt?.let { Fmt.date(it) },
+    reason = p.note,
+    details = listOf("Clocked" to (p.clocked ?: "No clock-in that day")),
 )
 
 /** " (AM)" / " (PM)" for half days, so the Days column stays one short line. */

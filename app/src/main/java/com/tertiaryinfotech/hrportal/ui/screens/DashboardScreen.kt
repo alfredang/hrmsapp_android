@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.PendingActions
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.TableChart
@@ -257,14 +258,13 @@ private suspend fun activeCountsOrNull(): Pair<Int, Int>? = try {
 }
 
 /**
- * Approvers: leave, MC, time off and claims waiting (→ Approvals) and missed punches (→ the admin Timesheet).
+ * Approvers: leave, MC, time off, claims and No Pay Leave paybacks waiting (→ Approvals); no missed punches (23 Nov 2026).
  * Feeds are best-effort: a failed one counts as 0; a failed approvals feed leaves the section out.
  */
 private suspend fun pendingOrNull(): PendingApprovals? = coroutineScope {
     val approvals = async { runCatching { HrmsApi.approvals() }.getOrNull() }
     val timeOff = async { runCatching { HrmsApi.timeOff() }.getOrNull() }
-    val punches = async { runCatching { HrmsApi.pendingCorrections() }.getOrNull() }
-    approvals.await()?.let { PendingApprovals.from(it, timeOff.await().orEmpty(), punches.await()?.size ?: 0) }
+    approvals.await()?.let { PendingApprovals.from(it, timeOff.await().orEmpty()) }
 }
 
 private data class Action(val id: String, val title: String, val icon: ImageVector, val tint: Color, val open: () -> Unit)
@@ -436,7 +436,7 @@ private fun ApplyButton(title: String, icon: ImageVector, filled: Boolean, modif
     }
 }
 
-/** Approvers: what is waiting by type; each row opens Approvals, missed punches the admin Timesheet. */
+/** Approvers: what is waiting by type; each row opens Approvals. */
 @Composable
 private fun PendingCard(p: PendingApprovals, nav: NavController) {
     val rows = listOf(
@@ -444,7 +444,7 @@ private fun PendingCard(p: PendingApprovals, nav: NavController) {
         PendingRow("mc", "MC", Icons.Filled.MedicalServices, Brand.Pink, p.mc, "approvals"),
         PendingRow("timeoff", "Time off", Icons.Filled.HourglassBottom, Brand.Orange, p.timeOff, "approvals"),
         PendingRow("claims", "Expense claims", Icons.Filled.CreditCard, Brand.Green, p.claims, "approvals"),
-        PendingRow("punches", "Missed punches", Icons.Filled.PendingActions, Brand.Mint, p.punches, "timesheet_admin"),
+        PendingRow("payback", "Payback", Icons.Filled.Replay, Brand.Purple, p.paybacks, "approvals"),
     )
     Card(padding = 0) {
         rows.forEachIndexed { i, r ->

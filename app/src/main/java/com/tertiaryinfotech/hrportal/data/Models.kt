@@ -475,7 +475,35 @@ data class AppNotification(
     val read: Boolean = false,
     val link: String? = null,
     val createdAt: String? = null,
-)
+    /** Approvers: the request a request notice is about (web 23 Nov 2026). Use [requestAction]. */
+    val action: NoticeAction? = null,
+) {
+    /**
+     * The request this notice can approve / reject: the server's [action], else derived from the type
+     * and the `?request=<id>` in the link (a server from before 23 Nov 2026). Null for other notices.
+     */
+    val requestAction: NoticeAction?
+        get() {
+            action?.takeIf { it.kind in NoticeAction.KINDS }?.let { return it }
+            val kind = NoticeAction.KIND_BY_TYPE[type] ?: return null
+            val id = link?.substringAfter('?', "")?.split('&')
+                ?.firstOrNull { it.startsWith("request=") }?.removePrefix("request=")
+                ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            return id?.takeIf { it.isNotBlank() }?.let { NoticeAction(kind, it) }
+        }
+}
+
+/** [kind]: leave | timeOff | expense | payback | correction (web `RequestActionKind`; iOS `NoticeAction`). */
+@Serializable
+data class NoticeAction(val kind: String = "", val requestId: String = "") {
+    companion object {
+        val KIND_BY_TYPE = mapOf(
+            "LEAVE_SUBMITTED" to "leave", "TIME_OFF_SUBMITTED" to "timeOff", "EXPENSE_SUBMITTED" to "expense",
+            "PAYBACK_SUBMITTED" to "payback", "ATTENDANCE_CORRECTION_SUBMITTED" to "correction",
+        )
+        val KINDS = KIND_BY_TYPE.values.toSet()
+    }
+}
 
 /** UI-only toast events the web bell also skips; everything else is a real alert for this user. */
 private val HIDDEN_NOTIFICATION_TYPES = setOf("ADD_TOAST", "UPDATE_TOAST", "REMOVE_TOAST", "DISMISS_TOAST")
@@ -498,6 +526,24 @@ data class UploadResult(
 data class ApprovalsResponse(
     val leaves: List<PendingLeave> = emptyList(),
     val claims: List<PendingClaim> = emptyList(),
+    /** No Pay Leave paybacks waiting (web 23 Nov 2026). Absent on an older server → empty. */
+    val paybacks: List<PendingPayback> = emptyList(),
+)
+
+/**
+ * A No Pay Leave payback waiting for approval: the person worked an off day ([workDate]) to pay back
+ * a No Pay Leave day ([nplDate]); [clocked] = their punch that day. iOS `PendingPayback`.
+ */
+@Serializable
+data class PendingPayback(
+    val id: String,
+    val employee: String = "",
+    val nplDate: String? = null,
+    val workDate: String? = null,
+    val days: Double = 1.0,
+    val note: String? = null,
+    val clocked: String? = null,
+    val createdAt: String? = null,
 )
 
 @Serializable

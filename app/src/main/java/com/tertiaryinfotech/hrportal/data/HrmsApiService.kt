@@ -205,6 +205,13 @@ interface HrmsApiService {
     suspend fun oilAction(@Body body: OilActionBody): Response<ResponseBody>
 
     /** MANAGER / HR / ADMIN — approve or reject someone's hourly time off. */
+    /** MANAGER / HR / ADMIN — No Pay Leave payback (web 20 Nov 2026). */
+    @POST("api/leave/payback/{id}/approve")
+    suspend fun approvePayback(@Path("id") id: String, @Body body: TimeOffApproveBody): Response<ResponseBody>
+
+    @POST("api/leave/payback/{id}/reject")
+    suspend fun rejectPayback(@Path("id") id: String, @Body body: RejectReasonBody): Response<ResponseBody>
+
     @POST("api/time-off/{id}/approve")
     suspend fun approveTimeOff(@Path("id") id: String, @Body body: TimeOffApproveBody): Response<ResponseBody>
 

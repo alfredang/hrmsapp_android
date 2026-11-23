@@ -120,19 +120,20 @@ data class PendingApprovals(
     val mc: Int = 0,
     val timeOff: Int = 0,
     val claims: Int = 0,
-    val punches: Int = 0,
+    /** No Pay Leave paybacks waiting. No missed punches on Home (Alfred, 23 Nov 2026: "nobody can understand"). */
+    val paybacks: Int = 0,
 ) {
-    val total: Int get() = leave + mc + timeOff + claims + punches
+    val total: Int get() = leave + mc + timeOff + claims + paybacks
 
     companion object {
-        fun from(approvals: ApprovalsResponse, timeOff: List<TimeOffRequest>, punches: Int): PendingApprovals {
+        fun from(approvals: ApprovalsResponse, timeOff: List<TimeOffRequest>): PendingApprovals {
             val mc = approvals.leaves.count { LeaveRules.isMedical(it.leaveCode) }
             return PendingApprovals(
                 leave = approvals.leaves.size - mc,
                 mc = mc,
                 timeOff = timeOff.count { it.status.equals("PENDING", ignoreCase = true) },
                 claims = approvals.claims.size,
-                punches = punches,
+                paybacks = approvals.paybacks.size,
             )
         }
     }

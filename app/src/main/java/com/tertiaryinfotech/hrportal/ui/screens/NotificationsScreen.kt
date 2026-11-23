@@ -44,6 +44,10 @@ import com.tertiaryinfotech.hrportal.push.routeForLink
 import com.tertiaryinfotech.hrportal.ui.AuthViewModel
 import com.tertiaryinfotech.hrportal.ui.components.AsyncListScreen
 import com.tertiaryinfotech.hrportal.ui.components.Card
+import com.tertiaryinfotech.hrportal.ui.components.DecisionButtons
+import com.tertiaryinfotech.hrportal.ui.components.NoteDialog
+import com.tertiaryinfotech.hrportal.ui.components.StatusBanner
+import androidx.compose.material.icons.filled.Replay
 import com.tertiaryinfotech.hrportal.ui.components.EmptyHint
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 import com.tertiaryinfotech.hrportal.util.Fmt
@@ -54,11 +58,35 @@ import java.util.Date
  * Notifications — every alert addressed to this user (missed clock-in/out, timesheet reminders,
  * decisions, and for admins new approval requests). Tapping an item marks it read and, where a matching in-app
  * destination exists, navigates there — mirroring the web's `link`-driven click-through.
+ * For an approver, a request notice (leave, MC, time off, claim, No Pay Leave payback, missed punch)
+ * carries Approve / Reject itself (Alfred, 23 Nov 2026; iOS `NotificationsView`).
  */
 @Composable
 fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
     val scope = rememberCoroutineScope()
     var reloadKey by remember { mutableStateOf(0) }
+    var actingId by remember { mutableStateOf<String?>(null) }
+    var rejecting by remember { mutableStateOf<AppNotification?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val canDecide = isApprover(auth) && !auth.isRolePreview
+
+    fun decide(n: AppNotification, approve: Boolean, reason: String?) {
+        val a = n.requestAction ?: return
+        scope.launch {
+            actingId = n.id
+            error = null
+            try {
+                HrmsApi.decide(a, approve, reason)
+                runCatching { HrmsApi.markNotificationRead(n.id) }
+                auth.refreshUnreadCount()
+                reloadKey++   // the server drops a decided request's notice
+            } catch (e: Exception) {
+                error = e.message ?: "Could not update the request."
+            } finally {
+                actingId = null
+            }
+        }
+    }
 
     run {
         Column {
@@ -67,8 +95,19 @@ fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
                     if (list.isEmpty()) {
                         item { EmptyHint(Icons.Filled.NotificationsNone, "No notifications yet.") }
                     } else {
+                        error?.let { item { StatusBanner(isError = true, text = it); Spacer12() } }
                         items(list) { n ->
-                            NotificationRow(n) {
+                            val decidable = canDecide && n.requestAction != null
+                            NotificationRow(
+                                n,
+                                actions = if (!decidable) null else { {
+                                    DecisionButtons(
+                                        busy = actingId == n.id,
+                                        onApprove = { if (actingId == null) decide(n, true, null) },
+                                        onReject = { if (actingId == null) rejecting = n },
+                                    )
+                                } },
+                            ) {
                                 scope.launch {
                                     if (!n.read) {
                                         try {
@@ -87,13 +126,28 @@ fun NotificationsScreen(auth: AuthViewModel, nav: NavController) {
             }
         }
     }
+
+    rejecting?.let { n ->
+        NoteDialog(
+            title = "Reject request",
+            message = n.message,
+            confirmLabel = "Reject",
+            confirmColor = Brand.Red,
+            onConfirm = { reason ->
+                rejecting = null
+                decide(n, false, reason)
+            },
+            onDismiss = { rejecting = null },
+        )
+    }
 }
 
 @Composable
-private fun NotificationRow(n: AppNotification, onClick: () -> Unit) {
+private fun NotificationRow(n: AppNotification, actions: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
     val (icon, tint) = iconFor(n.type)
-    Card(modifier = Modifier.clickable(onClick = onClick)) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+    Card {
+      Column {
+        Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), verticalAlignment = Alignment.Top) {
             Box(
                 modifier = Modifier.clip(CircleShape).background(tint.copy(alpha = 0.15f)).padding(8.dp),
             ) {
@@ -115,6 +169,10 @@ private fun NotificationRow(n: AppNotification, onClick: () -> Unit) {
                 )
             }
         }
+        if (actions != null) {
+            Box(modifier = Modifier.padding(start = 46.dp, top = 12.dp)) { actions() }
+        }
+      }
     }
 }
 
@@ -126,6 +184,9 @@ private fun iconFor(type: String): Pair<ImageVector, Color> = when (type) {
     "ATTENDANCE_MISSED", "TIMESHEET_REMINDER" -> Icons.Filled.Schedule to Brand.Amber
     "LEAVE_SUBMITTED", "TIME_OFF_SUBMITTED", "EXPENSE_SUBMITTED", "ATTENDANCE_CORRECTION_SUBMITTED" ->
         Icons.Filled.PendingActions to Brand.Accent
+    "PAYBACK_SUBMITTED" -> Icons.Filled.Replay to Brand.Accent
+    "PAYBACK_APPROVED" -> Icons.Filled.EventAvailable to Brand.Green
+    "PAYBACK_REJECTED" -> Icons.Filled.EventBusy to Brand.Red
     "TIME_OFF_APPROVED", "EXPENSE_APPROVED", "ATTENDANCE_CORRECTION_APPROVED" -> Icons.Filled.EventAvailable to Brand.Green
     "TIME_OFF_REJECTED", "EXPENSE_REJECTED", "ATTENDANCE_CORRECTION_REJECTED" -> Icons.Filled.EventBusy to Brand.Red
     else -> Icons.Filled.Info to Brand.TextSecondary

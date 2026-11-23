@@ -25,9 +25,9 @@ class HomeRolesTest {
         val approvals = decode<ApprovalsResponse>("""{"leaves":[{"id":"1","leaveCode":"AL"},{"id":"2","leaveCode":"MC"},
             {"id":"3","leaveCode":"sl"}],"claims":[{"id":"c1"}]}""")
         val timeOff = decode<List<TimeOffRequest>>("""[{"id":"t1","status":"PENDING"},{"id":"t2","status":"APPROVED"},{"id":"t3","status":"pending"}]""")
-        val p = PendingApprovals.from(approvals, timeOff, punches = 3)
-        assertEquals(PendingApprovals(leave = 1, mc = 2, timeOff = 2, claims = 1, punches = 3), p)
-        assertEquals(9, p.total)
+        val p = PendingApprovals.from(approvals, timeOff)
+        assertEquals(PendingApprovals(leave = 1, mc = 2, timeOff = 2, claims = 1), p)
+        assertEquals(6, p.total)   // no missed punches on Home (23 Nov 2026)
     }
 
     @Test

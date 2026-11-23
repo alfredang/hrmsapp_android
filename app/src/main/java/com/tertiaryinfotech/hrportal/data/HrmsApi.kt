@@ -45,16 +45,29 @@ object HrmsApi {
     // MARK: - Approvals (admin only; server returns 403 for non-admins)
     suspend fun approvals() = unwrap { service.approvals() }
 
-    enum class ApprovalKind { LEAVE, CLAIM }
+    enum class ApprovalKind { LEAVE, CLAIM, PAYBACK }
 
-    /** Approve or reject a pending leave/expense. On reject, an optional [reason] is sent. */
+    /** Approve or reject a pending leave / expense / payback. On reject, an optional [reason] is sent. */
     suspend fun decide(kind: ApprovalKind, id: String, approve: Boolean, reason: String? = null): Unit =
         unwrapUnit(if (approve) "Could not approve the request." else "Could not reject the request.") {
             when (kind) {
                 ApprovalKind.LEAVE -> if (approve) service.approveLeave(id) else service.rejectLeave(id, RejectReasonBody(reason?.takeIf { it.isNotBlank() }))
                 ApprovalKind.CLAIM -> if (approve) service.approveExpense(id) else service.rejectExpense(id, RejectReasonBody(reason?.takeIf { it.isNotBlank() }))
+                ApprovalKind.PAYBACK -> if (approve) service.approvePayback(id, TimeOffApproveBody(null)) else service.rejectPayback(id, RejectReasonBody(reason?.takeIf { it.isNotBlank() }))
             }
         }
+
+    /** Approve / reject the request a notice is about (Notifications, 23 Nov 2026). */
+    suspend fun decide(action: NoticeAction, approve: Boolean, reason: String? = null) {
+        when (action.kind) {
+            "leave" -> decide(ApprovalKind.LEAVE, action.requestId, approve, reason)
+            "expense" -> decide(ApprovalKind.CLAIM, action.requestId, approve, reason)
+            "payback" -> decide(ApprovalKind.PAYBACK, action.requestId, approve, reason)
+            "timeOff" -> decideTimeOff(action.requestId, approve, reason)
+            "correction" -> decideCorrection(action.requestId, approve, reason)
+            else -> throw IllegalStateException("Open the request to decide it.")
+        }
+    }
     suspend fun leave() = unwrap { service.leave() }
     suspend fun publicHolidays(year: Int) = unwrap { service.publicHolidays(year) }
     /** Admins only (ADMIN / HR / MANAGER): the server answers 403 to everyone else since 22 Nov 2026. */

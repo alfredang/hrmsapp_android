@@ -173,6 +173,10 @@ or company email). Google's account chooser (`prompt=select_account`) picks the 
 button (disabled until an email is typed), the interns hint and "Sign in with a password". Change the login on
 both platforms in the same turn.
 
+## Act on notices; No Pay Leave payback (23 Nov 2026, iOS parity)
+- Approvers (`isApprover && !isRolePreview`) get Approve / Reject (`DecisionButtons`, reject via `NoteDialog`) on a request notice. `AppNotification.requestAction` = server `action {kind, requestId}` or derived from type + `?request=`; `HrmsApi.decide(NoticeAction, …)` routes it (`ApprovalKind.PAYBACK` → `/api/leave/payback/{id}/approve|reject`).
+- Approvals has a **Payback** tab from `/api/mobile/approvals` `paybacks` (`PendingPayback`); Home "Waiting for approval" has a **Payback** row and `PendingApprovals.paybacks`; **no Missed punches row** (Alfred, 23 Nov 2026: "nobody can understand"; they stay in the admin Timesheet). Test `NoticeActionTest`. Run Gradle with `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"` (no system Java).
+
 ## Build & run
 
 No Android Studio GUI required — the project builds from the CLI. Gradle 8.14.3 (wrapper) + the JDK
