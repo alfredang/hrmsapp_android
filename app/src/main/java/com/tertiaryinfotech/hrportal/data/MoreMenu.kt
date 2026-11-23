@@ -2,7 +2,7 @@ package com.tertiaryinfotech.hrportal.data
 
 /**
  * More tab = the web sidebar (Alfred, 22 Nov 2026; iOS `MoreView.sections`): My Stuff, People, Processes,
- * Finance, Accounting, Documents and System, each row shown under the same rules as the web
+ * Accounting, Finance, Documents and System, each row shown under the same rules as the web
  * (`src/components/layout/sidebar.tsx` `isVisible`). Screens the app has natively open in the app;
  * accounting, SOP and settings open the web page. Departures from the web, by product decision:
  * Clock In/Out only for people who must clock in (never admins or staff), Approvals as its own row
@@ -94,10 +94,12 @@ object MoreMenu {
             if (staff) add(route("offinlieu", "Off In Lieu", "offinlieu", "timesheet_week"))
         }
 
+        // Same order as the web sidebar's Finance section (Alfred, 23 Nov 2026):
+        // Accounting, then Claim Management, then Payroll (Payslips).
         val finance = buildList {
-            if (!intern) add(route("payslips", "Payslips", "payslips", "payslips"))
             if (admin) add(route("claims", "Claim Management", "claims", "approvals"))
             else if (!accountant) add(route("claims", "Expense Claims", "claims", "expenses"))
+            if (!intern) add(route("payslips", "Payslips", "payslips", "payslips"))
         }
 
         val accounting = if (admin || accountant) listOf(
@@ -111,8 +113,8 @@ object MoreMenu {
             myStuff,
             Section("People", people),
             Section("Processes", processes),
-            Section("Finance", finance),
             Section("Accounting", accounting),
+            Section("Finance", finance),
             documents,
             Section("System", if (admin) listOf(web("settings", "Settings", "settings", "settings")) else emptyList()),
         ).filter { it.rows.isNotEmpty() }

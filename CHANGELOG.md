@@ -4,7 +4,25 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
-## [1.18] — 2026-11-22 · versionCode 33
+## [1.21] — 2026-11-23 · versionCode 42
+
+iOS 1.21 parity (builds 41–48). versionCodes 34–40 shipped 1.21 earlier; 41 was never uploaded and is included here.
+
+### Release notes (Play, en-US)
+- Sign-in shows the academy logo: staff continue with Google, interns and part-time staff get an emailed code.
+- More lists Accounting first, then Claims and Payslips, as on the website.
+- Accountants: tap Income, Expenses, Bank statements or Bank reconciliation on Home for details.
+- Trainer Admins: search trainers and skills from Home; switch views under your name.
+- Staff and interns get an SOP tab; Team is for admins.
+- The calendar shows your own leave and the holidays.
+
+### Changed
+- `MoreMenu.sections`: Accounting before Finance; Finance = Claims, then Payslips (web sidebar order, Alfred, 23 Nov 2026). `HomeRolesTest` updated.
+- (41) Academy logo on the sign-in header; Back to sign in on the code step.
+
+### Play submission
+- Production track, full rollout, released through the Android Publisher API on 23 Nov 2026 (read back: `1.21 (42)` completed).
+
 
 iOS 1.20 parity (builds 36–37 and the More rebuild).
 

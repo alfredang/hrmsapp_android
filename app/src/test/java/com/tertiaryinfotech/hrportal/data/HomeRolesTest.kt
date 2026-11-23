@@ -64,10 +64,10 @@ class HomeRolesTest {
     @Test
     fun moreFollowsTheWebSidebarForEachRole() {
         val admin = ids(MoreMenu.sections(ShownRole(true, false, false, false, false), trainerView = false, canManageTrainers = true))
-        assertEquals(listOf("My Stuff", "People", "Processes", "Finance", "Accounting", "Documents", "System"), admin.keys.toList())
+        assertEquals(listOf("My Stuff", "People", "Processes", "Accounting", "Finance", "Documents", "System"), admin.keys.toList())
         assertEquals(listOf("staff", "interns", "trainers"), admin["People"])
         assertEquals(listOf("approvals", "leavemgmt", "timeoff", "timesheet"), admin["Processes"])
-        assertEquals(listOf("payslips", "claims"), admin["Finance"])
+        assertEquals(listOf("claims", "payslips"), admin["Finance"])
 
         val staff = ids(MoreMenu.sections(ShownRole(false, false, false, false, false), false, false))
         assertEquals(listOf("AL", "MC", "timeoff", "offinlieu"), staff["Processes"])
