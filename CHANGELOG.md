@@ -14,6 +14,9 @@ iOS 1.22 (53) parity.
 ### Release notes (Play, en-US)
 - SOP areas now open and close with a tap, so the list is shorter.
 
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 23 Nov 2026 (read back: `1.25 (46)` completed, replacing `1.24 (45)`); subject to Google review. Corporate account confirmed by API (member of `6132721113732535566`; 403 on the personal account).
+
 ## [1.24] — 2026-11-23 (versionCode 45)
 
 iOS 1.22 (52) parity.
