@@ -19,6 +19,9 @@ iOS 1.22 (50) parity: the login now matches the iOS app 1:1.
 - Sign in with Google: tap Continue with Google and pick your account. No need to type your email first.
 - The sign-in page is now always light.
 
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 23 Nov 2026 (read back: `1.23 (44)` completed, replacing `1.22 (43)`); subject to Google review. Corporate account confirmed by API: the service account is a member of `6132721113732535566` with account-wide permissions and gets 403 on the personal account.
+
 ## [1.22] — 2026-11-23 (versionCode 43)
 
 iOS 1.22 (49) parity.
