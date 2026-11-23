@@ -14,6 +14,9 @@ iOS 1.22 (49) parity.
 ### Release notes (Play, en-US)
 - Continue with Google now always lets you choose which Google account to use.
 
+### Play submission
+- Production track, full rollout, released through the Android Publisher API on 23 Nov 2026 (read back: `1.22 (43)` completed). Corporate account confirmed by API: the service account is a member of `6132721113732535566` with account-wide permissions and gets 403 on the personal account; the public listing's developer is Tertiary Infotech Academy Pte Ltd.
+
 ## [1.21] — 2026-11-23 · versionCode 42
 
 iOS 1.21 parity (builds 41–48). versionCodes 34–40 shipped 1.21 earlier; 41 was never uploaded and is included here.
