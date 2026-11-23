@@ -16,8 +16,11 @@ class LoginDefaultsTest {
         assertFalse(LoginDefaults.usesGoogle("angch@tertiaryinfotech.com", googleConfigured = false))
         assertFalse(LoginDefaults.usesGoogle("intern@gmail.com", googleConfigured = true))
         assertFalse(LoginDefaults.usesGoogle("someone@tertiaryinfotech.com.evil.com", googleConfigured = true))
-        assertFalse(LoginDefaults.usesGoogle("", googleConfigured = true))
-        assertFalse(LoginDefaults.usesGoogle(null, googleConfigured = true))
+        // No email yet: Google shows too (23 Nov 2026), unless the build has no client id.
+        assertTrue(LoginDefaults.usesGoogle("", googleConfigured = true))
+        assertTrue(LoginDefaults.usesGoogle("  ", googleConfigured = true))
+        assertTrue(LoginDefaults.usesGoogle(null, googleConfigured = true))
+        assertFalse(LoginDefaults.usesGoogle("", googleConfigured = false))
     }
 
     @Test

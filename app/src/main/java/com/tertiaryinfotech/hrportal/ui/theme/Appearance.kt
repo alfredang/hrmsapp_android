@@ -41,8 +41,14 @@ object Appearance {
     /** The device's own light / dark setting; kept current by MainActivity. */
     var systemDark by mutableStateOf(false)
 
+    /**
+     * False while the launch and sign-in screens show (Alfred, 23 Nov 2026: the login page is always white, as on
+     * iOS). [AuthViewModel] keeps it in step with its phase, so the chosen appearance applies only once signed in.
+     */
+    var signedIn by mutableStateOf(false)
+
     val isDark: Boolean
-        get() = when (mode) {
+        get() = if (!signedIn) false else when (mode) {
             AppearanceMode.LIGHT -> false
             AppearanceMode.DARK -> true
             AppearanceMode.SYSTEM -> systemDark

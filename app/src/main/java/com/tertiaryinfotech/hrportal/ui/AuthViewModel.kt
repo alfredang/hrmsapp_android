@@ -37,8 +37,14 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
     enum class Step { EMAIL, PASSWORD, OTP }
     enum class Phase { LOADING, SIGNED_OUT, SIGNED_IN }
 
-    var phase by mutableStateOf(Phase.LOADING)
-        private set
+    private var phaseState by mutableStateOf(Phase.LOADING)
+    /** Setting it also tells [Appearance] whether the sign-in screens (always light) are showing. */
+    var phase: Phase
+        get() = phaseState
+        private set(value) {
+            phaseState = value
+            Appearance.signedIn = value == Phase.SIGNED_IN
+        }
     var step by mutableStateOf(Step.EMAIL)
         private set
 
@@ -149,13 +155,15 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
     /**
      * The default sign-in for this email (Alfred, 22 Nov 2026; iOS `usesGoogleByDefault`): a company address signs in
      * with Google (when this build has a Google client id), any other address (interns, part-time staff) gets a
-     * one-time code. Password is a link.
+     * one-time code. Password is a link. With no email yet, Google shows as well (23 Nov 2026).
      */
     val usesGoogleByDefault: Boolean get() = LoginDefaults.usesGoogle(email, googleSignInAvailable)
 
     /** The first screen's primary action (and its keyboard action): Google for a company email, else a code. */
     fun continueFromEmail(context: Context) {
         errorMessage = null; infoMessage = null
+        // No email yet: Google's account chooser picks the account.
+        if (email.isBlank() && usesGoogleByDefault) { signInWithGoogle(context); return }
         if (!isValidEmail(email)) { errorMessage = "Enter a valid email address."; return }
         if (usesGoogleByDefault) {
             viewModelScope.launch { persistRememberFlag(); persistRememberedEmail() }

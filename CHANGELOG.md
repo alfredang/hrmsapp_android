@@ -4,6 +4,21 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.23] — 2026-11-23 (versionCode 44)
+
+iOS 1.22 (50) parity: the login now matches the iOS app 1:1.
+
+### Fixed
+- **Continue with Google is back.** Every release since 1.5 hid it: the client id lived only in the gitignored `local.properties` and was never set. `build.gradle.kts` now defaults to the iOS app's OAuth client (a native client with no secret, custom-scheme redirect, an audience the server already accepts). Google refuses custom schemes for Android-type clients.
+- The sign-in and launch screens are always light (white card on the light backdrop), whatever the phone or in-app appearance (`Appearance.signedIn`).
+
+### Changed
+- Continue with Google shows before an email is typed; Google's account chooser picks the account. "Email me a sign-in code" is enabled once an email is typed.
+
+### Release notes (Play, en-US)
+- Sign in with Google: tap Continue with Google and pick your account. No need to type your email first.
+- The sign-in page is now always light.
+
 ## [1.22] — 2026-11-23 (versionCode 43)
 
 iOS 1.22 (49) parity.

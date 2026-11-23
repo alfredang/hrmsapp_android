@@ -27,8 +27,8 @@ android {
         targetSdk = 36
         // The existing Play "hrportal" app already has versionCode 14 (1.2) sent for closed-track
         // review, so each new release must increment from there.
-        versionCode = 43
-        versionName = "1.22"
+        versionCode = 44
+        versionName = "1.23"
         vectorDrawables { useSupportLibrary = true }
 
         // Google Sign-In (native, Custom Tabs + PKCE) — mirrors the iOS app's GIDClientID.
@@ -37,7 +37,13 @@ android {
         // has no secret, and the backend verifies every id_token with Google and checks the
         // audience allow-list. Left empty, the app hides the Google button entirely, exactly as
         // the iOS build does when GOOGLE_IOS_CLIENT_ID is unset.
-        val googleClientId = localProps.getProperty("GOOGLE_ANDROID_CLIENT_ID").orEmpty()
+        // Default (Alfred, 23 Nov 2026: "follow 100% the same as the iOS app"): the iOS app's own OAuth client
+        // (iOS project.yml GOOGLE_IOS_CLIENT_ID). It is a native client with no secret that accepts the reversed-id
+        // custom-scheme redirect, which Google refuses for Android-type clients (invalid_request since Nov 2026),
+        // and the server already accepts its audience (GOOGLE_IOS_CLIENT_ID). local.properties can override it;
+        // set GOOGLE_ANDROID_CLIENT_ID= (empty) there to build with the button hidden.
+        val sharedNativeClientId = "530515169905-6gi9km2pf28varo4is8obmmhr4t23pg4.apps.googleusercontent.com"
+        val googleClientId = (localProps.getProperty("GOOGLE_ANDROID_CLIENT_ID") ?: sharedNativeClientId).trim()
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
         // Google's Android convention: the redirect URI is the client id reversed as a scheme.
         // Registered as a manifest placeholder so the redirect activity only claims the scheme

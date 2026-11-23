@@ -131,7 +131,7 @@ private fun EmailStep(auth: AuthViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
         // The code sign-in as a full-width button (Alfred, 22 Nov 2026: "make the OTP button more visible").
-        CodeInsteadButton(enabled = !auth.isWorking) { auth.sendOTP() }
+        CodeInsteadButton(enabled = !auth.isWorking && auth.email.isNotBlank()) { auth.sendOTP() }
     } else {
         Box(Modifier.semantics { testTag = "login.sendCode" }) {
             PremierButton(

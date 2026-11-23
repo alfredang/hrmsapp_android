@@ -54,19 +54,16 @@ no database of its own.
   browser would. **Email + password**, **email one-time-code (OTP)**, and **Google** sign-in are
   all supported.
 - **Google sign-in** (`data/GoogleSignInService.kt`) uses **Chrome Custom Tabs** with an OAuth 2.0
-  **authorization-code + PKCE** flow — no Play Services SDK, so the dependency set stays tiny. It
-  exchanges the code for a Google `id_token` and POSTs it to the pre-existing
-  **`POST /api/auth/google-mobile`**, which verifies the token with Google, checks the audience
-  against `GOOGLE_CLIENT_ID` / `GOOGLE_IOS_CLIENT_ID` / `GOOGLE_ANDROID_CLIENT_ID`, blocks INACTIVE
-  employees, and sets the same NextAuth session cookie. Setup:
-  1. **Google Cloud Console** → *Credentials → Create credentials → OAuth client ID → **Android***,
-     package `com.tertiaryinfotech.hrportal`, SHA-1 = the **Play App Signing** certificate's
-     fingerprint (Play Console → Test and release → App integrity), **not** the upload key's.
-  2. Put that id in the gitignored `local.properties` as `GOOGLE_ANDROID_CLIENT_ID=...`. It feeds
-     `BuildConfig.GOOGLE_CLIENT_ID` and the redirect-scheme manifest placeholder. Left unset, the
-     app **hides the Google button** entirely (same behaviour as the iOS build without `GIDClientID`).
-  3. On the **web app**, paste the same id into *Settings → Credentials → **Mobile Sign-In
-     (Google)*** so the backend accepts tokens minted for the Android client.
+  **authorization-code + PKCE** flow, the same flow as iOS `GoogleSignInService.swift`, with no Play Services SDK.
+  **It uses the iOS app's OAuth client** (`530515169905-6gi9…`, iOS `project.yml` `GOOGLE_IOS_CLIENT_ID`), which is
+  the default in `app/build.gradle.kts` (1.23, 23 Nov 2026). It is a native client with no secret. Its redirect is
+  the reversed id as a custom scheme (`com.googleusercontent.apps.530515169905-…:/oauth2redirect`, a manifest
+  placeholder). Google refuses that scheme for Android-type clients (`invalid_request`). It exchanges the code for an
+  `id_token` and POSTs it to **`POST /api/auth/google-mobile`**, which already accepts the `GOOGLE_IOS_CLIENT_ID`
+  audience, blocks INACTIVE employees and sets the NextAuth cookie. `local.properties` `GOOGLE_ANDROID_CLIENT_ID`
+  only overrides it; set it empty to build with the button hidden. **Never move the id back into
+  `local.properties` alone**: every release from 1.5 to 1.22 shipped with Google hidden that way. Gate:
+  `~/.claude/skills/tia-frontend-design/scripts/check_google_account_chooser.sh .`
 - **Data endpoints**: the same additive, read-only `/api/mobile/*` namespace feeds this app
   (`summary`, `profile`, `leave`, `employees`, `expenses`, `payslips`, `calendar`,
   `team-calendar`, `trainers`), plus the
@@ -169,10 +166,12 @@ Mirrors the iOS app 1:1:
 flows (web-only). **Woods Square building access** is **not** part of this app (removed — it isn't in
 the iOS app either).
 
-**Google Sign-In** is implemented (see above) and appears only when the build carries a
-`GOOGLE_ANDROID_CLIENT_ID` in `local.properties`; password + OTP are always available. Leave it unset
-until the OAuth client has **"Enable custom URI scheme"** switched on under its Advanced Settings in
-Google Cloud Console: as of 2026-11-06 Google rejects this flow with `invalid_request`.
+**Login = iOS `LoginView`, 1:1 (Alfred, 23 Nov 2026).** The login and launch screens are **always light**:
+`Appearance.signedIn` (kept in step with `AuthViewModel.phase`) makes `isDark` false until sign-in, and then the
+chosen appearance applies. **Continue with Google shows with no email typed** (`LoginDefaults.usesGoogle`: empty
+or company email). Google's account chooser (`prompt=select_account`) picks the account. Under it are the code
+button (disabled until an email is typed), the interns hint and "Sign in with a password". Change the login on
+both platforms in the same turn.
 
 ## Build & run
 
