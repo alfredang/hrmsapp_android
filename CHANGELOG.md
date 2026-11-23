@@ -4,6 +4,26 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.24] — 2026-11-23 (versionCode 45)
+
+iOS 1.22 (52) parity.
+
+### Added
+- **Approve or reject on the notice.** For admins, a request notice (leave, MC, time off, claim, No Pay Leave payback, missed punch) carries Approve / Reject. The server names the request (`action`); an older server's `?request=` link works too.
+- **No Pay Leave payback in Approvals** (Payback tab, with the off-day clock-in) and on Home ("Waiting for approval" → Payback).
+- **Refresh** on Home's "Waiting for approval". A failed refresh keeps the last counts; the section used to disappear.
+
+### Changed
+- Missed punches are no longer on Home's "Waiting for approval" (still in the admin Timesheet).
+
+### Release notes (Play, en-US)
+- Admins can approve or reject a request straight from its notification.
+- No Pay Leave paybacks now appear in Approvals and on Home.
+- New Refresh button on Waiting for approval.
+
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 23 Nov 2026 (read back: `1.24 (45)` completed, replacing `1.23 (44)`); subject to Google review. Corporate account confirmed by API (member of `6132721113732535566` with account-wide permissions; 403 on the personal account).
+
 ## [1.23] — 2026-11-23 (versionCode 44)
 
 iOS 1.22 (50) parity: the login now matches the iOS app 1:1.
