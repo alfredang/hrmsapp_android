@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.PendingActions
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.School
@@ -110,6 +112,8 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
     val mode = ViewAs.mode
     val shown = auth.shown
     val view = ViewAsRules.summaryView(mode, auth.isApprover, auth.canViewAs)
+    val scope = rememberCoroutineScope()
+    var refreshingPending by remember { mutableStateOf(false) }
     AsyncListScreen(key = mode, fetch = {
         coroutineScope {
             val s = HrmsApi.summary(view)
@@ -136,7 +140,9 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
 
         if (admin) {
             // The web dashboard's three KPI tiles: active staff, active interns, pending approvals.
-            val waiting = home.pending?.total ?: (s.pendingLeaves + s.pendingClaims)
+            // The newest successful count: a failed refresh keeps the last one (23 Nov 2026).
+            val pendingNow = latestPending.value ?: home.pending
+            val waiting = pendingNow?.total ?: (s.pendingLeaves + s.pendingClaims)
             item { SectionTitle("Overview") }
             item { Spacer12() }
             item {
@@ -149,8 +155,32 @@ fun DashboardScreen(auth: AuthViewModel, nav: NavController) {
                 })
             }
             item { Spacer18() }
-            home.pending?.let { p ->
-                item { SectionTitle("Waiting for approval") }
+            pendingNow?.let { p ->
+                item {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        SectionTitle("Waiting for approval")
+                        Spacer(Modifier.weight(1f))
+                        Row(
+                            modifier = Modifier
+                                .heightIn(min = 44.dp)
+                                .clickable(enabled = !refreshingPending) {
+                                    scope.launch {
+                                        refreshingPending = true
+                                        pendingOrNull()
+                                        runCatching { auth.refreshUnreadCount() }
+                                        refreshingPending = false
+                                    }
+                                }
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            if (refreshingPending) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Brand.Accent)
+                            else Icon(Icons.Filled.Refresh, contentDescription = null, tint = Brand.Accent, modifier = Modifier.size(18.dp))
+                            Text("Refresh", color = Brand.Accent, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        }
+                    }
+                }
                 item { Spacer12() }
                 item { PendingCard(p, nav) }
                 item { Spacer18() }
@@ -265,7 +295,15 @@ private suspend fun pendingOrNull(): PendingApprovals? = coroutineScope {
     val approvals = async { runCatching { HrmsApi.approvals() }.getOrNull() }
     val timeOff = async { runCatching { HrmsApi.timeOff() }.getOrNull() }
     approvals.await()?.let { PendingApprovals.from(it, timeOff.await().orEmpty()) }
+        ?.also { latestPending.value = it }
+        ?: latestPending.value
 }
+
+/**
+ * The last successful "Waiting for approval" counts. A failed or cancelled refresh keeps them instead of
+ * dropping the section (Alfred, 23 Nov 2026; iOS `DashboardView.loadPending`). Cleared on sign-out.
+ */
+internal val latestPending = mutableStateOf<PendingApprovals?>(null)
 
 private data class Action(val id: String, val title: String, val icon: ImageVector, val tint: Color, val open: () -> Unit)
 

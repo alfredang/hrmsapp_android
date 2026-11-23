@@ -332,6 +332,7 @@ class AuthViewModel @Inject constructor(private val sessionPrefs: SessionPrefs) 
         viewModelScope.launch {
             Push.unregisterBeforeSignOut()
             AuthService.signOut()
+            com.tertiaryinfotech.hrportal.ui.screens.latestPending.value = null
             user = null
             canManageTrainers = false
             capabilitiesKnown = false
