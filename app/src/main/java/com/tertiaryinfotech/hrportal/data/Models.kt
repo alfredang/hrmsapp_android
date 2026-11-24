@@ -626,10 +626,24 @@ data class EmployeeRecords(
     val employee: RecordsEmployee,
     val attendance: RecordsAttendance = RecordsAttendance(),
     val leave: List<LeaveRequest> = emptyList(),
+    /** Web 25 Nov 2026; null on an older server. */
+    val intern: Boolean? = null,
+    /** Interns and accountants without an approver role (web `mustClockIn`). Staff do not clock in. */
+    val mustClockIn: Boolean? = null,
+    /** Annual Leave, MC and No Pay Leave: taken and the balance out of the allowance. */
+    val balances: List<RecordsBalance>? = null,
+    /** No Pay Leave paybacks, newest first (web 25 Nov 2026; null on an older server). */
+    val paybacks: List<RecordsPayback>? = null,
+    /** Expense claims, newest first (web 25 Nov 2026; null on an older server). */
+    val claims: List<ExpenseClaim>? = null,
 ) {
     /** Medical leave (MC / sick leave) — shown apart from other leave. */
     val medical: List<LeaveRequest> get() = leave.filter { it.leaveCode.uppercase() in MEDICAL_CODES }
     val otherLeave: List<LeaveRequest> get() = leave.filter { it.leaveCode.uppercase() !in MEDICAL_CODES }
+    val noPayLeave: List<LeaveRequest> get() = leave.filter { it.leaveCode.uppercase() == "NPL" }
+
+    /** Clock-in history only for people who clock in (Alfred, 25 Nov 2026: staff have none). */
+    val showsClock: Boolean get() = mustClockIn ?: intern ?: true
 
     companion object {
         val MEDICAL_CODES = setOf("MC", "SL")
@@ -645,6 +659,44 @@ data class RecordsEmployee(
     val department: String? = null,
     val employmentType: String? = null,
 )
+
+/** A No Pay Leave payback: an off day worked ([workDate]) to pay back an NPL day ([nplDate]). */
+@Serializable
+data class RecordsPayback(
+    val id: String,
+    val nplDate: String? = null,
+    val workDate: String? = null,
+    val days: Double = 1.0,
+    val note: String? = null,
+    val status: String = "",
+    val approver: String? = null,
+    val approvedAt: String? = null,
+    val rejectionReason: String? = null,
+    val createdAt: String? = null,
+)
+
+/** One leave balance on a person's records: days taken, and [available] of [allowance] left. */
+@Serializable
+data class RecordsBalance(
+    val code: String = "",
+    val name: String = "",
+    val taken: Double = 0.0,
+    val pending: Double = 0.0,
+    val available: Double = 0.0,
+    val allowance: Double = 0.0,
+) {
+    val isMedical: Boolean get() = code.uppercase() in EmployeeRecords.MEDICAL_CODES
+    val isNoPay: Boolean get() = code.uppercase() == "NPL"
+    /** "5 taken" */
+    val takenText: String get() = "${days(taken)} taken"
+    /** "7/12 balance" */
+    val balanceText: String get() = "${days(available)}/${days(allowance)} balance"
+
+    companion object {
+        fun days(v: Double): String =
+            if (v % 1.0 == 0.0) v.toLong().toString() else String.format(java.util.Locale.US, "%.1f", v)
+    }
+}
 
 /** Every punch on record, newest first, with all-time totals. */
 @Serializable

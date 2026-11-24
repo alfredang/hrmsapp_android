@@ -4,6 +4,19 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.26] — 2026-11-25 (versionCode 47)
+
+iOS 1.23 (54) parity.
+
+### Changed
+- **Team → a person**: Leave / MC / No Pay Leave tiles show days taken and the balance ("7/12"); clock-in history only for people who clock in (interns, accountants without an approver role), not staff; new **Payback history** and **Expense claim history** sections. Server: web 796793a (`balances`, `intern`, `mustClockIn`, `paybacks`, `claims` on `/api/mobile/employees/{id}/records`); an older server keeps the old tiles.
+
+### Release notes (Play, en-US)
+- Team: each person's page shows Annual Leave, MC and No Pay Leave taken and the balance left, plus payback and expense claim history. Clock-in history shows only for interns and others who clock in.
+
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 25 Nov 2026 (read back: `1.26 (47)` completed); subject to Google review. Corporate account confirmed by API (listed on `6132721113732535566`; 403 on the personal account).
+
 ## [1.25] — 2026-11-23 (versionCode 46)
 
 iOS 1.22 (53) parity.
