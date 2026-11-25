@@ -17,8 +17,11 @@ package com.tertiaryinfotech.hrportal.data
 object MainTabs {
     fun routes(trainerView: Boolean, admin: Boolean, accountant: Boolean): List<String> = when {
         // Trainer Admin view: no calendar (Alfred, 22 Nov 2026).
-        trainerView -> listOf("home", "trainers", "more")
-        admin -> listOf("home", "leave", "calendar", "team", "more")
+        // SOP after Trainers (Alfred, 25 Nov 2026).
+        trainerView -> listOf("home", "trainers", "sops", "more")
+        // Admins: no Leave tab, SOP after Team (Alfred, 25 Nov 2026). Leave management stays on
+        // Home ("Leave & MC") and More → Leave Management; a /leave link pushes it.
+        admin -> listOf("home", "calendar", "team", "sops", "more")
         // Accountants: the month's bank income in Calendar's place and the expenses in Team's place
         // (Alfred, 22 Nov 2026); SOP stays in More, the calendar opens only from a link.
         accountant -> listOf("home", "finance_income", "finance_expenses", "more")

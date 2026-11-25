@@ -60,17 +60,18 @@ import com.tertiaryinfotech.hrportal.ui.components.NotificationBell
 import com.tertiaryinfotech.hrportal.ui.theme.Brand
 
 /**
- * The bottom tabs, matching the iOS `MainTabView` 1:1: Home / Leave / Calendar / Team / More for admins, with SOP in
- * Team's place for everyone else (the full team list is admin-only; `/api/mobile/employees` answers 403 otherwise),
- * Accountants get Home / Income / Expenses / More, the Trainer Admin view (More → View As) Home / Trainers / More
- * ([MainTabs.routes]).
+ * The bottom tabs, matching the iOS `MainTabView` 1:1: Home / Calendar / Team / SOP / More for admins (no Leave tab
+ * since 25 Nov 2026), Home / Leave / Calendar / SOP / More for staff and interns (the full team list is admin-only;
+ * `/api/mobile/employees` answers 403 otherwise), Accountants get Home / Income / Expenses / More, the Trainer Admin
+ * view (More → View As) Home / Trainers / SOP / More ([MainTabs.routes]).
  */
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "Home", Icons.Filled.Home),
     LEAVE("leave", "Leave", Icons.AutoMirrored.Filled.EventNote),
     CALENDAR("calendar", "Calendar", Icons.Filled.CalendarMonth),
     TEAM("team", "Team", Icons.Filled.Groups),
-    // Everyone but admins: the Standard Operating Procedures in Team's place (Alfred, 22 Nov 2026).
+    // Standard Operating Procedures: staff and interns in Team's place (22 Nov 2026); admins after Team and the
+    // Trainer Admin view after Trainers (25 Nov 2026).
     SOP("sops", "SOP", Icons.AutoMirrored.Filled.MenuBook),
     // Accountants: the month's bank income and expenses (the same screens as Home → Finance → Income / Expenses).
     INCOME("finance_income", "Income", Icons.AutoMirrored.Filled.TrendingUp),
@@ -221,12 +222,12 @@ fun MainScaffold(auth: AuthViewModel) {
             modifier = Modifier.padding(inner).consumeWindowInsets(inner).imePadding(),
         ) {
             composable(Tab.HOME.route) { DashboardScreen(auth, nav) }
-            // Admins do not apply for leave or MC: their Leave tab is leave management (everyone's leave and MC).
+            // Admins do not apply for leave or MC: a /leave link opens leave management (everyone's leave and MC).
             composable(Tab.LEAVE.route) { if (shown.admin) LeaveSummaryScreen(nav) else LeaveScreen(nav) }
             // Accountants and the Trainer Admin view have no Calendar tab: a link to it pushes this screen instead.
             composable(Tab.CALENDAR.route) { TeamCalendarScreen(admin = shown.admin) }
             composable(Tab.TEAM.route) { TeamScreen(nav) }
-            // Standard Operating Procedures: the SOP tab (non-admins), More → Documents → SOP, and one SOP.
+            // Standard Operating Procedures: the SOP tab, More → Documents → SOP, and one SOP.
             composable(Tab.SOP.route) { SopListScreen(nav) }
             composable("sop_list") { SopListScreen(nav) }
             composable("sop/{slug}") { e -> SopDetailScreen(e.arguments?.getString("slug").orEmpty()) }

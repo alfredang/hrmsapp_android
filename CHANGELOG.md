@@ -4,6 +4,20 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.27] — 2026-11-25 (versionCode 48)
+
+iOS 1.23 (55) parity.
+
+### Changed
+- **Admin tab bar**: Home / Calendar / Team / SOP / More. No Leave tab (Alfred, 25 Nov 2026); leave management stays on Home ("Leave & MC") and More → Leave Management, and a /leave link opens it.
+- **Trainer Admin view**: Home / Trainers / SOP / More.
+
+### Release notes (Play, en-US)
+- Admins: the tab bar now has SOP after Team, and leave management moves to Home and More. Trainer Admins get an SOP tab too.
+
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 25 Nov 2026 (read back: `1.27 (48)` completed, replacing `1.26 (47)`); subject to Google review. Corporate account confirmed by API (listed on `6132721113732535566`; 403 on the personal account).
+
 ## [1.26] — 2026-11-25 (versionCode 47)
 
 iOS 1.23 (54) parity.

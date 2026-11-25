@@ -207,8 +207,10 @@ Single-activity (`MainActivity`) Compose app. `AuthViewModel` (`AndroidViewModel
 source of truth, driving `data/AuthService` (NextAuth sign-in) and `data/HrmsApi` (typed reads +
 apply-leave + PDF download), both riding one shared OkHttp client + `PersistentCookieJar`.
 `RootScreen` routes loading → `LoginScreen` → `MainScaffold` via a `NavHost`. The bottom nav is
-**five tabs — Home / Leave / Calendar / Team / More** for everyone — matching the iOS `MainTabView`
-1:1 (Trainers moved into More in v1.12), shown on every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
+per-role tabs from `MainTabs.routes` (`data/MoreMenu.kt`), matching the iOS `MainTabView` 1:1: admins
+**Home / Calendar / Team / SOP / More** (no Leave tab since 1.27, Alfred 25 Nov 2026; leave management is Home
+"Leave & MC" and More → Leave Management), staff and interns Home / Leave / Calendar / SOP / More, accountants
+Home / Income / Expenses / More, the Trainer Admin view Home / Trainers / SOP / More. Shown on every screen. The remaining modules (Payslips, Expenses, Profile, Timesheet, Time Off, Approvals) are
 nested destinations reached from More or Home, with a back chevron. All destinations render **bare**:
 `MainScaffold` supplies the top bar and tab bar, so wrapping one in `BrandScaffold` would stack a
 second app bar.

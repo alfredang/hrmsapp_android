@@ -71,14 +71,15 @@ class SopTest {
 
     @Test
     fun teamTabIsForAdminsOnlyEveryoneElseGetsSop() {
-        assertEquals(listOf("home", "leave", "calendar", "team", "more"), MainTabs.routes(trainerView = false, admin = true, accountant = false))
+        // Admins: no Leave tab, SOP after Team (25 Nov 2026).
+        assertEquals(listOf("home", "calendar", "team", "sops", "more"), MainTabs.routes(trainerView = false, admin = true, accountant = false))
         // tansc@ (ADMIN + ACCOUNTANT) in her own view is shown as an admin.
-        assertEquals(listOf("home", "leave", "calendar", "team", "more"), MainTabs.routes(trainerView = false, admin = true, accountant = true))
+        assertEquals(listOf("home", "calendar", "team", "sops", "more"), MainTabs.routes(trainerView = false, admin = true, accountant = true))
         assertEquals(listOf("home", "leave", "calendar", "sops", "more"), MainTabs.routes(trainerView = false, admin = false, accountant = false))
         // Accountants: Income in Calendar's place, Expenses in Team's place.
         assertEquals(listOf("home", "finance_income", "finance_expenses", "more"), MainTabs.routes(trainerView = false, admin = false, accountant = true))
-        // Trainer Admin view: no calendar.
-        assertEquals(listOf("home", "trainers", "more"), MainTabs.routes(trainerView = true, admin = false, accountant = false))
+        // Trainer Admin view: no calendar; SOP after Trainers (25 Nov 2026).
+        assertEquals(listOf("home", "trainers", "sops", "more"), MainTabs.routes(trainerView = true, admin = false, accountant = false))
     }
 
     @Test
