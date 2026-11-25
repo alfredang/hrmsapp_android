@@ -287,10 +287,59 @@ data class Payslip(
     val bonus: Double = 0.0,
     val grossSalary: Double = 0.0,
     val cpfEmployee: Double = 0.0,
+    // Pay breakdown (web, 26 Nov 2026). All defaulted, so an older server still decodes; shown by `PayslipFigures`.
+    /** Employer CPF, paid by the company on top of the gross pay. */
+    @Serializable(with = FlexNumberSerializer::class) val cpfEmployer: Double = 0.0,
+    /** Interns have no CPF: both CPF figures are 0 and the app says so instead of showing 0.00. */
+    val intern: Boolean = false,
+    /** Unpaid days taken that month (No Pay Leave; MC too for interns) and the amount deducted. */
+    @Serializable(with = FlexNumberSerializer::class) val unpaidLeaveDays: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val unpaidLeaveDeduction: Double = 0.0,
+    /** Approved paybacks (off days worked) added back; already included in [grossSalary]. */
+    @Serializable(with = FlexNumberSerializer::class) val paybackDays: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val paybackAmount: Double = 0.0,
     val totalDeductions: Double = 0.0,
     val netSalary: Double = 0.0,
     val status: String = "",
     val pdfPath: String = "",
+    /**
+     * The CPF EZPay statement this payslip was generated from (web, 26 Nov 2026). Admins and accountants only:
+     * null for staff and interns, when no statement is on file, and from an older server that does not send it.
+     */
+    val cpfSubmission: PayslipCpfSubmission? = null,
+)
+
+/** The statement link on a payslip; [downloadPath] downloads with the session, like [Payslip.pdfPath]. */
+@Serializable
+data class PayslipCpfSubmission(
+    val id: String,
+    val name: String = "",
+    val periodLabel: String? = null,
+    val downloadPath: String = "",
+)
+
+// MARK: - CPF submissions (/api/mobile/cpf-submissions; admins and accountants, 403 otherwise)
+
+@Serializable
+data class CpfSubmissionsResponse(
+    /** Latest first, as the server sorts them; keep that order. */
+    val cpfSubmissions: List<CpfSubmission> = emptyList(),
+)
+
+/** One CPF EZPay "Confirm Employee Details" PDF in the shared Drive folder. */
+@Serializable
+data class CpfSubmission(
+    val id: String,
+    val name: String = "",
+    val month: Int? = null,
+    val year: Int? = null,
+    /** "November 2026"; null when the file name carries no month. */
+    val periodLabel: String? = null,
+    val sizeBytes: Long? = null,
+    /** ISO-8601. */
+    val uploadedAt: String? = null,
+    /** "/api/payroll/cpf-submission/files/<id>". */
+    val downloadPath: String = "",
 )
 
 // MARK: - Calendar (/api/mobile/calendar)

@@ -130,6 +130,10 @@ interface HrmsApiService {
     @GET("api/mobile/payslips")
     suspend fun payslips(): Response<PayslipsResponse>
 
+    /** Past CPF EZPay statements, latest first. Admins and accountants only (403 otherwise; 502 if Drive is down). */
+    @GET("api/mobile/cpf-submissions")
+    suspend fun cpfSubmissions(): Response<CpfSubmissionsResponse>
+
     @GET("api/mobile/calendar")
     suspend fun calendar(): Response<CalendarResponse>
 

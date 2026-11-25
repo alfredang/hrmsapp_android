@@ -4,6 +4,25 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.28] — 2026-11-26 (versionCode 49)
+
+Server: web `/api/mobile/cpf-submissions`; `cpfSubmission` and the pay breakdown fields on `/api/mobile/payslips` (26 Nov 2026).
+
+### Added
+- **CPF Submissions** (admins and accountants only): More → Finance → CPF Submissions, and a link at the top of Payslips. Lists the company's CPF EZPay statements latest first (period, or the file name when the period is unknown; file name, upload date and size), with pull to refresh and loading, empty ("No CPF submissions yet") and error states. A tap opens the PDF in the payslip viewer, downloaded with the same session. A 403 shows a short note instead of an error.
+- **Pay breakdown on every payslip** (Alfred, 26 Nov 2026), on the Payslips list and above the PDF (a "Pay breakdown" section that folds away): gross pay; "Payback added back (N days worked) + amount"; "No Pay Leave (N days) − amount" (interns: "MC / No Pay Leave"); for staff "CPF (Employee) − amount", "CPF (Employer)" (paid by the company) and "Total CPF"; for interns "CPF: None (interns have no CPF)"; then the take-home pay, emphasised. Server: `cpfEmployer`, `intern`, `unpaidLeaveDays`, `unpaidLeaveDeduction`, `paybackDays`, `paybackAmount` on `/api/mobile/payslips`, all defaulted so an older server still decodes. Logic in `data/PayslipFigures.kt` (`PayslipFiguresTest`).
+- **CPF statement on a payslip**: for admins and accountants, a payslip generated from a CPF statement has a **CPF statement** button that opens it. Staff and interns never see it; the field is optional, so an older server still decodes.
+
+### Changed
+- The payslip PDF viewer is now shared (`AuthenticatedPdfView`) by payslips and CPF statements.
+
+### Release notes (Play, en-US)
+- Admins and accountants can see and open past CPF submission statements.
+- Payslips show gross pay, CPF employee and employer contributions (interns: no CPF), MC / No Pay Leave deductions and paybacks, and take-home pay.
+
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 26 Nov 2026 (read back: `1.28 (49)` completed, replacing `1.27 (48)`); subject to Google review. Corporate account confirmed by API (listed on `6132721113732535566` with 17 account-wide permissions; 403 on the personal account).
+
 ## [1.27] — 2026-11-25 (versionCode 48)
 
 iOS 1.23 (55) parity.

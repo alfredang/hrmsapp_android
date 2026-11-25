@@ -98,11 +98,14 @@ object MoreMenu {
         }
 
         // Same order as the web sidebar's Finance section (Alfred, 23 Nov 2026):
-        // Accounting, then Claim Management, then Payroll (Payslips).
+        // Accounting, then Claim Management, then Payroll (Payslips, CPF Submissions).
         val finance = buildList {
             if (admin) add(route("claims", "Claim Management", "claims", "approvals"))
             else if (!accountant) add(route("claims", "Expense Claims", "claims", "expenses"))
             if (!intern) add(route("payslips", "Payslips", "payslips", "payslips"))
+            // The company's CPF EZPay statements (26 Nov 2026): everyone's NRIC and wages, so the admin and accountant
+            // views only (`CpfSubmissions.canView`); the server refuses anyone else.
+            if (admin || accountant) add(route("cpfsubmissions", "CPF Submissions", "cpf", "cpf_submissions"))
         }
 
         val accounting = if (admin || accountant) listOf(

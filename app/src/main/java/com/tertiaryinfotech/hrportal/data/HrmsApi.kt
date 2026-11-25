@@ -76,6 +76,8 @@ object HrmsApi {
     suspend fun employeeRecords(id: String) = unwrap { service.employeeRecords(id) }
     suspend fun expenses() = unwrap { service.expenses() }
     suspend fun payslips() = unwrap { service.payslips() }
+    /** Admins and accountants only; anyone else gets an [ApiException] with status 403. Each PDF opens with [downloadPdf]. */
+    suspend fun cpfSubmissions() = unwrap("Could not load the CPF submissions.") { service.cpfSubmissions() }
     suspend fun calendar() = unwrap { service.calendar() }
     suspend fun teamCalendar(year: Int) = unwrap { service.teamCalendar(year) }
     suspend fun profile() = unwrap { service.profile() }

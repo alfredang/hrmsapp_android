@@ -67,7 +67,7 @@ class HomeRolesTest {
         assertEquals(listOf("My Stuff", "People", "Processes", "Accounting", "Finance", "Documents", "System"), admin.keys.toList())
         assertEquals(listOf("staff", "interns", "trainers"), admin["People"])
         assertEquals(listOf("approvals", "leavemgmt", "timeoff", "timesheet"), admin["Processes"])
-        assertEquals(listOf("claims", "payslips"), admin["Finance"])
+        assertEquals(listOf("claims", "payslips", "cpfsubmissions"), admin["Finance"])
 
         val staff = ids(MoreMenu.sections(ShownRole(false, false, false, false, false), false, false))
         assertEquals(listOf("AL", "MC", "timeoff", "offinlieu"), staff["Processes"])
@@ -80,7 +80,7 @@ class HomeRolesTest {
 
         val accountant = ids(MoreMenu.sections(ShownRole(false, false, true, true, true), false, canManageTrainers = true))
         assertEquals(listOf("clock", "mytimesheet"), accountant["Processes"])
-        assertEquals(listOf("payslips"), accountant["Finance"])
+        assertEquals(listOf("payslips", "cpfsubmissions"), accountant["Finance"])
         assertEquals(listOf("expensetracking", "incometracking", "reconciliation", "statements"), accountant["Accounting"])
         assertEquals("a preview hides the Trainer Admin directory", listOf("trainercontacts"), accountant["People"])
 

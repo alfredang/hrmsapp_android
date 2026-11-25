@@ -50,6 +50,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.tertiaryinfotech.hrportal.data.BankDirection
+import com.tertiaryinfotech.hrportal.data.CpfSubmissions
 import com.tertiaryinfotech.hrportal.data.MainTabs
 import com.tertiaryinfotech.hrportal.push.Push
 import com.tertiaryinfotech.hrportal.push.routeForLink
@@ -88,6 +89,7 @@ private val FORM_TITLES = mapOf(
     "time_off_request" to "Request time off",
     "calendar_new" to "Add event",
     "payslip_pdf" to "Payslip",
+    "cpf_pdf" to "CPF statement",
     "notifications" to "Notifications",
 )
 
@@ -256,7 +258,10 @@ fun MainScaffold(auth: AuthViewModel) {
             composable("team_group/{group}") { e -> TeamScreen(nav, initialGroup = e.arguments?.getString("group") ?: "staff") }
             composable("expenses") { ExpensesScreen(nav) }
             composable("expense_new") { NewClaimScreen(nav) }
-            composable("payslips") { PayslipsScreen(nav) }
+            // CPF EZPay statements list everyone's NRIC and wages: admin and accountant views only (server 403 otherwise).
+            composable("payslips") { PayslipsScreen(nav, showCpf = CpfSubmissions.canView(shown)) }
+            composable("cpf_submissions") { CpfSubmissionsScreen(nav) }
+            composable("cpf_pdf") { CpfPdfScreen() }
             composable("profile") { ProfileScreen(nav) }
             composable("leave_request/{type}") { e ->
                 ApplyLeaveScreen(nav, e.arguments?.getString("type"), isIntern = auth.user?.isIntern == true)
@@ -303,7 +308,7 @@ fun MainScaffold(auth: AuthViewModel) {
             composable("finance_statements") { BankStatementsScreen() }
             composable("finance_reconciliation") { ReconciliationScreen() }
             composable("notifications") { NotificationsScreen(auth, nav) }
-            composable("payslip_pdf") { PayslipPdfScreen(nav) }
+            composable("payslip_pdf") { PayslipPdfScreen(nav, showCpf = CpfSubmissions.canView(shown)) }
         }
     }
 }

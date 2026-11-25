@@ -44,6 +44,7 @@ object MockApi {
             val code = when {
                 leaveError != null -> 400
                 path == "/api/mobile/employees" && role != "admin" -> 403
+                path == "/api/mobile/cpf-submissions" && !cpfRole(role) -> 403
                 json == null -> 404
                 else -> 200
             }
@@ -75,7 +76,9 @@ object MockApi {
         path == "/api/mobile/leave" -> LEAVE
         path == "/api/public-holidays" -> HOLIDAYS
         path == "/api/mobile/expenses" -> EXPENSES
-        path == "/api/mobile/payslips" -> PAYSLIPS
+        // Admins and accountants also get the CPF statement each payslip came from (null for staff, as on the server).
+        path == "/api/mobile/payslips" -> if (cpfRole(role)) PAYSLIPS_WITH_CPF else PAYSLIPS
+        path == "/api/mobile/cpf-submissions" -> if (cpfRole(role)) CPF_SUBMISSIONS else null
         path == "/api/mobile/approvals" -> APPROVALS
         // `intern` goes to approvers only, as on the real server.
         // Admins only since 22 Nov 2026 (403 for everyone else, as on the server).
@@ -105,6 +108,8 @@ object MockApi {
         path.startsWith("/api/accounting/reconciliation/") -> RECON_DETAIL
         else -> null
     }
+
+    private fun cpfRole(role: String) = role == "admin" || role == "accountant"
 
     private const val NPL_STATUS = "{\"cap\":7,\"used\":1,\"pending\":2,\"remaining\":4}"
 
@@ -184,9 +189,21 @@ object MockApi {
       ]}"""
 
     private const val PAYSLIPS = """{"payslips":[
-        {"id":"p1","payPeriodStart":"2026-10-01","payPeriodEnd":"2026-10-31","paymentDate":"2026-10-31","grossSalary":4500,"cpfEmployee":900,"netSalary":3600,"status":"PAID","pdfPath":"/x.pdf"},
-        {"id":"p2","payPeriodStart":"2026-09-01","payPeriodEnd":"2026-09-30","paymentDate":"2026-09-30","grossSalary":4500,"cpfEmployee":900,"netSalary":3600,"status":"PAID","pdfPath":"/y.pdf"}
+        {"id":"p1","payPeriodStart":"2026-10-01","payPeriodEnd":"2026-10-31","paymentDate":"2026-10-31","grossSalary":4706.9,"cpfEmployee":900,"cpfEmployer":765,"unpaidLeaveDays":1,"unpaidLeaveDeduction":206.9,"paybackDays":1,"paybackAmount":206.9,"netSalary":3600,"status":"PAID","pdfPath":"/x.pdf"},
+        {"id":"p2","payPeriodStart":"2026-09-01","payPeriodEnd":"2026-09-30","paymentDate":"2026-09-30","grossSalary":4500,"cpfEmployee":900,"cpfEmployer":765,"netSalary":3600,"status":"PAID","pdfPath":"/y.pdf"}
       ]}"""
+
+    private const val PAYSLIPS_WITH_CPF = """{"payslips":[
+        {"id":"p1","payPeriodStart":"2026-10-01","payPeriodEnd":"2026-10-31","paymentDate":"2026-10-31","grossSalary":4706.9,"cpfEmployee":900,"cpfEmployer":765,"unpaidLeaveDays":1,"unpaidLeaveDeduction":206.9,"paybackDays":1,"paybackAmount":206.9,"netSalary":3600,"status":"PAID","pdfPath":"/x.pdf",
+         "cpfSubmission":{"id":"cpf10","name":"CPF EZPay Oct 2026.pdf","periodLabel":"October 2026","downloadPath":"/api/payroll/cpf-submission/files/cpf10"}},
+        {"id":"p2","payPeriodStart":"2026-09-01","payPeriodEnd":"2026-09-30","paymentDate":"2026-09-30","grossSalary":4500,"cpfEmployee":900,"cpfEmployer":765,"netSalary":3600,"status":"PAID","pdfPath":"/y.pdf","cpfSubmission":null}
+    ]}"""
+
+    private const val CPF_SUBMISSIONS = """{"cpfSubmissions":[
+        {"id":"cpf11","name":"CPF EZPay Nov 2026.pdf","month":11,"year":2026,"periodLabel":"November 2026","sizeBytes":421888,"uploadedAt":"2026-11-26T02:15:00.000Z","downloadPath":"/api/payroll/cpf-submission/files/cpf11"},
+        {"id":"cpf10","name":"CPF EZPay Oct 2026.pdf","month":10,"year":2026,"periodLabel":"October 2026","sizeBytes":409600,"uploadedAt":"2026-10-28T03:40:00.000Z","downloadPath":"/api/payroll/cpf-submission/files/cpf10"},
+        {"id":"cpfx","name":"scan_0042.pdf","month":null,"year":null,"periodLabel":null,"sizeBytes":null,"uploadedAt":null,"downloadPath":"/api/payroll/cpf-submission/files/cpfx"}
+    ]}"""
 
     private const val APPROVALS = """{
       "leaves":[

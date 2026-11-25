@@ -57,6 +57,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Balance
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Settings
@@ -186,6 +187,7 @@ private fun rowIcon(key: String): Pair<ImageVector, Color> = when (key) {
     "clock" -> Icons.Filled.AccessTimeFilled to Brand.Amber
     "offinlieu" -> Icons.Filled.EventAvailable to Brand.Mint
     "payslips" -> Icons.Filled.Description to Brand.Green
+    "cpf" -> Icons.Filled.FolderShared to Brand.Accent
     "claims" -> Icons.Filled.CreditCard to Brand.Orange
     "expensetracking" -> Icons.AutoMirrored.Filled.TrendingDown to Brand.Red
     "incometracking" -> Icons.AutoMirrored.Filled.TrendingUp to Brand.Green
