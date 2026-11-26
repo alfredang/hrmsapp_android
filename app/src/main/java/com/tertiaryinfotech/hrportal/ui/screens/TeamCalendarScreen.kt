@@ -223,6 +223,7 @@ private class Palette(table: List<CalendarCategoryInfo>) {
     val order: List<String> = table.map { it.key }
 
     fun info(key: String): CalendarCategoryInfo? = byKey[key] ?: CalendarCategories.FALLBACK.firstOrNull { it.key == key }
+        ?: CalendarCategories.PAYBACK_CHIP.takeIf { key == it.key }
     fun label(key: String): String = info(key)?.label ?: key
     fun emoji(key: String?): String = key?.let { info(it)?.emoji }.orEmpty()
     fun color(key: String): Color =
@@ -741,6 +742,8 @@ private fun mergeYears(a: TeamCalendarResponse, b: TeamCalendarResponse?): TeamC
         else (a.birthdays.orEmpty() + b.birthdays.orEmpty()).distinctBy { it.id },
         ownWorkdays = a.ownWorkdays ?: b.ownWorkdays,
         categories = a.categories ?: b.categories,
+        paybacks = if (a.paybacks == null && b.paybacks == null) null
+        else (a.paybacks.orEmpty() + b.paybacks.orEmpty()).distinctBy { it.id },
     )
 
 // MARK: - Date helpers

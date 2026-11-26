@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Flight
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.EventAvailable
@@ -31,19 +34,24 @@ import androidx.compose.material.icons.outlined.MedicalServices
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -51,6 +59,7 @@ import kotlinx.coroutines.CoroutineScope
 import com.tertiaryinfotech.hrportal.data.EmployeeRecords
 import com.tertiaryinfotech.hrportal.data.HrmsApi
 import com.tertiaryinfotech.hrportal.data.LeaveRequest
+import com.tertiaryinfotech.hrportal.data.PayMonthSummary
 import com.tertiaryinfotech.hrportal.data.RecordsBalance
 import com.tertiaryinfotech.hrportal.data.RecordsPayback
 import com.tertiaryinfotech.hrportal.data.ExpenseClaim
@@ -68,6 +77,7 @@ import com.tertiaryinfotech.hrportal.ui.components.RecordDetailSheet
 import com.tertiaryinfotech.hrportal.ui.components.RecordRow
 import com.tertiaryinfotech.hrportal.ui.components.RecordTable
 import java.util.Locale
+import kotlin.coroutines.cancellation.CancellationException
 
 /** How many rows each section previews before "See all". */
 private const val PREVIEW_COUNT = 3
@@ -178,6 +188,10 @@ fun EmployeeRecordsScreen(employeeId: String, nav: NavController) {
                 }
             }
 
+            // The month's Annual Leave, No Pay Leave, MC and Payback, with a month filter, for working out
+            // the pay (Alfred, 26 Nov 2026). Hidden on an older server without the endpoint.
+            PayMonthSection(employeeId)
+
             // Each tile opens its full history. Leave / MC / No Pay Leave: taken and balance
             // (Alfred, 25 Nov 2026); an older server without balances keeps the old tiles.
             val balances = data.balances.orEmpty()
@@ -243,6 +257,95 @@ fun EmployeeRecordsScreen(employeeId: String, nav: NavController) {
                     nav.navigate(RecordsRoutes.leave(employeeId, RecordsLeaveKind.CLAIMS))
                 }
             }
+        }
+    }
+}
+
+/**
+ * "Month for pay": a month filter and four cards for that month — Annual Leave, No Pay Leave, MC ("No Pay MC"
+ * for interns, "Paid MC" for staff) and Payback (Alfred, 26 Nov 2026: "easier for us to compute the payout").
+ * Default month = the current one (SGT). A failed first load (404 on an older server, 403) hides the section;
+ * a later failure keeps the last figures, dimmed. Mirrors iOS `PayMonthSection`.
+ */
+@Composable
+private fun PayMonthSection(employeeId: String) {
+    var month by rememberSaveable(employeeId) { mutableStateOf(AttendanceMonth.current()) }
+    var data by remember(employeeId) { mutableStateOf<PayMonthSummary?>(null) }
+    var unavailable by remember(employeeId) { mutableStateOf(false) }
+
+    LaunchedEffect(employeeId, month) {
+        try {
+            val d = HrmsApi.payMonth(employeeId, month)
+            if (d.month == month || data == null) data = d
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            if (data == null) unavailable = true
+        }
+    }
+    if (unavailable) return
+
+    val current = data?.takeIf { it.month == month }
+    val tiles = data?.tiles ?: PAY_MONTH_PLACEHOLDERS
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.testTag("records.payMonth")) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { SectionTitle("Month for pay", Icons.Outlined.EditCalendar) }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = accent,
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                    .clickable { month = AttendanceMonth.shift(month, -1) }.padding(6.dp)
+                    .testTag("records.payMonth.previous"),
+            )
+            Text(
+                AttendanceMonth.label(month), color = Brand.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                maxLines = 1, modifier = Modifier.testTag("records.payMonth.month"),
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = accent,
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                    .clickable { month = AttendanceMonth.shift(month, 1) }.padding(6.dp)
+                    .testTag("records.payMonth.next"),
+            )
+        }
+        // 2 × 2: Annual Leave, No Pay Leave / MC, Payback. Dimmed while the picked month loads.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.alpha(if (current != null) 1f else 0.5f),
+        ) {
+            tiles.chunked(2).forEach { pair ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    pair.forEach { t -> PayMonthTile(t, loaded = data != null, modifier = Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+private val PAY_MONTH_PLACEHOLDERS = listOf("Annual Leave", "No Pay Leave", "MC", "Payback")
+    .map { PayMonthSummary.Tile(it, "\u2014", " ", 0x6B7280) }
+
+/** One "Month for pay" card: colour key and label, the days, and what it does to the pay. */
+@Composable
+private fun PayMonthTile(t: PayMonthSummary.Tile, loaded: Boolean, modifier: Modifier) {
+    Card(
+        padding = 14,
+        modifier = modifier
+            .semantics(mergeDescendants = true) { contentDescription = "${t.label}: ${t.value}, ${t.hint}" }
+            .testTag("records.payMonth.${t.label}"),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(9.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF000000 or t.color)))
+                Text(
+                    t.label, color = Brand.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 5.dp),
+                )
+            }
+            Text(
+                if (loaded) t.value else "\u2014", color = Brand.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                maxLines = 1,
+            )
+            Text(t.hint, color = Brand.TextSecondary, fontSize = 11.sp, maxLines = 2, minLines = 2)
         }
     }
 }

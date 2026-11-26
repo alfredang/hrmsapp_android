@@ -408,6 +408,26 @@ data class TeamCalendarResponse(
     val ownWorkdays: List<Int>? = null,
     /** 1.16: the colour + emoji legend. Absent on an older server: [CalendarCategories.FALLBACK] is used. */
     val categories: List<CalendarCategoryInfo>? = null,
+    /**
+     * Approved No Pay Leave paybacks (web 26 Nov 2026; absent on an older server): approvers get everyone's,
+     * others their own. They feed the month totals' "Payback" chip and take paid-back days off No Pay Leave.
+     */
+    val paybacks: List<TeamPayback>? = null,
+)
+
+/**
+ * An approved payback on the team calendar: an off day worked ([workDate], UTC midnight of the calendar date)
+ * that pays back [days] (1 or 0.5) of the No Pay Leave request [leaveRequestId] (= a [TeamLeaveEntry.id]).
+ */
+@Serializable
+data class TeamPayback(
+    val id: String = "",
+    val employeeId: String = "",
+    val leaveRequestId: String = "",
+    val nplDate: String? = null,
+    val workDate: String? = null,
+    @Serializable(with = FlexNumberSerializer::class) val days: Double = 1.0,
+    val isSelf: Boolean = false,
 )
 
 @Serializable
@@ -744,6 +764,46 @@ data class RecordsBalance(
     companion object {
         fun days(v: Double): String =
             if (v % 1.0 == 0.0) v.toLong().toString() else String.format(java.util.Locale.US, "%.1f", v)
+    }
+}
+
+/**
+ * `GET /api/mobile/employees/{id}/pay-month?month=YYYY-MM` (web 26 Nov 2026): the four figures for working out
+ * one person's pay that month, counted the way the payslip counts them. [mcLabel] is "No Pay MC" for interns and
+ * "Paid MC" for staff ([mcPaid]). Mirrors iOS `PayMonthSummary`.
+ */
+@Serializable
+data class PayMonthSummary(
+    /** "YYYY-MM" */
+    val month: String = "",
+    val intern: Boolean = false,
+    @Serializable(with = FlexNumberSerializer::class) val annualLeaveDays: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val noPayLeaveDays: Double = 0.0,
+    @Serializable(with = FlexNumberSerializer::class) val mcDays: Double = 0.0,
+    val mcPaid: Boolean = true,
+    val mcLabel: String = "",
+    @Serializable(with = FlexNumberSerializer::class) val paybackDays: Double = 0.0,
+) {
+    /** One card of the "Month for pay" grid; [color] is 0xRRGGBB. */
+    data class Tile(val label: String, val value: String, val hint: String, val color: Long)
+
+    /** Annual Leave, No Pay Leave, MC, Payback: the 2 × 2 grid in reading order. */
+    val tiles: List<Tile>
+        get() = listOf(
+            Tile("Annual Leave", days(annualLeaveDays), "Paid", 0xF59E0B),
+            Tile("No Pay Leave", days(noPayLeaveDays), "Deducted", 0x64748B),
+            Tile(mcLabel.ifBlank { if (mcPaid) "Paid MC" else "No Pay MC" }, days(mcDays), if (mcPaid) "Paid" else "Deducted", 0xEC4899),
+            Tile("Payback", days(paybackDays), "Off days worked, added back", 0x10B981),
+        )
+
+    companion object {
+        /** "1 day", "2.5 days", "0.25 days", "0 days": up to 2 decimals, no trailing zeros. */
+        fun days(n: Double): String {
+            // Not BigDecimal.stripTrailingZeros: Android keeps the scale of a zero ("0.00").
+            val text = String.format(java.util.Locale.US, "%.2f", n).trimEnd('0').trimEnd('.')
+                .let { if (it == "-0") "0" else it }
+            return "$text ${if (text == "1") "day" else "days"}"
+        }
     }
 }
 

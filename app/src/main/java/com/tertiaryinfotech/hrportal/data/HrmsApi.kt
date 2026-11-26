@@ -74,6 +74,8 @@ object HrmsApi {
     suspend fun employees() = unwrap { service.employees() }
     /** Team drill-down (approvers): one person's clock-ins, MC and leave. */
     suspend fun employeeRecords(id: String) = unwrap { service.employeeRecords(id) }
+    /** Team → person "Month for pay" ([month] = "YYYY-MM"). An older server answers 404: the caller hides the section. */
+    suspend fun payMonth(id: String, month: String) = unwrap { service.payMonth(id, month) }
     suspend fun expenses() = unwrap { service.expenses() }
     suspend fun payslips() = unwrap { service.payslips() }
     /** Admins and accountants only; anyone else gets an [ApiException] with status 403. Each PDF opens with [downloadPdf]. */

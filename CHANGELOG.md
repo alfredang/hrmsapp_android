@@ -4,6 +4,26 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.30] — 2026-11-26 (versionCode 51)
+
+Server: web 29dc0a9 (`/api/mobile/employees/{id}/pay-month`; `paybacks` on `/api/mobile/team-calendar`).
+
+### Added
+- **Month for pay** (Alfred, 26 Nov 2026: "easier for us to compute the payout"): Team → a person has a month filter (previous / next around "November 2026", default the current month in Singapore time) and four cards for that month: Annual Leave (Paid), No Pay Leave (Deducted), No Pay MC for interns (Deducted) or Paid MC for staff (Paid), and Payback (off days worked, added back). Hidden on a server without the endpoint. Mirrors iOS 1.25 build 58.
+
+### Changed
+- **Calendar month totals**: the Time Off chip is replaced by **Payback** (approved off days worked in the month, #10b981); a paid-back No Pay Leave day no longer counts under No Pay Leave (web parity).
+
+### Release notes (Play, en-US)
+- Interns can now see their own payslips.
+- Admins: each person's page in Team has a month filter with that month's Annual Leave, No Pay Leave, MC (No Pay MC for interns, Paid MC for staff) and Payback.
+- The calendar's month totals show Payback instead of Time Off.
+
+(The 1.29 note is carried over in case 1.29 was still in Google review when 1.30 replaced it.)
+
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 26 Nov 2026 (read back: `1.30 (51)` completed, replacing `1.29 (50)`); subject to Google review. Corporate account confirmed by API (listed on `6132721113732535566` with 17 account-wide permissions; 403 on the personal account).
+
 ## [1.29] — 2026-11-26 (versionCode 50)
 
 ### Changed

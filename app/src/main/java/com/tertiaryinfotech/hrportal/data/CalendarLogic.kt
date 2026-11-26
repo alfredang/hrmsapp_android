@@ -17,6 +17,14 @@ object CalendarCategories {
     const val OTHER_LEAVE = "OTHER_LEAVE"
     const val TIME_OFF = "TIME_OFF"
     const val BIRTHDAY = "BIRTHDAY"
+    /**
+     * Web `PAYBACK_SUMMARY_CATEGORY`: an approved No Pay Leave payback in the month totals (Alfred, 26 Nov 2026).
+     * Not an event category (paybacks are not drawn on the grid), so it is not in the legend.
+     */
+    const val PAYBACK = "PAYBACK"
+
+    /** Web `PAYBACK_CHIP_COLOR`: the month totals' "Payback" chip. */
+    val PAYBACK_CHIP = CalendarCategoryInfo(PAYBACK, "Payback", "#10b981", "")
 
     /** The web table, used when the server sends no `categories` (an older server). Legend order. */
     val FALLBACK: List<CalendarCategoryInfo> = listOf(
@@ -62,6 +70,8 @@ data class PersonMonthSummary(
     val timeOffHours: Double = 0.0,
     /** Approved full-day Off Days (interns). */
     val offDays: Int = 0,
+    /** Approved paybacks: off days worked in the month to pay back No Pay Leave (1 or 0.5 each). */
+    val paybackDays: Double = 0.0,
 )
 
 /** Web `SummaryEvent`: a leave or time off placed on the calendar. */
@@ -71,7 +81,7 @@ data class SummaryEvent(
     val end: Date,
     val allDay: Boolean,
     val personId: String?,
-    /** Leave: the days charged for the whole request (0.5 for a half day). */
+    /** Leave: the days charged for the whole request (0.5 for a half day). Payback: 1 or 0.5. */
     val days: Double? = null,
     /** Time off: hours taken (0 for a full Off Day). */
     val hours: Double? = null,
@@ -102,7 +112,7 @@ object CalendarSummary {
         month: Int,
         holidayKeys: Set<String> = emptySet(),
     ): PersonMonthSummary {
-        var al = 0.0; var mc = 0.0; var npl = 0.0; var other = 0.0; var hours = 0.0; var offDays = 0
+        var al = 0.0; var mc = 0.0; var npl = 0.0; var other = 0.0; var hours = 0.0; var offDays = 0; var payback = 0.0
         fun inMonth(c: Calendar) = c.get(Calendar.YEAR) == year && c.get(Calendar.MONTH) == month
         fun isWorking(c: Calendar): Boolean {
             val dow = c.get(Calendar.DAY_OF_WEEK)
@@ -114,6 +124,11 @@ object CalendarSummary {
             val start = midnight(e.start)
             val end = midnight(e.end)
 
+            // A payback counts on the off day worked.
+            if (e.category == CalendarCategories.PAYBACK) {
+                if (inMonth(start)) payback += e.days ?: 1.0
+                continue
+            }
             if (e.category == CalendarCategories.TIME_OFF) {
                 if (!inMonth(start)) continue
                 if (e.allDay) offDays += 1 else hours += e.hours ?: 0.0
@@ -150,15 +165,26 @@ object CalendarSummary {
                 else -> other += days
             }
         }
-        return PersonMonthSummary(round2(al), round2(mc), round2(npl), round2(other), round2(hours), offDays)
+        return PersonMonthSummary(round2(al), round2(mc), round2(npl), round2(other), round2(hours), offDays, round2(payback))
     }
 
-    /** The picked person's leave (with a category) and time off, as summary events. */
+    /**
+     * Leave (with a category), time off and approved paybacks, as summary events. As on the web, a paid-back
+     * No Pay Leave day is no longer counted under No Pay Leave: each No Pay Leave entry is charged its days less
+     * the days paid back against it (never below 0). A payback is placed on its work date, like the other events.
+     */
     fun events(data: TeamCalendarResponse): List<SummaryEvent> = buildList {
+        val paybacks = data.paybacks.orEmpty()
+        val paidBack = paybacks.groupBy { it.leaveRequestId }.mapValues { (_, l) -> l.sumOf { it.days } }
         for (e in data.entries) {
             val cat = e.category ?: continue
             val s = Fmt.parse(e.startDate) ?: continue
-            add(SummaryEvent(cat, s, Fmt.parse(e.endDate) ?: s, allDay = true, personId = e.employeeId, days = e.days))
+            val days = if (cat == CalendarCategories.NO_PAY_LEAVE) e.days - minOf(e.days, paidBack[e.id] ?: 0.0) else e.days
+            add(SummaryEvent(cat, s, Fmt.parse(e.endDate) ?: s, allDay = true, personId = e.employeeId, days = days))
+        }
+        for (p in paybacks) {
+            val d = Fmt.parse(p.workDate) ?: continue
+            add(SummaryEvent(CalendarCategories.PAYBACK, d, d, allDay = true, personId = p.employeeId, days = p.days))
         }
         for (t in data.timeOff) {
             val d = Fmt.parse(t.date) ?: continue
@@ -170,7 +196,10 @@ object CalendarSummary {
     fun holidayKeys(data: TeamCalendarResponse): Set<String> =
         data.holidays.mapNotNull { Fmt.parse(it.startDate)?.let(::dayKey) }.toSet()
 
-    /** The web's month-total pills: label, value, category key. Other Leave only when above 0. */
+    /**
+     * The web's month-total pills: label, value, category key. Other Leave only when above 0. Payback replaced
+     * Time Off (Alfred, 26 Nov 2026).
+     */
     fun rows(s: PersonMonthSummary): List<Triple<String, String, String>> {
         fun days(n: Double) = "${num(n)} ${if (n == 1.0) "day" else "days"}"
         return buildList {
@@ -178,8 +207,7 @@ object CalendarSummary {
             add(Triple("Medical Leave", days(s.medicalLeaveDays), CalendarCategories.MEDICAL_LEAVE))
             add(Triple("No Pay Leave", days(s.noPayLeaveDays), CalendarCategories.NO_PAY_LEAVE))
             if (s.otherLeaveDays > 0) add(Triple("Other Leave", days(s.otherLeaveDays), CalendarCategories.OTHER_LEAVE))
-            val extra = if (s.offDays > 0) " + ${s.offDays} off ${if (s.offDays == 1) "day" else "days"}" else ""
-            add(Triple("Time Off", "${num(s.timeOffHours)} h$extra", CalendarCategories.TIME_OFF))
+            add(Triple("Payback", days(s.paybackDays), CalendarCategories.PAYBACK))
         }
     }
 

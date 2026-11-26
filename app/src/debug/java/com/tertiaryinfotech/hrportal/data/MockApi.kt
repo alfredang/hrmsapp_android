@@ -86,6 +86,8 @@ object MockApi {
         path == "/api/mobile/sops" -> SOPS
         path == "/api/mobile/employees" -> EMPLOYEES.replace("ISADMIN", (role == "admin").toString())
             .let { if (role == "admin") it else it.replace(Regex(",\"intern\":(true|false)"), "") }
+        // Team → person "Month for pay" (web 26 Nov 2026); Amanda Halim (e5) is the intern case.
+        path.startsWith("/api/mobile/employees/") && path.endsWith("/pay-month") -> payMonth(path, query("month"))
         path.startsWith("/api/mobile/employees/") -> RECORDS
         path == "/api/mobile/profile" -> profile(role)
         path == "/api/mobile/attendance" -> ATTENDANCE
@@ -110,6 +112,19 @@ object MockApi {
     }
 
     private fun cpfRole(role: String) = role == "admin" || role == "accountant"
+
+    /** The month's pay figures; only November 2026 has any, like the mock calendar. */
+    private fun payMonth(path: String, month: String?): String {
+        val m = month ?: "2026-11"
+        val intern = path.contains("/e5/")
+        val nov = m == "2026-11"
+        val al = if (nov && !intern) 2 else 0
+        val npl = if (nov && !intern) 2 else 0
+        val mc = if (nov && intern) 2 else 0
+        val payback = if (nov && !intern) 1 else 0
+        return """{"month":"$m","intern":$intern,"annualLeaveDays":$al,"noPayLeaveDays":$npl,"mcDays":$mc,""" +
+            """"mcPaid":${!intern},"mcLabel":"${if (intern) "No Pay MC" else "Paid MC"}","paybackDays":$payback}"""
+    }
 
     private const val NPL_STATUS = "{\"cap\":7,\"used\":1,\"pending\":2,\"remaining\":4}"
 
@@ -269,6 +284,7 @@ object MockApi {
       "timeOff":[{"id":"to4","employeeId":"e5","employeeName":"Amanda Halim","date":"2026-11-13","startTime":"14:00","endTime":"16:00","hours":2,"offDay":false,"isSelf":false,"group":"intern"},
                  {"id":"to5","employeeId":"e5","employeeName":"Amanda Halim","date":"2026-11-20","startTime":"09:00","endTime":"18:00","hours":0,"offDay":true,"isSelf":false,"group":"intern"}],
       "birthdays":[{"id":"bd-e3-2026","employeeId":"e3","name":"Priya Nair","date":"2026-11-24T04:00:00.000Z"}],
+      "paybacks":[{"id":"pb1","employeeId":"e2","leaveRequestId":"t1","nplDate":"2026-11-10T00:00:00.000Z","workDate":"2026-11-14T00:00:00.000Z","days":1,"isSelf":false}],
       "ownWorkdays":[1,2,3,4,5],
       "holidays":[{"id":"h1","title":"\uD83E\uDE94 Deepavali","startDate":"2026-11-08","endDate":"2026-11-08"}]}"""
 

@@ -222,17 +222,83 @@ class CalendarParityTest {
 
     @Test
     fun `month total rows read like the web pills`() {
+        // Payback replaced Time Off (Alfred, 26 Nov 2026): time off no longer shows in the totals.
         val rows = CalendarSummary.rows(
-            PersonMonthSummary(annualLeaveDays = 1.0, medicalLeaveDays = 2.5, timeOffHours = 3.5, offDays = 2),
+            PersonMonthSummary(annualLeaveDays = 1.0, medicalLeaveDays = 2.5, timeOffHours = 3.5, offDays = 2, paybackDays = 1.5),
         )
         assertEquals(
-            listOf("Annual Leave" to "1 day", "Medical Leave" to "2.5 days", "No Pay Leave" to "0 days", "Time Off" to "3.5 h + 2 off days"),
+            listOf("Annual Leave" to "1 day", "Medical Leave" to "2.5 days", "No Pay Leave" to "0 days", "Payback" to "1.5 days"),
             rows.map { it.first to it.second },
         )
-        // Other Leave only when above zero; one off day is singular.
-        val withOther = CalendarSummary.rows(PersonMonthSummary(otherLeaveDays = 1.0, offDays = 1))
+        assertEquals(CalendarCategories.PAYBACK, rows.last().third)
+        assertEquals("#10b981", CalendarCategories.PAYBACK_CHIP.color)
+        assertTrue(rows.none { it.first == "Time Off" })
+        // Other Leave only when above zero; one payback day is singular.
+        val withOther = CalendarSummary.rows(PersonMonthSummary(otherLeaveDays = 1.0, paybackDays = 1.0))
         assertEquals("Other Leave" to "1 day", withOther[3].first to withOther[3].second)
-        assertEquals("0 h + 1 off day", withOther[4].second)
+        assertEquals("Payback" to "1 day", withOther[4].first to withOther[4].second)
+    }
+
+    // MARK: - Paybacks (web calendar-summary.test.ts, 26 Nov 2026)
+
+    @Test
+    fun `counts approved paybacks on the off day worked, in that month only`() {
+        val ev = listOf(
+            SummaryEvent("PAYBACK", d(2026, 9, 5), d(2026, 9, 5), allDay = true, personId = "p1", days = 1.0),
+            SummaryEvent("PAYBACK", d(2026, 9, 12), d(2026, 9, 12), allDay = true, personId = "p1", days = 0.5),
+            SummaryEvent("PAYBACK", d(2026, 10, 3), d(2026, 10, 3), allDay = true, personId = "p1", days = 1.0),
+            SummaryEvent("PAYBACK", d(2026, 9, 6), d(2026, 9, 6), allDay = true, personId = "p2", days = 1.0),
+        )
+        assertEquals(1.5, CalendarSummary.personMonthSummary(ev, "p1", 2026, 8).paybackDays, 0.0)
+        assertEquals(1.0, CalendarSummary.personMonthSummary(ev, "p1", 2026, 9).paybackDays, 0.0)
+        assertEquals(1.0, CalendarSummary.personMonthSummary(ev, "p2", 2026, 8).paybackDays, 0.0)
+        // A payback is not leave: nothing else moves.
+        assertEquals(0.0, CalendarSummary.personMonthSummary(ev, "p1", 2026, 8).noPayLeaveDays, 0.0)
+    }
+
+    /** Local noon (no zone), so the days land the same in any test time zone. */
+    private val paybackCalendar = """{"year":2026,"canSeeTypes":true,
+      "entries":[
+        {"id":"n1","employeeId":"s1","employeeName":"BELLA STAFF","startDate":"2026-09-28T12:00:00","endDate":"2026-10-02T12:00:00","days":5,"leaveType":"No Pay Leave","category":"NO_PAY_LEAVE"},
+        {"id":"n2","employeeId":"i1","employeeName":"IAN INTERN","startDate":"2026-09-14T12:00:00","endDate":"2026-09-14T12:00:00","days":1,"leaveType":"No Pay Leave","category":"NO_PAY_LEAVE"},
+        {"id":"a1","employeeId":"s1","employeeName":"BELLA STAFF","startDate":"2026-09-07T12:00:00","endDate":"2026-09-07T12:00:00","days":1,"leaveType":"Annual Leave","category":"ANNUAL_LEAVE"}],
+      "holidays":[],
+      "paybacks":[
+        {"id":"pb1","employeeId":"s1","leaveRequestId":"n1","nplDate":"2026-09-28T12:00:00","workDate":"2026-09-19T12:00:00","days":1,"isSelf":false},
+        {"id":"pb2","employeeId":"s1","leaveRequestId":"n1","nplDate":"2026-09-29T12:00:00","workDate":"2026-10-03T12:00:00","days":0.5,"isSelf":false},
+        {"id":"pb3","employeeId":"i1","leaveRequestId":"n2","nplDate":"2026-09-14T12:00:00","workDate":"2026-09-26T12:00:00","days":1,"isSelf":false},
+        {"id":"pb4","employeeId":"i1","leaveRequestId":"n2","nplDate":"2026-09-14T12:00:00","workDate":"2026-09-27T12:00:00","days":1,"isSelf":false}]}"""
+
+    @Test
+    fun `paybacks decode, count for the picked person only, and come off No Pay Leave`() {
+        val r = decode<TeamCalendarResponse>(paybackCalendar)
+        assertEquals(4, r.paybacks!!.size)
+        assertEquals(0.5, r.paybacks!![1].days, 0.0)
+        val events = CalendarSummary.events(r)
+        val holidays = CalendarSummary.holidayKeys(r)
+        // Bella: 5 No Pay Leave days less 1.5 paid back = 3.5, split by working days (Mon 28 Sep – Fri 2 Oct:
+        // 3 in September, 2 in October). Her paybacks count on the day worked: 19 Sep, 3 Oct.
+        val sep = CalendarSummary.personMonthSummary(events, "s1", 2026, 8, holidays)
+        val oct = CalendarSummary.personMonthSummary(events, "s1", 2026, 9, holidays)
+        assertEquals(2.1, sep.noPayLeaveDays, 0.0)
+        assertEquals(1.4, oct.noPayLeaveDays, 0.0)
+        assertEquals(1.0, sep.paybackDays, 0.0)
+        assertEquals(0.5, oct.paybackDays, 0.0)
+        assertEquals(1.0, sep.annualLeaveDays, 0.0)
+        // Ian: paid back more than the 1 day taken: No Pay Leave never goes below 0; Bella's paybacks are not his.
+        val ian = CalendarSummary.personMonthSummary(events, "i1", 2026, 8, holidays)
+        assertEquals(0.0, ian.noPayLeaveDays, 0.0)
+        assertEquals(2.0, ian.paybackDays, 0.0)
+        assertEquals(0.0, CalendarSummary.personMonthSummary(events, "i1", 2026, 9, holidays).paybackDays, 0.0)
+    }
+
+    @Test
+    fun `an older server without paybacks keeps No Pay Leave as charged`() {
+        val r = decode<TeamCalendarResponse>(paybackCalendar.replace(Regex(""",\s*"paybacks":\[[\s\S]*]}$"""), "}"))
+        assertNull(r.paybacks)
+        val sep = CalendarSummary.personMonthSummary(CalendarSummary.events(r), "s1", 2026, 8)
+        assertEquals(3.0, sep.noPayLeaveDays, 0.0)
+        assertEquals(0.0, sep.paybackDays, 0.0)
     }
 
     @Test

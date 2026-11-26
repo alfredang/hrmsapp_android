@@ -124,6 +124,10 @@ interface HrmsApiService {
     @GET("api/mobile/employees/{id}/records")
     suspend fun employeeRecords(@Path("id") id: String): Response<EmployeeRecords>
 
+    /** Approver-or-self — the month's Annual Leave, No Pay Leave, MC and Payback days for pay (web 26 Nov 2026). */
+    @GET("api/mobile/employees/{id}/pay-month")
+    suspend fun payMonth(@Path("id") id: String, @Query("month") month: String): Response<PayMonthSummary>
+
     @GET("api/mobile/expenses")
     suspend fun expenses(): Response<ExpensesResponse>
 
