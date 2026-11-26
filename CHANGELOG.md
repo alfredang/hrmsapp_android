@@ -4,6 +4,21 @@ All notable changes to Tertiary HRMS (Android) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com); the app adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.29] — 2026-11-26 (versionCode 50)
+
+### Changed
+- **Interns see their own payslips** (Alfred, 26 Nov 2026): More → Finance → Payslips now shows for interns too (it was hidden, matching the old web `hideForIntern`). Intern payslips show "CPF: None", the MC / No Pay Leave deduction and any payback, as in 1.28. `MoreMenu.sections` (`HomeRolesTest`).
+
+### Release notes (Play, en-US)
+- Interns can now see their own payslips.
+- Admins and accountants can see and open past CPF submission statements.
+- Payslips show gross pay, CPF employee and employer contributions (interns: no CPF), MC / No Pay Leave deductions and paybacks, and take-home pay.
+
+(The 1.28 notes are carried over because 1.28 was still in Google review when 1.29 replaced it.)
+
+### Play submission
+- Production track, full rollout, committed through the Android Publisher API on 26 Nov 2026 (read back: `1.29 (50)` completed, replacing `1.28 (49)`); subject to Google review. Corporate account confirmed by API (listed on `6132721113732535566` with 17 account-wide permissions; 403 on the personal account).
+
 ## [1.28] — 2026-11-26 (versionCode 49)
 
 Server: web `/api/mobile/cpf-submissions`; `cpfSubmission` and the pay breakdown fields on `/api/mobile/payslips` (26 Nov 2026).

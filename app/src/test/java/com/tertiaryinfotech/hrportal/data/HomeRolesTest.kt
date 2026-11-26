@@ -76,7 +76,7 @@ class HomeRolesTest {
 
         val intern = ids(MoreMenu.sections(ShownRole(false, true, true, false, false), false, false))
         assertEquals(listOf("AL", "MC", "timeoff", "clock", "mytimesheet"), intern["Processes"])
-        assertEquals("interns: no Payslips (web hideForIntern)", listOf("claims"), intern["Finance"])
+        assertEquals("interns see their own payslips (26 Nov 2026)", listOf("claims", "payslips"), intern["Finance"])
 
         val accountant = ids(MoreMenu.sections(ShownRole(false, false, true, true, true), false, canManageTrainers = true))
         assertEquals(listOf("clock", "mytimesheet"), accountant["Processes"])
